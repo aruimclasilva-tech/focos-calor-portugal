@@ -1,0 +1,33 @@
+name: Fetch MTG fire data
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # a cada 10 min (o GitHub pode atrasar isto em picos de carga)
+  workflow_dispatch: {}       # permite correr manualmente pelo botão "Run workflow"
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependências
+        run: pip install requests
+
+      - name: Descarregar e processar dados MTG
+        run: python mtg_fire_fetch.py --outdir docs
+        env:
+          LSASAF_USER: ${{ secrets.LSASAF_USER }}
+          LSASAF_PASS: ${{ secrets.LSASAF_PASS }}
+
+      - name: Publicar resultado no repositório
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Atualiza focos de calor MTG"
+          file_pattern: docs/portugal_fires_mtg.json
