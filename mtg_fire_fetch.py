@@ -50,6 +50,7 @@ import csv
 import io
 import json
 import time
+import re
 import argparse
 import datetime as dt
 from urllib.parse import urljoin
@@ -100,9 +101,14 @@ def list_dir(url):
 
 def find_latest_csv_gz(now_utc=None):
     """Percorre a listagem do dia (e do dia anterior perto da meia-noite)
-    e devolve o URL completo do LSA-509 ...-ListProduct...csv.gz mais recente."""
+    e devolve o URL completo do LSA-509 ...-ListProduct...csv.gz mais recente.
+
+    Usa uma expressão regular sobre o HTML inteiro (não linha a linha), porque
+    a página de listagem pode conter várias entradas na mesma linha — uma
+    procura por linha ficava sempre presa na primeira ocorrência do dia."""
     now_utc = now_utc or dt.datetime.utcnow()
     candidates = []
+    pattern = re.compile(r"LSA-509[\w\-]*ListProduct[\w\-]*_(\d{12})\.csv\.gz")
 
     for day_offset in (0, -1):  # hoje e ontem, para cobrir a virada do dia
         day = now_utc + dt.timedelta(days=day_offset)
@@ -111,21 +117,17 @@ def find_latest_csv_gz(now_utc=None):
             html = list_dir(day_url)
         except requests.HTTPError:
             continue
-        for line in html.splitlines():
-            if "ListProduct" in line and ".csv.gz" in line:
-                # extrai o nome do ficheiro do href
-                start = line.find("LSA-509")
-                if start == -1:
-                    continue
-                end = line.find(".csv.gz", start) + len(".csv.gz")
-                fname = line[start:end]
-                candidates.append(day_url + fname)
+        for match in pattern.finditer(html):
+            fname = match.group(0)
+            timestamp = match.group(1)
+            candidates.append((timestamp, day_url + fname))
 
     if not candidates:
         return None
-    # os nomes contêm AAAAMMDDHHMM, ordenação de strings já dá ordem cronológica
-    candidates.sort()
-    return candidates[-1]
+    # ordena pelo timestamp embutido no nome (AAAAMMDDHHMM), não pela string toda,
+    # para não depender da ordem em que apareceram na página
+    candidates.sort(key=lambda c: c[0])
+    return candidates[-1][1]
 
 
 # --------------------------------------------------------------------------
