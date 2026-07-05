@@ -1,9 +1,17 @@
 name: Fetch MTG fire data
 
 on:
-  schedule:
-    - cron: '*/10 * * * *'   # a cada 10 min (o GitHub pode atrasar isto em picos de carga)
-  workflow_dispatch: {}       # permite correr manualmente pelo botão "Run workflow"
+  # O agendamento nativo do GitHub ("schedule:") é "best effort" e pode
+  # atrasar-se horas em repositórios com pouca atividade. Este workflow é
+  # por isso disparado externamente (ver cron-job.org) via workflow_dispatch,
+  # com precisão de minuto_.
+  workflow_dispatch: {}
+
+# Impede que duas execuções corram ao mesmo tempo (evita conflitos de git push
+# quando dois disparos acontecem muito próximos um do outro).
+concurrency:
+  group: fetch-mtg-fire-data
+  cancel-in-progress: false
 
 jobs:
   fetch:
@@ -25,6 +33,9 @@ jobs:
         env:
           LSASAF_USER: ${{ secrets.LSASAF_USER }}
           LSASAF_PASS: ${{ secrets.LSASAF_PASS }}
+
+      - name: Sincronizar com o repositório remoto (rede de segurança)
+        run: git pull --rebase origin main || true
 
       - name: Publicar resultado no repositório
         uses: stefanzweifel/git-auto-commit-action@v5
