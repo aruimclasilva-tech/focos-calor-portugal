@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRC - FOCOS DE CALOR - PORTUGAL CONTINENTAL</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<style>
+  :root{
+    --bg:#0c1210;
+    --panel:#121a17;
+    --panel-2:#182420;
+    --line:#25332e;
+    --text:#dfe7e3;
+    --muted:#8ea198;
+    --amber:#e2a23c;
+    --ember:#ef5b2c;
+    --ember-hot:#ff2d1f;
+    --ok:#4fae7a;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);}
+  #app{display:flex;flex-direction:column;height:100%;}
+
+  /* header */
+  header{
+    display:flex;align-items:center;gap:16px;
+    padding:10px 16px;background:linear-gradient(180deg,#141d1a,#0f1613);
+    border-bottom:1px solid var(--line);flex-wrap:wrap;
+  }
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand .flame{width:22px;height:22px;flex:none;}
+  .brand h1{font-size:15px;letter-spacing:.04em;margin:0;font-weight:700;text-transform:uppercase;}
+  .brand small{display:block;color:var(--muted);font-size:11px;font-weight:400;letter-spacing:.03em;}
+  .status-strip{display:flex;align-items:center;gap:18px;margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--muted);flex-wrap:wrap;}
+  .status-item{display:flex;align-items:center;gap:6px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 6px var(--ok);}
+  .dot.stale{background:var(--amber);box-shadow:0 0 6px var(--amber);}
+  .dot.err{background:var(--ember-hot);box-shadow:0 0 6px var(--ember-hot);}
+  button.ghost{
+    background:transparent;border:1px solid var(--line);color:var(--text);
+    padding:6px 12px;border-radius:6px;font-family:var(--mono);font-size:11px;cursor:pointer;
+    letter-spacing:.03em;text-transform:uppercase;
+  }
+  button.ghost:hover{border-color:var(--amber);color:var(--amber);}
+
+  /* layout */
+  #main{flex:1;display:flex;min-height:0;position:relative;}
+  #map{flex:1;background:#0c1210;}
+
+  #timeline-bar{
+    position:absolute;left:16px;right:16px;bottom:16px;z-index:900;
+    background:rgba(18,26,23,.94);border:1px solid var(--line);border-radius:10px;
+    padding:10px 14px;backdrop-filter:blur(4px);
+  }
+  #history-banner{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:rgba(226,162,60,.12);border:1px solid var(--amber);border-radius:8px;
+    padding:6px 10px;margin-bottom:8px;font-size:12px;color:var(--amber);
+  }
+  .timeline-controls{display:flex;align-items:center;gap:10px;}
+  .tl-btn{padding:6px 10px;font-size:13px;flex:none;}
+  #tl-slider{flex:1;accent-color:var(--amber);}
+  .tl-label{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap;flex:none;min-width:150px;text-align:right;}
+  #sidebar{
+    width:340px;flex:none;background:var(--panel);border-left:1px solid var(--line);
+    display:flex;flex-direction:column;min-height:0;
+  }
+  #sidebar section{border-bottom:1px solid var(--line);padding:14px 16px;}
+  #sidebar h2{
+    font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
+    margin:0 0 10px;font-weight:700;
+  }
+  .cfg-row{display:flex;gap:8px;margin-bottom:8px;}
+  .cfg-row input[type=text]{
+    flex:1;background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+    padding:7px 9px;border-radius:6px;font-family:var(--mono);font-size:12px;
+  }
+  .cfg-row input[type=text]:focus{outline:none;border-color:var(--amber);}
+  .hint{color:var(--muted);font-size:11px;line-height:1.5;margin-top:4px;}
+  .hint a{color:var(--amber);}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;font-size:12px;margin-top:8px;}
+  .switch{position:relative;width:34px;height:18px;flex:none;}
+  .switch input{opacity:0;width:0;height:0;}
+  .slider{position:absolute;inset:0;background:var(--line);border-radius:999px;cursor:pointer;transition:.15s;}
+  .slider:before{content:"";position:absolute;width:14px;height:14px;left:2px;top:2px;background:var(--muted);border-radius:50%;transition:.15s;}
+  input:checked + .slider{background:#2c4a3c;}
+  input:checked + .slider:before{background:var(--ok);transform:translateX(16px);}
+
+  .switch.big{width:44px;height:24px;}
+  .switch.big .slider:before{width:18px;height:18px;}
+  .switch.big input:checked + .slider:before{transform:translateX(20px);}
+
+  .source-row{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    background:var(--panel-2);border:1px solid var(--line);border-radius:10px;
+    padding:12px 14px;margin-bottom:10px;
+  }
+  .source-name{font-size:13px;font-weight:700;}
+  .source-name .source-sub{font-weight:400;color:var(--muted);font-size:11px;}
+  .source-meta{font-size:11px;color:var(--muted);margin-top:3px;font-family:var(--mono);}
+
+  #settings-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:2000;
+    display:none;align-items:flex-start;justify-content:flex-end;
+  }
+  #settings-overlay.open{display:flex;}
+  #settings-panel{
+    width:400px;max-width:92vw;height:100%;background:var(--panel);
+    border-left:1px solid var(--line);overflow-y:auto;padding-bottom:24px;
+  }
+  .settings-header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;
+    background:var(--panel);z-index:1;
+  }
+
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .stat{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;}
+  .stat .n{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--amber);}
+  .stat.hot .n{color:var(--ember-hot);}
+  .stat .l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:2px;}
+
+  #list{flex:1;overflow-y:auto;padding:6px 0;}
+  .fire-item{
+    padding:10px 16px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .1s;
+    display:flex;gap:10px;align-items:flex-start;
+  }
+  .fire-item:hover{background:var(--panel-2);}
+  .fire-item .flag{
+    width:9px;height:9px;border-radius:50%;margin-top:5px;flex:none;
+    background:var(--amber);box-shadow:0 0 5px var(--amber);
+  }
+  .fire-item .flag.hot{background:var(--ember-hot);box-shadow:0 0 6px var(--ember-hot);}
+  .fire-item .flag.new{animation:pulse 1.4s infinite;}
+  @keyframes pulse{0%{opacity:1;}50%{opacity:.35;}100%{opacity:1;}}
+  .fire-item .body{flex:1;min-width:0;}
+  .fire-item .top-line{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--muted);}
+  .fire-item .loc{font-size:13px;margin:2px 0;font-family:var(--mono);}
+  .fire-item .meta{font-size:11px;color:var(--muted);}
+  .empty-state{padding:24px 16px;color:var(--muted);font-size:12px;line-height:1.6;text-align:center;}
+
+  footer{
+    padding:6px 16px;font-size:10px;color:var(--muted);border-top:1px solid var(--line);
+    display:flex;justify-content:space-between;background:var(--panel);font-family:var(--mono);
+  }
+
+  /* leaflet popup theming */
+  .leaflet-popup-content-wrapper{background:var(--panel);color:var(--text);border-radius:8px;border:1px solid var(--line);}
+  .leaflet-popup-tip{background:var(--panel);}
+  .popup-title{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--amber);margin-bottom:4px;}
+  .popup-row{font-size:11px;color:var(--muted);display:flex;justify-content:space-between;gap:12px;}
+  .popup-row b{color:var(--text);font-weight:600;}
+
+  .legend-box{
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;
+    font-size:11px;color:var(--muted);line-height:1.9;
+  }
+  .legend-box .sw{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;}
+
+  @media (max-width: 820px){
+    #sidebar{position:absolute;right:0;top:53px;bottom:24px;z-index:1000;transform:translateX(100%);transition:transform .2s;}
+    #sidebar.open{transform:translateX(0);}
+    #main{position:relative;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <div class="brand">
+      <svg class="flame" viewBox="0 0 24 24" fill="none"><path d="M12 2c1 3-2 4-2 7a4 4 0 0 0 8 0c0-1-.5-2-1-2 1 4-1 5-2 5-2 0-2-2-1-4-3 1-4 4-4 6a5 5 0 0 0 10 0c0-5-4-7-8-12z" fill="#ef5b2c"/></svg>
+      <div>
+        <h1>DRC - Focos de Calor - Portugal Continental</h1>
+        <small>Deteção térmica por satélite · NASA FIRMS (VIIRS) e EUMETSAT (MTG)</small>
+      </div>
+    </div>
+    <div class="status-strip">
+      <div class="status-item"><span class="dot" id="conn-dot"></span><span id="conn-text">a inicializar…</span></div>
+      <div class="status-item">Última atualização: <span id="last-update">—</span></div>
+      <div class="status-item">Próxima em: <span id="next-update">—</span></div>
+      <button class="ghost" id="refresh-btn">Atualizar agora</button>
+      <button class="ghost" id="settings-btn">⚙ Definições</button>
+      <button class="ghost" id="sidebar-toggle" style="display:none;">Painel</button>
+    </div>
+  </header>
+
+  <div id="main">
+    <div id="map"></div>
+
+    <div id="timeline-bar">
+      <div id="history-banner" style="display:none;">
+        <span>🕐 MODO HISTÓRICO — a ver dados de <b id="history-banner-time">—</b></span>
+        <button class="ghost" id="live-btn">Voltar ao vivo ▶</button>
+      </div>
+      <div class="timeline-controls">
+        <button class="ghost tl-btn" id="tl-first" title="Snapshot mais antigo">⏮</button>
+        <button class="ghost tl-btn" id="tl-play" title="Reproduzir evolução">▶</button>
+        <input type="range" id="tl-slider" min="0" max="0" value="0" step="1">
+        <button class="ghost tl-btn" id="tl-last" title="Ir para o mais recente (ao vivo)">⏭</button>
+        <span id="tl-label" class="tl-label">sem histórico ainda</span>
+      </div>
+    </div>
+
+    <div id="sidebar">
+      <section>
+        <h2>Fontes de dados</h2>
+        <div class="source-row" id="source-firms">
+          <div class="source-info">
+            <div class="source-name">NASA FIRMS <span class="source-sub">(satélite VIIRS)</span></div>
+            <div class="source-meta" id="firms-summary">sem MAP_KEY configurado</div>
+          </div>
+          <label class="switch big"><input type="checkbox" id="show-firms" checked><span class="slider"></span></label>
+        </div>
+        <div class="source-row" id="source-mtg">
+          <div class="source-info">
+            <div class="source-name">EUMETSAT MTG <span class="source-sub">(FRP-Pixel, ~10 min)</span></div>
+            <div class="source-meta" id="mtg-summary">fonte não configurada</div>
+          </div>
+          <label class="switch big"><input type="checkbox" id="show-mtg"><span class="slider"></span></label>
+        </div>
+        <div class="hint">
+          O interruptor mostra/esconde cada fonte no mapa e na lista. Configura
+          as chaves/URLs em <b>⚙ Definições</b>, no cabeçalho.
+        </div>
+      </section>
+
+      <section>
+        <h2>Resumo</h2>
+        <div class="stat-grid">
+          <div class="stat"><div class="n" id="stat-total">0</div><div class="l">Focos ativos (24h)</div></div>
+          <div class="stat hot"><div class="n" id="stat-recent">0</div><div class="l">Última hora</div></div>
+        </div>
+        <div class="legend-box" style="margin-top:10px;">
+          <div style="margin-bottom:6px;"><b>FIRMS (confiança/idade)</b></div>
+          <div><span class="sw" style="background:#e2a23c;box-shadow:0 0 5px #e2a23c;"></span>Confiança nominal/baixa</div>
+          <div><span class="sw" style="background:#ef5b2c;box-shadow:0 0 5px #ef5b2c;"></span>Confiança alta</div>
+          <div><span class="sw" style="background:#ff2d1f;box-shadow:0 0 5px #ff2d1f;"></span>Deteção &lt; 1h</div>
+          <div style="margin:8px 0 4px;"><b>EUMETSAT MTG (intensidade FRP)</b></div>
+          <div style="height:10px;border-radius:5px;margin:4px 0;background:linear-gradient(90deg, hsl(55,92%,58%), hsl(27,92%,52%), hsl(0,92%,46%));"></div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;"><span>frio (baixa FRP)</span><span>quente (alta FRP)</span></div>
+        </div>
+      </section>
+
+      <section style="flex:1;display:flex;flex-direction:column;min-height:0;padding-bottom:0;">
+        <h2>Deteções recentes</h2>
+      </section>
+      <div id="list"><div class="empty-state">Abre ⚙ Definições para configurar uma fonte.</div></div>
+    </div>
+  </div>
+
+  <!-- Modal de Definições -->
+  <div id="settings-overlay">
+    <div id="settings-panel">
+      <div class="settings-header">
+        <h2 style="margin:0;font-size:14px;">⚙ Definições das fontes de dados</h2>
+        <button class="ghost" id="settings-close">Fechar ✕</button>
+      </div>
+      <div style="padding:8px 16px;font-family:var(--mono);font-size:10px;color:var(--muted);border-bottom:1px solid var(--line);">
+        DRC · Focos de Calor · Portugal Continental — versão 0.12
+      </div>
+
+      <section>
+        <h2>NASA FIRMS</h2>
+        <div class="cfg-row">
+          <input type="text" id="map-key" placeholder="Cola aqui o teu MAP_KEY">
+          <button class="ghost" id="save-key">Usar</button>
+        </div>
+        <div class="hint">
+          Chave gratuita em <a href="https://firms.modaps.eosdis.nasa.gov/api/map_key/" target="_blank" rel="noopener">firms.modaps.eosdis.nasa.gov/api/map_key</a>.
+          A chave fica só nesta sessão do browser (não é guardada em disco).
+        </div>
+        <div class="toggle-row">
+          <span>Atualização automática (10 min)</span>
+          <label class="switch"><input type="checkbox" id="auto-toggle" checked><span class="slider"></span></label>
+        </div>
+        <div class="toggle-row">
+          <span>Tentar proxies CORS automaticamente se falhar</span>
+          <label class="switch"><input type="checkbox" id="proxy-toggle" checked><span class="slider"></span></label>
+        </div>
+        <button class="ghost" id="diag-btn" style="margin-top:8px;width:100%;">Testar ligação e mostrar diagnóstico</button>
+        <div class="hint" id="firms-diag" style="margin-top:8px;white-space:pre-wrap;font-family:var(--mono);font-size:10px;"></div>
+      </section>
+
+      <section>
+        <h2>EUMETSAT MTG (via GitHub Actions)</h2>
+        <div class="cfg-row">
+          <input type="text" id="mtg-url" placeholder="https://raw.githubusercontent.com/user/repo/main/docs/portugal_fires_mtg.json">
+          <button class="ghost" id="save-mtg-url">Usar</button>
+        </div>
+        <div class="hint">
+          Se abrires esta página através do GitHub Pages (não por duplo-clique),
+          o URL é preenchido automaticamente assumindo que o JSON está na mesma
+          pasta. Só precisas de preencher isto manualmente se estiveres a correr
+          localmente ou a apontar para um repositório diferente. Fica guardado
+          neste browser.
+        </div>
+        <div class="hint" id="mtg-status" style="margin-top:6px;">estado: desligado</div>
+      </section>
+
+      <section>
+        <h2>Acordar o workflow automaticamente (opcional)</h2>
+        <div class="hint" style="margin-bottom:8px;">
+          ⚠️ Isto guarda um token do GitHub nesta página (só em memória,
+          nunca em disco). Só dispara o workflow enquanto esta aba estiver
+          aberta — para cobertura 24/7 mesmo com a página fechada, usa
+          também um serviço externo como o cron-job.org.
+        </div>
+        <div class="cfg-row">
+          <input type="text" id="gh-repo" placeholder="utilizador/repositorio (ex. aruimclasilva-tech/focos-calor-portugal)">
+        </div>
+        <div class="cfg-row">
+          <input type="text" id="gh-token" placeholder="Token GitHub (fine-grained, só Actions:write neste repo)">
+          <button class="ghost" id="save-gh-trigger">Usar</button>
+        </div>
+        <div class="toggle-row">
+          <span>Disparar o workflow a cada atualização (10 min)</span>
+          <label class="switch"><input type="checkbox" id="gh-trigger-toggle"><span class="slider"></span></label>
+        </div>
+        <div class="hint" id="gh-trigger-status" style="margin-top:6px;">estado: desligado</div>
+        <div class="hint">
+          Cria o token em
+          <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener">github.com/settings/tokens</a>
+          → "Fine-grained token" → limita-o só a este repositório → permissão "Actions: Read and write".
+        </div>
+        <button class="ghost" id="forget-creds-btn" style="margin-top:10px;width:100%;">Esquecer todas as credenciais guardadas neste browser</button>
+      </section>
+
+      <section>
+        <h2>Histórico / linha do tempo</h2>
+        <div class="cfg-row">
+          <input type="text" id="retention-input" value="24" style="max-width:70px;flex:none;">
+          <span class="hint" style="margin:0;align-self:center;">horas de retenção</span>
+        </div>
+        <div class="hint" id="history-size-info" style="margin-top:6px;">0 snapshots guardados</div>
+        <button class="ghost" id="clear-history-btn" style="margin-top:8px;width:100%;">Limpar histórico guardado</button>
+        <div class="hint">
+          Cada atualização (a cada ~10 min) fica guardada no browser, para
+          poderes rever a evolução de um incêndio na barra por baixo do mapa.
+          Fica só neste dispositivo/browser — não é partilhado nem enviado
+          para lado nenhum.
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <footer>
+    <span>Fontes: NASA LANCE/FIRMS (VIIRS) · opcional: EUMETSAT/LSA SAF MTG FRP-Pixel (LSA-509, ~10 min, local)</span>
+    <span id="tx-count">0 pedidos nesta sessão</span>
+  </footer>
+</div>
+
+<script>
+/* ---------------------------------------------------------------
+   Focos de Calor — Portugal Continental
+   Fonte: NASA FIRMS Area API (VIIRS NRT). Ciclo de fetch: 10 min.
+   A latência dos dados NRT da FIRMS é tipicamente 15-40 min após
+   a passagem do satélite (não é uma cadência garantida de 10 min
+   como um produto geostacionário — ver nota no chat).
+
+   Arquitetura pensada para extensão: para adicionar uma fonte de
+   maior cadência (ex. EUMETSAT LSA-SAF / MTG-FCI Fire product) no
+   futuro, basta implementar uma função fetchXXX() que devolva uma
+   lista de objetos no mesmo formato usado em normalizeRow(), e
+   juntá-la ao array `detections` em refreshData().
+------------------------------------------------------------------*/
+
+// Bounding box aproximado de Portugal Continental: west,south,east,north
+const BBOX = "-9.65,36.85,-6.05,42.2";
+const SOURCES = ["VIIRS_NOAA20_NRT", "VIIRS_NOAA21_NRT", "VIIRS_SNPP_NRT"];
+const DAY_RANGE = 1; // últimas 24h
+const REFRESH_MS = 10 * 60 * 1000; // 10 minutos
+const PROXY_CHAIN = [
+  (u) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+  (u) => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
+  (u) => 'https://thingproxy.freeboard.io/fetch/' + u
+];
+
+let mapKey = "";
+let useProxy = false;
+let mtgUrl = "";
+let ghRepo = "";
+let ghToken = "";
+let ghTriggerEnabled = false;
+let autoRefresh = true;
+let txCount = 0;
+let refreshTimer = null;
+let countdownTimer = null;
+let nextRefreshAt = null;
+let liveDetections = [];      // último resultado obtido das fontes (sempre atualizado)
+let displayDetections = [];   // o que está atualmente desenhado (pode ser um snapshot antigo)
+let historyIndex = [];        // lista ordenada de timestamps (ms) com snapshot guardado
+let historyMode = false;      // true quando o utilizador está a navegar no passado
+let playTimer = null;
+const HISTORY_STORAGE_PREFIX = 'firehist_snap_';
+const HISTORY_INDEX_KEY = 'firehist_index';
+let historyRetentionHours = 24;
+
+// ---------------------------------------------------------------
+// Persistência local de credenciais/configuração (localStorage).
+// Fica só neste browser/computador — nunca é escrito no ficheiro
+// HTML em si, para ser seguro partilhar ou reabrir o ficheiro
+// noutro sítio sem arrastar tokens.
+// ---------------------------------------------------------------
+const CRED_KEYS = {
+  'map-key': 'firemap_cfg_mapkey',
+  'mtg-url': 'firemap_cfg_mtgurl',
+  'gh-repo': 'firemap_cfg_ghrepo',
+  'gh-token': 'firemap_cfg_ghtoken',
+};
+
+function saveCred(inputId) {
+  try {
+    const val = $(inputId).value.trim();
+    if (val) localStorage.setItem(CRED_KEYS[inputId], val);
+    else localStorage.removeItem(CRED_KEYS[inputId]);
+  } catch (e) { console.warn('Não consegui guardar', inputId, e); }
+}
+
+function loadSavedCreds() {
+  for (const [inputId, storageKey] of Object.entries(CRED_KEYS)) {
+    try {
+      const val = localStorage.getItem(storageKey);
+      if (val) $(inputId).value = val;
+    } catch { /* ignora */ }
+  }
+}
+
+function forgetSavedCreds() {
+  Object.values(CRED_KEYS).forEach(k => localStorage.removeItem(k));
+  localStorage.removeItem('firemap_cfg_ghtrigger');
+  Object.keys(CRED_KEYS).forEach(id => { $(id).value = ''; });
+}
+
+// --- Map setup ---
+const map = L.map('map', { zoomControl: true }).setView([39.6, -8.2], 7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 18,
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+let markerLayer = L.layerGroup().addTo(map);
+
+// --- UI refs ---
+const $ = (id) => document.getElementById(id);
+const connDot = $('conn-dot'), connText = $('conn-text');
+const lastUpdateEl = $('last-update'), nextUpdateEl = $('next-update');
+const statTotal = $('stat-total'), statRecent = $('stat-recent');
+const listEl = $('list'), txCountEl = $('tx-count');
+
+$('save-key').addEventListener('click', () => {
+  mapKey = $('map-key').value.trim();
+  saveCred('map-key');
+  updateSourceSummaries();
+  if (mapKey) { refreshData(); }
+});
+$('map-key').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('save-key').click(); });
+$('refresh-btn').addEventListener('click', () => refreshData());
+$('auto-toggle').addEventListener('change', (e) => {
+  autoRefresh = e.target.checked;
+  scheduleNext();
+});
+$('proxy-toggle').addEventListener('change', (e) => { useProxy = e.target.checked; });
+$('diag-btn').addEventListener('click', async () => {
+  $('firms-diag').textContent = 'a testar…';
+  if (!mapKey) { $('firms-diag').textContent = 'Preenche e guarda o MAP_KEY primeiro.'; return; }
+  await refreshData();
+  const lines = Object.entries(diagLog).map(([src, msg]) => `${src}: ${msg}`);
+  lines.push(`TOTAL final após merge/dedupe: ${liveDetections.length} deteções`);
+  $('firms-diag').textContent = lines.join('\n') || 'sem informação';
+});
+$('save-mtg-url').addEventListener('click', () => {
+  mtgUrl = $('mtg-url').value.trim();
+  saveCred('mtg-url');
+  $('mtg-status').textContent = mtgUrl ? 'estado: configurado, a tentar ler…' : 'estado: desligado';
+  if (mtgUrl) {
+    $('show-mtg').checked = true; // ativa automaticamente a visibilidade ao configurar
+    updateSourceSummaries();
+  }
+  refreshData();
+});
+$('save-gh-trigger').addEventListener('click', () => {
+  ghRepo = $('gh-repo').value.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, '');
+  ghToken = $('gh-token').value.trim();
+  $('gh-repo').value = ghRepo;
+  saveCred('gh-repo');
+  saveCred('gh-token');
+  $('gh-trigger-status').textContent = (ghRepo && ghToken)
+    ? 'estado: credenciais guardadas neste browser'
+    : 'estado: faltam dados (repositório e/ou token)';
+});
+$('gh-trigger-toggle').addEventListener('change', (e) => {
+  ghTriggerEnabled = e.target.checked;
+  if (ghTriggerEnabled && (!ghRepo || !ghToken)) {
+    $('gh-trigger-status').textContent = 'estado: preenche repositório e token primeiro';
+    e.target.checked = false;
+    ghTriggerEnabled = false;
+    return;
+  }
+  try { localStorage.setItem('firemap_cfg_ghtrigger', ghTriggerEnabled ? '1' : '0'); } catch {}
+  $('gh-trigger-status').textContent = ghTriggerEnabled
+    ? 'estado: ativo — vai disparar a cada atualização'
+    : 'estado: desligado';
+  if (ghTriggerEnabled) triggerGithubWorkflow();
+});
+$('show-firms').addEventListener('change', () => { renderAll(); updateSourceSummaries(); });
+$('show-mtg').addEventListener('change', () => { renderAll(); updateSourceSummaries(); });
+
+function setStatus(state, text) {
+  connDot.className = 'dot' + (state === 'ok' ? '' : state === 'stale' ? ' stale' : ' err');
+  connText.textContent = text;
+}
+
+function fmtTime(d) {
+  return d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function scheduleNext() {
+  clearInterval(refreshTimer);
+  clearInterval(countdownTimer);
+  if (!autoRefresh) { nextUpdateEl.textContent = 'desligado'; return; }
+  nextRefreshAt = Date.now() + REFRESH_MS;
+  refreshTimer = setInterval(refreshData, REFRESH_MS);
+  countdownTimer = setInterval(updateCountdown, 1000);
+  updateCountdown();
+}
+
+function updateCountdown() {
+  if (!nextRefreshAt) return;
+  const remain = Math.max(0, nextRefreshAt - Date.now());
+  const m = Math.floor(remain / 60000);
+  const s = Math.floor((remain % 60000) / 1000);
+  nextUpdateEl.textContent = `${m}:${String(s).padStart(2, '0')}`;
+}
+
+// Parse simple CSV (FIRMS output has no embedded commas/quotes in these columns)
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map(h => h.trim());
+  return lines.slice(1).map(line => {
+    const cols = line.split(',');
+    const row = {};
+    headers.forEach((h, i) => row[h] = (cols[i] || '').trim());
+    return row;
+  });
+}
+
+function normalizeRow(row, satelliteLabel) {
+  // Handles VIIRS-style columns (confidence: l/n/h) and falls back gracefully
+  const lat = parseFloat(row.latitude);
+  const lon = parseFloat(row.longitude);
+  if (isNaN(lat) || isNaN(lon)) return null;
+  const dateStr = row.acq_date; // YYYY-MM-DD
+  const timeStr = (row.acq_time || '0000').padStart(4, '0'); // HHMM UTC
+  const iso = `${dateStr}T${timeStr.slice(0,2)}:${timeStr.slice(2,4)}:00Z`;
+  const dt = new Date(iso);
+  const frp = parseFloat(row.frp) || 0;
+  let confidence = row.confidence || 'n';
+  confidence = String(confidence).toLowerCase();
+  return {
+    lat, lon, dt,
+    confidence,
+    frp,
+    satellite: row.satellite || satelliteLabel,
+    daynight: row.daynight || '',
+    brightness: row.bright_ti4 || row.brightness || '',
+    sourceGroup: 'firms'
+  };
+}
+
+let diagLog = {};
+
+// ---------------------------------------------------------------
+// Histórico local (localStorage) — permite "andar no tempo" para
+// ver a evolução de um incêndio. Guarda um snapshot leve (apenas
+// os campos necessários) a cada atualização bem-sucedida.
+// ---------------------------------------------------------------
+
+function loadHistoryIndex() {
+  try {
+    const raw = localStorage.getItem(HISTORY_INDEX_KEY);
+    historyIndex = raw ? JSON.parse(raw) : [];
+  } catch { historyIndex = []; }
+  return historyIndex;
+}
+
+function saveHistoryIndex() {
+  try { localStorage.setItem(HISTORY_INDEX_KEY, JSON.stringify(historyIndex)); }
+  catch (e) { console.warn('Não consegui guardar o índice do histórico:', e); }
+}
+
+function pruneHistory() {
+  const cutoff = Date.now() - historyRetentionHours * 3600 * 1000;
+  const keep = [];
+  for (const ts of historyIndex) {
+    if (ts < cutoff) {
+      localStorage.removeItem(HISTORY_STORAGE_PREFIX + ts);
+    } else {
+      keep.push(ts);
+    }
+  }
+  historyIndex = keep;
+  saveHistoryIndex();
+}
+
+function saveSnapshot(ts, data) {
+  // Guarda só os campos essenciais, para poupar espaço.
+  const compact = data.map(d => ({
+    lat: d.lat, lon: d.lon, frp: d.frp,
+    confidence: d.confidence, satellite: d.satellite,
+    sourceGroup: d.sourceGroup, dt: d.dt.toISOString()
+  }));
+  try {
+    localStorage.setItem(HISTORY_STORAGE_PREFIX + ts, JSON.stringify(compact));
+    if (!historyIndex.includes(ts)) {
+      historyIndex.push(ts);
+      historyIndex.sort((a, b) => a - b);
+      saveHistoryIndex();
+    }
+    pruneHistory();
+  } catch (e) {
+    // Provavelmente quota do localStorage excedida — reduz a retenção e tenta outra vez.
+    console.warn('Armazenamento cheio, a reduzir retenção do histórico:', e);
+    historyRetentionHours = Math.max(2, historyRetentionHours / 2);
+    pruneHistory();
+  }
+}
+
+function loadSnapshot(ts) {
+  try {
+    const raw = localStorage.getItem(HISTORY_STORAGE_PREFIX + ts);
+    if (!raw) return [];
+    return JSON.parse(raw).map(d => ({ ...d, dt: new Date(d.dt) }));
+  } catch { return []; }
+}
+
+function clearHistory() {
+  historyIndex.forEach(ts => localStorage.removeItem(HISTORY_STORAGE_PREFIX + ts));
+  historyIndex = [];
+  saveHistoryIndex();
+  updateTimelineUI();
+}
+
+async function tryFetch(url, label) {
+  const res = await fetch(url);
+  const text = await res.text();
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const trimmed = text.trim();
+  if (trimmed.length === 0) throw new Error('resposta vazia');
+  if (trimmed.startsWith('<')) throw new Error('resposta é HTML, não CSV (provável bloqueio/erro do proxy)');
+  if (trimmed.toLowerCase().includes('invalid') && trimmed.length < 200) throw new Error(`API respondeu: "${trimmed.slice(0,150)}"`);
+  return text;
+}
+
+async function fetchSource(source) {
+  const base = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${mapKey}/${source}/${BBOX}/${DAY_RANGE}`;
+  const attempts = [];
+
+  // 1. tentativa direta
+  try {
+    const text = await tryFetch(base, source);
+    txCount++; txCountEl.textContent = `${txCount} pedidos nesta sessão`;
+    const rawRows = parseCSV(text);
+    const parsed = rawRows.map(r => normalizeRow(r, source)).filter(Boolean);
+    const rawLineCount = text.trim().split('\n').length - 1;
+    diagLog[source] = `OK (direto) · ${rawLineCount} linhas CSV → ${rawRows.length} parseadas → ${parsed.length} válidas`;
+    if (rawRows.length > 0) {
+      diagLog[source] += ` · colunas: ${Object.keys(rawRows[0]).join(',')}`;
+    }
+    return parsed;
+  } catch (err) {
+    attempts.push(`direto: ${err.message}`);
+  }
+
+  // 2. cadeia de proxies, só se o utilizador permitir
+  if (useProxy) {
+    for (const buildUrl of PROXY_CHAIN) {
+      const proxied = buildUrl(base);
+      try {
+        const text = await tryFetch(proxied, source);
+        txCount++; txCountEl.textContent = `${txCount} pedidos nesta sessão`;
+        diagLog[source] = `OK (via ${new URL(proxied).hostname})`;
+        return parseCSV(text).map(r => normalizeRow(r, source)).filter(Boolean);
+      } catch (err) {
+        attempts.push(`${new URL(proxied).hostname}: ${err.message}`);
+      }
+    }
+  }
+
+  diagLog[source] = attempts.join(' | ');
+  throw new Error(`${source} falhou — ${attempts[attempts.length-1] || 'erro desconhecido'}`);
+}
+
+async function fetchMtgLocal() {
+  if (!mtgUrl) throw new Error('URL do JSON MTG não definido');
+  const bust = (mtgUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+  const res = await fetch(mtgUrl + bust, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`HTTP ${res.status} ao ler o JSON MTG`);
+  const payload = await res.json();
+  const rows = payload.detections || [];
+  $('mtg-status').textContent = `estado: ok · ${rows.length} deteções · ficheiro gerado ${new Date(payload.generated_at).toLocaleTimeString('pt-PT')}`;
+  return rows.map(d => ({
+    lat: d.lat,
+    lon: d.lon,
+    dt: new Date(d.acq_time_utc),
+    confidence: String(d.confidence || 'n').toLowerCase(),
+    frp: d.frp || 0,
+    satellite: d.satellite || 'MTG-FCI',
+    daynight: '',
+    brightness: '',
+    sourceGroup: 'mtg'
+  }));
+}
+
+async function triggerGithubWorkflow() {
+  if (!ghRepo || !ghToken) return;
+  try {
+    const res = await fetch(`https://api.github.com/repos/${ghRepo}/actions/workflows/fetch-fires.yml/dispatches`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${ghToken}`,
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28'
+      },
+      body: JSON.stringify({ ref: 'main' })
+    });
+    if (res.status === 204) {
+      $('gh-trigger-status').textContent = `estado: disparado com sucesso às ${fmtTime(new Date())}`;
+    } else {
+      const txt = await res.text();
+      $('gh-trigger-status').textContent = `estado: erro HTTP ${res.status} — ${txt.slice(0, 150)}`;
+    }
+  } catch (err) {
+    $('gh-trigger-status').textContent = 'estado: erro de rede — ' + err.message;
+  }
+}
+
+async function refreshData() {
+  if (!mapKey && !mtgUrl) {
+    setStatus('err', 'nenhuma fonte configurada — abre ⚙ Definições');
+    return;
+  }
+  setStatus('stale', 'a atualizar…');
+  if (ghTriggerEnabled) triggerGithubWorkflow(); // não bloqueia — o resultado só aparece no próximo ciclo
+  try {
+    const tasks = [];
+    if (mapKey) tasks.push(...SOURCES.map(fetchSource));
+    if (mtgUrl) tasks.push(fetchMtgLocal());
+
+    const results = await Promise.allSettled(tasks);
+    let merged = [];
+    let anyOk = false;
+    results.forEach(r => {
+      if (r.status === 'fulfilled') { merged = merged.concat(r.value); anyOk = true; }
+      else if (mtgUrl) { $('mtg-status').textContent = 'estado: erro — ' + r.reason.message; }
+    });
+    if (!anyOk) throw new Error('Todas as fontes falharam');
+
+    // dedupe by rounded lat/lon/time (satellites can overlap slightly)
+    const seen = new Set();
+    liveDetections = merged.filter(d => {
+      const key = `${d.lat.toFixed(3)},${d.lon.toFixed(3)},${d.dt.getTime()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).sort((a, b) => b.dt - a.dt);
+
+    const snapTs = Date.now();
+    saveSnapshot(snapTs, liveDetections);
+    updateTimelineUI();
+
+    if (!historyMode) {
+      displayDetections = liveDetections;
+      renderAll();
+      updateSourceSummaries();
+    }
+    setStatus('ok', historyMode ? 'ligado (a ver histórico)' : 'ligado');
+    lastUpdateEl.textContent = fmtTime(new Date());
+  } catch (err) {
+    console.error(err);
+    setStatus('err', err.message.slice(0, 60));
+  } finally {
+    scheduleNext();
+  }
+}
+
+// Gradiente contínuo amarelo -> laranja -> vermelho consoante a intensidade (FRP em MW).
+// Escala em raiz quadrada para não saturar depressa com fogos muito intensos.
+function frpToColor(frp) {
+  const t = Math.max(0, Math.min(1, Math.sqrt(Math.max(0, frp) / 150)));
+  const hue = 55 * (1 - t);           // 55 (amarelo) -> 0 (vermelho)
+  const light = 58 - 12 * t;          // um pouco mais escuro quando mais quente
+  return `hsl(${hue.toFixed(0)}, 92%, ${light.toFixed(0)}%)`;
+}
+
+function markerColor(d, ageMs) {
+  if (d.sourceGroup === 'mtg') {
+    return frpToColor(d.frp);
+  }
+  if (ageMs < 60 * 60 * 1000) return '#ff2d1f'; // <1h
+  if (d.confidence === 'h' || Number(d.confidence) >= 80) return '#ef5b2c'; // high confidence
+  return '#e2a23c'; // nominal/low
+}
+
+function safeISO(d) {
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+function renderAll() {
+  markerLayer.clearLayers();
+  listEl.innerHTML = '';
+  const now = Date.now();
+  let recentCount = 0;
+  let renderedCount = 0;
+  let skipped = 0;
+
+  const showFirms = $('show-firms').checked;
+  const showMtg = $('show-mtg').checked;
+  const visible = displayDetections.filter(d =>
+    (d.sourceGroup === 'firms' && showFirms) ||
+    (d.sourceGroup === 'mtg' && showMtg)
+  );
+
+  if (visible.length === 0) {
+    const msg = displayDetections.length === 0
+      ? 'Sem focos de calor detetados nesta janela temporal.'
+      : 'Há deteções, mas estão escondidas — ativa pelo menos uma fonte nos cartões acima.';
+    listEl.innerHTML = `<div class="empty-state">${msg}</div>`;
+  }
+
+  visible.forEach(d => {
+    try {
+      const iso = safeISO(d.dt);
+      if (!iso) { skipped++; return; } // salta esta deteção, mas não interrompe as restantes
+
+      const ageMs = now - d.dt.getTime();
+      if (ageMs < 60 * 60 * 1000) recentCount++;
+      const color = markerColor(d, ageMs);
+
+      const marker = L.circleMarker([d.lat, d.lon], {
+        radius: 6 + Math.min(6, d.frp / 20),
+        color: color,
+        fillColor: color,
+        fillOpacity: 0.75,
+        weight: 1.5
+      });
+      marker.bindPopup(`
+        <div class="popup-title">Foco de calor detetado</div>
+        <div class="popup-row"><span>Hora (UTC)</span><b>${iso.slice(11,16)} · ${iso.slice(0,10)}</b></div>
+        <div class="popup-row"><span>Satélite</span><b>${d.satellite}</b></div>
+        <div class="popup-row"><span>FRP</span><b>${d.frp.toFixed(1)} MW</b></div>
+        <div class="popup-row"><span>Confiança</span><b>${d.confidence}</b></div>
+        <div class="popup-row"><span>Coordenadas</span><b>${d.lat.toFixed(4)}, ${d.lon.toFixed(4)}</b></div>
+      `);
+      marker.addTo(markerLayer);
+
+      const item = document.createElement('div');
+      item.className = 'fire-item';
+      item.innerHTML = `
+        <div class="flag ${ageMs < 60*60*1000 ? 'hot new' : (d.confidence==='h'?'hot':'')}"></div>
+        <div class="body">
+          <div class="top-line"><span>${d.satellite}</span><span>${timeAgo(ageMs)}</span></div>
+          <div class="loc">${d.lat.toFixed(4)}, ${d.lon.toFixed(4)}</div>
+          <div class="meta">FRP ${d.frp.toFixed(1)} MW · confiança ${d.confidence}</div>
+        </div>
+      `;
+      item.addEventListener('click', () => {
+        map.setView([d.lat, d.lon], 12);
+        marker.openPopup();
+      });
+      listEl.appendChild(item);
+      renderedCount++;
+    } catch (err) {
+      console.error('Erro ao renderizar uma deteção (ignorada):', err, d);
+      skipped++;
+    }
+  });
+
+  statTotal.textContent = renderedCount;
+  statRecent.textContent = recentCount;
+  if (skipped > 0) {
+    console.warn(`${skipped} deteções ignoradas por dados inválidos (ver consola).`);
+  }
+}
+
+function timeAgo(ms) {
+  const min = Math.floor(ms / 60000);
+  if (min < 1) return 'agora';
+  if (min < 60) return `há ${min} min`;
+  const h = Math.floor(min / 60);
+  return `há ${h}h${String(min % 60).padStart(2,'0')}`;
+}
+
+// Mobile sidebar toggle
+function checkMobile() {
+  const isMobile = window.innerWidth <= 820;
+  $('sidebar-toggle').style.display = isMobile ? 'inline-block' : 'none';
+}
+window.addEventListener('resize', checkMobile);
+checkMobile();
+$('sidebar-toggle').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.toggle('open');
+});
+
+function updateTimelineUI() {
+  const slider = $('tl-slider');
+  const n = historyIndex.length;
+  slider.max = Math.max(0, n - 1);
+  if (!historyMode) {
+    slider.value = Math.max(0, n - 1); // segue sempre o mais recente enquanto ao vivo
+  }
+  updateTimelineLabel();
+  updateHistorySizeInfo();
+}
+
+function updateTimelineLabel() {
+  const n = historyIndex.length;
+  if (n === 0) { $('tl-label').textContent = 'sem histórico ainda'; return; }
+  const pos = Number($('tl-slider').value);
+  const ts = historyIndex[pos];
+  const isLatest = pos === n - 1;
+  const label = new Date(ts).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  $('tl-label').textContent = `${label}${isLatest ? ' · ao vivo' : ''} (${pos + 1}/${n})`;
+}
+
+function goToHistoryPos(pos) {
+  const n = historyIndex.length;
+  if (n === 0) return;
+  pos = Math.max(0, Math.min(n - 1, pos));
+  $('tl-slider').value = pos;
+  const isLatest = pos === n - 1;
+
+  if (isLatest) {
+    exitHistoryMode();
+    return;
+  }
+
+  historyMode = true;
+  const ts = historyIndex[pos];
+  displayDetections = loadSnapshot(ts);
+  $('history-banner').style.display = 'flex';
+  $('history-banner-time').textContent = new Date(ts).toLocaleString('pt-PT');
+  renderAll();
+  updateSourceSummaries();
+  updateTimelineLabel();
+  setStatus('stale', 'a ver histórico (dados não são atualizados enquanto navegas no tempo)');
+}
+
+function exitHistoryMode() {
+  historyMode = false;
+  displayDetections = liveDetections;
+  $('history-banner').style.display = 'none';
+  renderAll();
+  updateSourceSummaries();
+  updateTimelineLabel();
+  setStatus('ok', 'ligado');
+  stopPlayback();
+}
+
+function stopPlayback() {
+  clearInterval(playTimer);
+  playTimer = null;
+  $('tl-play').textContent = '▶';
+}
+
+$('tl-slider').addEventListener('input', (e) => {
+  stopPlayback();
+  goToHistoryPos(Number(e.target.value));
+});
+$('tl-first').addEventListener('click', () => { stopPlayback(); goToHistoryPos(0); });
+$('tl-last').addEventListener('click', () => { stopPlayback(); goToHistoryPos(historyIndex.length - 1); });
+$('live-btn').addEventListener('click', () => { stopPlayback(); exitHistoryMode(); });
+$('tl-play').addEventListener('click', () => {
+  if (playTimer) { stopPlayback(); return; }
+  $('tl-play').textContent = '⏸';
+  playTimer = setInterval(() => {
+    const n = historyIndex.length;
+    const pos = Number($('tl-slider').value);
+    if (pos >= n - 1) { stopPlayback(); return; }
+    goToHistoryPos(pos + 1);
+  }, 900);
+});
+
+function updateSourceSummaries() {
+  const firmsCount = displayDetections.filter(d => d.sourceGroup === 'firms').length;
+  const mtgCount = displayDetections.filter(d => d.sourceGroup === 'mtg').length;
+
+  $('firms-summary').textContent = !mapKey
+    ? 'sem MAP_KEY configurado'
+    : `${firmsCount} deteções · ${$('show-firms').checked ? 'visível' : 'escondido'}`;
+
+  $('mtg-summary').textContent = !mtgUrl
+    ? 'fonte não configurada'
+    : `${mtgCount} deteções · ${$('show-mtg').checked ? 'visível' : 'escondido'}`;
+}
+
+$('settings-btn').addEventListener('click', () => {
+  document.getElementById('settings-overlay').classList.add('open');
+});
+$('settings-close').addEventListener('click', () => {
+  document.getElementById('settings-overlay').classList.remove('open');
+});
+document.getElementById('settings-overlay').addEventListener('click', (e) => {
+  if (e.target.id === 'settings-overlay') e.currentTarget.classList.remove('open');
+});
+$('retention-input').addEventListener('change', (e) => {
+  const v = parseFloat(e.target.value);
+  if (!isNaN(v) && v > 0) { historyRetentionHours = v; pruneHistory(); updateTimelineUI(); updateHistorySizeInfo(); }
+});
+$('clear-history-btn').addEventListener('click', () => {
+  if (confirm('Apagar todo o histórico guardado neste browser? Esta ação não pode ser desfeita.')) {
+    clearHistory();
+    updateHistorySizeInfo();
+  }
+});
+$('forget-creds-btn').addEventListener('click', () => {
+  if (confirm('Esquecer o MAP_KEY, URL do MTG, repositório e token do GitHub guardados neste browser?')) {
+    forgetSavedCreds();
+    mapKey = ''; mtgUrl = ''; ghRepo = ''; ghToken = ''; ghTriggerEnabled = false;
+    $('gh-trigger-toggle').checked = false;
+    $('gh-trigger-status').textContent = 'estado: desligado';
+    $('mtg-status').textContent = 'estado: desligado';
+    updateSourceSummaries();
+  }
+});
+
+function updateHistorySizeInfo() {
+  $('history-size-info').textContent = `${historyIndex.length} snapshots guardados (retenção: ${historyRetentionHours}h)`;
+}
+
+// --- Arranque: carrega credenciais guardadas neste browser (se existirem) ---
+setStatus('stale', 'aguarda configuração');
+loadHistoryIndex();
+pruneHistory();
+displayDetections = liveDetections;
+updateTimelineUI();
+updateSourceSummaries();
+
+loadSavedCreds();
+mapKey = $('map-key').value.trim();
+mtgUrl = $('mtg-url').value.trim();
+ghRepo = $('gh-repo').value.trim();
+ghToken = $('gh-token').value.trim();
+
+// Se esta página estiver a correr a partir de um servidor (GitHub Pages,
+// ou qualquer servidor http/https) e nenhum URL do MTG tiver sido definido
+// manualmente, tenta usar o ficheiro na mesma pasta automaticamente.
+// (Não se aplica quando aberta por duplo-clique, protocolo file://.)
+if (!mtgUrl && location.protocol.startsWith('http')) {
+  const guess = new URL('portugal_fires_mtg.json', location.href).href;
+  $('mtg-url').value = guess;
+  mtgUrl = guess;
+  saveCred('mtg-url');
+  $('mtg-status').textContent = 'estado: detetado automaticamente (mesma pasta do servidor)';
+}
+
+try {
+  ghTriggerEnabled = localStorage.getItem('firemap_cfg_ghtrigger') === '1' && !!ghRepo && !!ghToken;
+} catch { ghTriggerEnabled = false; }
+$('gh-trigger-toggle').checked = ghTriggerEnabled;
+if (mtgUrl) $('show-mtg').checked = true;
+if (ghRepo && ghToken) $('gh-trigger-status').textContent = 'estado: credenciais carregadas deste browser';
+if (mtgUrl && !$('mtg-status').textContent.includes('detetado')) $('mtg-status').textContent = 'estado: configurado (guardado neste browser)';
+updateSourceSummaries();
+if (mapKey || mtgUrl) refreshData();
+</script>
+</body>
+</html>
