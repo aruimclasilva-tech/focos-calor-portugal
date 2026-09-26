@@ -100,6 +100,17 @@
   }
   #basemap-switcher button.active{border-color:var(--amber);color:var(--amber);}
 
+  /* painel flutuante "Ponto de referência", por cima do seletor de mapa
+     base, canto inferior esquerdo do mapa */
+  #target-point-panel{
+    position:absolute;left:16px;bottom:150px;z-index:900;
+    width:240px;max-width:70vw;max-height:56vh;overflow-y:auto;
+    background:rgba(18,26,23,.96);border:1px solid var(--line);border-radius:10px;
+    backdrop-filter:blur(4px);
+  }
+  #target-point-panel .panel-group-header{padding:10px 12px;}
+  #target-point-panel .panel-group-body{padding:0 12px 12px;}
+
   /* setas para mudar a hora da previsão meteorológica, canto inferior
      direito do mapa — só aparece quando algum campo/vento está ligado */
   #wx-time-control{
@@ -297,6 +308,29 @@
 
     <button id="panel-toggle-btn" title="Mostrar/esconder painel">☰</button>
 
+    <div id="target-point-panel" class="panel-group collapsed">
+      <div class="panel-group-header"><span>📍 Ponto de referência</span><span class="chevron">▾</span></div>
+      <div class="panel-group-body">
+        <div class="hint">
+          Coloca um ponto no mapa (ex.: local de um incidente) para veres
+          o tempo estimado de cada Heli INEM até lá — e, assim que a
+          lista de hospitais estiver disponível, também até aos
+          hospitais. O ponto fica guardado neste browser até o removeres.
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+          <button class="ghost" id="target-place-btn" style="flex:1;">Colocar ponto</button>
+          <button class="ghost" id="target-clear-btn" style="display:none;flex:1;">✕ Remover</button>
+        </div>
+        <div id="target-info" style="display:none;margin-top:10px;">
+          <div class="source-meta" id="target-coords" style="font-size:12px;"></div>
+          <div class="panel-subgroup-title" style="margin-top:10px;">Heli INEM — tempo estimado</div>
+          <div id="target-heli-list"></div>
+          <div class="panel-subgroup-title" style="margin-top:10px;">Hospitais — tempo estimado</div>
+          <div id="target-hosp-list" class="hint">Lista de hospitais ainda não carregada.</div>
+        </div>
+      </div>
+    </div>
+
     <div id="basemap-switcher">
       <button class="ghost tl-btn active" id="basemap-standard" title="Mapa padrão (OpenStreetMap)">Mapa</button>
       <button class="ghost tl-btn" id="basemap-satellite" title="Imagem de satélite">Satélite</button>
@@ -399,30 +433,6 @@
               descolagem), útil para estimar o tempo de resposta mas não
               altera o raio desenhado no mapa.
             </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel-group" id="group-target">
-        <div class="panel-group-header"><span>Ponto de referência</span><span class="chevron">▾</span></div>
-        <div class="panel-group-body">
-          <div class="hint">
-            Coloca um ponto no mapa (ex.: local de um incidente) para veres
-            o tempo estimado de cada Heli INEM até lá — e, assim que a
-            lista de hospitais estiver disponível, também até aos
-            hospitais. O ponto fica guardado neste browser até o
-            removeres.
-          </div>
-          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
-            <button class="ghost" id="target-place-btn" style="flex:1;">📍 Colocar ponto no mapa</button>
-            <button class="ghost" id="target-clear-btn" style="display:none;flex:1;">✕ Remover ponto</button>
-          </div>
-          <div id="target-info" style="display:none;margin-top:10px;">
-            <div class="source-meta" id="target-coords" style="font-size:12px;"></div>
-            <div class="panel-subgroup-title" style="margin-top:10px;">Heli INEM — tempo estimado</div>
-            <div id="target-heli-list"></div>
-            <div class="panel-subgroup-title" style="margin-top:10px;">Hospitais — tempo estimado</div>
-            <div id="target-hosp-list" class="hint">Lista de hospitais ainda não carregada.</div>
           </div>
         </div>
       </div>
@@ -1014,6 +1024,8 @@ function placeTargetPoint(lat, lon) {
     renderTargetInfo();
   });
   targetMarker.addTo(map);
+  const targetPanelEl = document.getElementById('target-point-panel');
+  if (targetPanelEl) targetPanelEl.classList.remove('collapsed');
   renderTargetInfo();
 }
 
