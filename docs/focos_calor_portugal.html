@@ -258,6 +258,17 @@
     position:relative;width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);
     background:var(--ember-hot);border:2px solid #1a1a1a;box-shadow:0 0 8px rgba(255,45,31,.8);
   }
+
+  /* lista individual dos Heli INEM (visibilidade + raio de ação por meio) */
+  .heli-inem-row{border:1px solid var(--line);border-radius:8px;padding:7px 9px;margin-top:6px;}
+  .heli-inem-row-head{display:flex;align-items:center;gap:7px;}
+  .heli-inem-row-head input[type=checkbox]{width:13px;height:13px;margin:0;cursor:pointer;accent-color:var(--amber);flex:none;}
+  .heli-inem-name{font-size:11.5px;font-weight:600;color:var(--text);}
+  .heli-inem-name small{color:var(--muted);font-weight:400;}
+  .heli-inem-ranges{display:flex;align-items:center;gap:7px;margin-top:5px;flex-wrap:nowrap;overflow-x:auto;}
+  .range-mini{display:flex;align-items:center;gap:2px;font-size:9.5px;font-family:var(--mono);cursor:pointer;flex:none;}
+  .range-mini input[type=checkbox]{width:10px;height:10px;margin:0;cursor:pointer;accent-color:var(--amber);}
+  .range-mini span{white-space:nowrap;}
   .target-pin::after{
     content:'';position:absolute;top:6px;left:6px;width:10px;height:10px;
     border-radius:50%;background:#1a1a1a;
@@ -413,27 +424,12 @@
             <label class="switch big"><input type="checkbox" id="show-heli-inem"><span class="slider"></span></label>
           </div>
           <div class="hint">
-            Bases dos meios aéreos do INEM (dados internos DRC). Posição
-            de base — não é o rastreio ao vivo do meio.
+            Bases dos meios aéreos do INEM (dados internos DRC). Posição de
+            base — não é o rastreio ao vivo do meio. Ao ativar, escolhes
+            abaixo quais os meios visíveis e o raio de ação (tempo de voo)
+            de cada um.
           </div>
-
-          <div class="panel-subgroup" style="margin-top:10px;">
-            <div class="panel-subgroup-title">Raio de ação (tempo de voo)</div>
-            <div class="toggle-row"><span>10 min <small style="color:var(--muted);">(~15 min total)</small></span><label class="switch"><input type="checkbox" class="heli-range-toggle" data-min="10"><span class="slider"></span></label></div>
-            <div class="toggle-row"><span>20 min <small style="color:var(--muted);">(~25 min total)</small></span><label class="switch"><input type="checkbox" class="heli-range-toggle" data-min="20"><span class="slider"></span></label></div>
-            <div class="toggle-row"><span>30 min <small style="color:var(--muted);">(~35 min total)</small></span><label class="switch"><input type="checkbox" class="heli-range-toggle" data-min="30"><span class="slider"></span></label></div>
-            <div class="toggle-row"><span>40 min <small style="color:var(--muted);">(~45 min total)</small></span><label class="switch"><input type="checkbox" class="heli-range-toggle" data-min="40"><span class="slider"></span></label></div>
-            <div class="toggle-row"><span>50 min <small style="color:var(--muted);">(~55 min total)</small></span><label class="switch"><input type="checkbox" class="heli-range-toggle" data-min="50"><span class="slider"></span></label></div>
-            <div class="toggle-row"><span>60 min <small style="color:var(--muted);">(~65 min total)</small></span><label class="switch"><input type="checkbox" class="heli-range-toggle" data-min="60"><span class="slider"></span></label></div>
-            <div class="legend-box" id="heli-range-legend" style="margin-top:6px;"></div>
-            <div class="hint">
-              Raio calculado pela velocidade de cada aeronave (241 Km/h) —
-              distância só do tempo de voo indicado. O "total" entre
-              parêntesis soma o tempo de ativação (5 min, até à
-              descolagem), útil para estimar o tempo de resposta mas não
-              altera o raio desenhado no mapa.
-            </div>
-          </div>
+          <div id="heli-inem-sublist" style="display:none;margin-top:8px;"></div>
         </div>
       </div>
 
@@ -826,42 +822,48 @@ const INEM_HELIS = [
   { nome: 'Heli Centro', local: 'Viseu', modelo: 'H145', velocidade: 241, tempoInicio: '0:05:00', lat: 40.72785485, lon: -7.889402708 }
 ];
 
-let heliInemLayer = L.layerGroup();
+// Estado por meio: visibilidade individual (checkbox "on" de cada Heli)
+// e quais os anéis de raio de ação ativos para esse meio.
+const heliInemMarkers = [];       // L.Marker[], paralelo a INEM_HELIS
+let heliInemVisible = INEM_HELIS.map(() => true);
+const heliRangeCircles = {};      // { "idxMin": L.Circle }, ex. "0_20"
+
+function buildHeliInemMarker(h) {
+  const marker = L.marker([h.lat, h.lon], {
+    icon: L.divIcon({
+      className: 'heli-marker-icon',
+      html: `<div class="inem-pin">🚁</div>`,
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+      popupAnchor: [0, -14]
+    })
+  });
+  marker.bindPopup(`
+    <div class="popup-title">🚁 ${h.nome}</div>
+    <div class="popup-row"><span>Local</span><b>${h.local}</b></div>
+    <div class="popup-row"><span>Modelo</span><b>${h.modelo}</b></div>
+    <div class="popup-row"><span>Velocidade</span><b>${h.velocidade} Km/h</b></div>
+    <div class="popup-row"><span>Tempo de ativação</span><b>${h.tempoInicio}</b></div>
+    <div class="popup-row"><span>Coordenadas</span><b>${h.lat.toFixed(5)}, ${h.lon.toFixed(5)}</b></div>
+  `);
+  return marker;
+}
 
 function renderHeliInem() {
-  heliInemLayer.clearLayers();
-  INEM_HELIS.forEach(h => {
-    const marker = L.marker([h.lat, h.lon], {
-      icon: L.divIcon({
-        className: 'heli-marker-icon',
-        html: `<div class="inem-pin">🚁</div>`,
-        iconSize: [28, 28],
-        iconAnchor: [14, 14],
-        popupAnchor: [0, -14]
-      })
-    });
-    marker.bindPopup(`
-      <div class="popup-title">🚁 ${h.nome}</div>
-      <div class="popup-row"><span>Local</span><b>${h.local}</b></div>
-      <div class="popup-row"><span>Modelo</span><b>${h.modelo}</b></div>
-      <div class="popup-row"><span>Velocidade</span><b>${h.velocidade} Km/h</b></div>
-      <div class="popup-row"><span>Tempo de ativação</span><b>${h.tempoInicio}</b></div>
-      <div class="popup-row"><span>Coordenadas</span><b>${h.lat.toFixed(5)}, ${h.lon.toFixed(5)}</b></div>
-    `);
-    marker.addTo(heliInemLayer);
+  INEM_HELIS.forEach((h, idx) => {
+    heliInemMarkers[idx] = buildHeliInemMarker(h);
   });
 }
 renderHeliInem();
 
 // ---------------------------------------------------------------
-// Raio de ação (Heli INEM) — círculos de alcance por tempo de voo,
-// calculados a partir da velocidade de cada aeronave (241 Km/h).
-// Cada anel é comum aos 4 meios (mesma velocidade), mas é desenhado
-// um círculo por base para refletir a origem real de cada meio.
+// Raio de ação (Heli INEM) — círculo de alcance por tempo de voo,
+// calculado a partir da velocidade de cada aeronave (241 Km/h).
+// Cada meio tem os seus próprios anéis, ligados/desligados
+// individualmente a partir da linha desse meio no painel.
 // ---------------------------------------------------------------
 const HELI_RANGE_MINUTES = [10, 20, 30, 40, 50, 60];
 const HELI_ACTIVATION_MIN = 5; // tempo de ativação até descolagem (min)
-const heliRangeLayers = {}; // { [min]: L.layerGroup }
 
 function heliRangeColor(min) {
   // Gradiente verde (perto) -> vermelho (longe) ao longo dos 6 anéis.
@@ -871,54 +873,122 @@ function heliRangeColor(min) {
   return `hsl(${hue.toFixed(0)}, 75%, 50%)`;
 }
 
-function buildHeliRangeLayer(min) {
-  const group = L.layerGroup();
+function buildHeliRangeCircle(idx, min) {
+  const h = INEM_HELIS[idx];
   const color = heliRangeColor(min);
-  INEM_HELIS.forEach(h => {
-    const radiusKm = h.velocidade * (min / 60);
-    const radiusM = radiusKm * 1000;
-    const totalMin = min + HELI_ACTIVATION_MIN;
-    const circle = L.circle([h.lat, h.lon], {
-      radius: radiusM,
-      color: color,
-      weight: 2,
-      opacity: 0.85,
-      dashArray: '6 4',
-      fill: true,
-      fillColor: color,
-      fillOpacity: 0.05,
-      interactive: true
-    });
-    circle.bindTooltip(
-      `${h.nome} — ${min} min de voo (~${radiusKm.toFixed(0)} km) · resposta total ~${totalMin} min`,
-      { sticky: true }
-    );
-    circle.addTo(group);
+  const radiusKm = h.velocidade * (min / 60);
+  const radiusM = radiusKm * 1000;
+  const totalMin = min + HELI_ACTIVATION_MIN;
+  const circle = L.circle([h.lat, h.lon], {
+    radius: radiusM,
+    color: color,
+    weight: 2,
+    opacity: 0.85,
+    dashArray: '6 4',
+    fill: true,
+    fillColor: color,
+    fillOpacity: 0.05,
+    interactive: true
   });
-  return group;
+  circle.bindTooltip(
+    `${h.nome} — ${min} min de voo (~${radiusKm.toFixed(0)} km) · resposta total ~${totalMin} min`,
+    { sticky: true }
+  );
+  return circle;
 }
 
-function heliRangeLegendHtml() {
-  return HELI_RANGE_MINUTES.map(min => `
-    <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin-top:2px;">
-      <span class="sw" style="background:${heliRangeColor(min)};"></span>
-      <span>${min} min de voo</span>
+// Estado "desejado" (independente do que está de facto no mapa neste
+// momento): que anéis o utilizador marcou para cada meio.
+let heliRangeChecked = {}; // { "idxMin": true }
+let heliInemMasterOn = false;
+
+function applyHeliRangeCircle(idx, min) {
+  const key = `${idx}_${min}`;
+  const shouldShow = heliInemMasterOn && heliInemVisible[idx] && !!heliRangeChecked[key];
+  if (shouldShow) {
+    if (!heliRangeCircles[key]) heliRangeCircles[key] = buildHeliRangeCircle(idx, min);
+    if (!map.hasLayer(heliRangeCircles[key])) heliRangeCircles[key].addTo(map);
+  } else if (heliRangeCircles[key] && map.hasLayer(heliRangeCircles[key])) {
+    map.removeLayer(heliRangeCircles[key]);
+  }
+}
+
+function applyHeliVisibility(idx) {
+  const shouldShow = heliInemMasterOn && heliInemVisible[idx];
+  if (shouldShow) {
+    if (!map.hasLayer(heliInemMarkers[idx])) heliInemMarkers[idx].addTo(map);
+  } else if (map.hasLayer(heliInemMarkers[idx])) {
+    map.removeLayer(heliInemMarkers[idx]);
+  }
+  HELI_RANGE_MINUTES.forEach(min => applyHeliRangeCircle(idx, min));
+}
+
+function heliRangeToggle(idx, min, on) {
+  heliRangeChecked[`${idx}_${min}`] = on;
+  applyHeliRangeCircle(idx, min);
+  saveHeliInemState();
+}
+
+function heliInemToggle(idx, on) {
+  heliInemVisible[idx] = on;
+  applyHeliVisibility(idx);
+  saveHeliInemState();
+}
+
+function heliInemSublistHtml() {
+  return INEM_HELIS.map((h, idx) => `
+    <div class="heli-inem-row" data-idx="${idx}">
+      <div class="heli-inem-row-head">
+        <input type="checkbox" class="heli-inem-toggle" data-idx="${idx}" ${heliInemVisible[idx] ? 'checked' : ''}>
+        <span class="heli-inem-name">${h.nome} <small>(${h.local})</small></span>
+      </div>
+      <div class="heli-inem-ranges">
+        ${HELI_RANGE_MINUTES.map(min => `
+          <label class="range-mini" style="color:${heliRangeColor(min)};">
+            <input type="checkbox" class="heli-range-toggle" data-idx="${idx}" data-min="${min}" ${heliRangeChecked[`${idx}_${min}`] ? 'checked' : ''}>
+            <span>${min}"</span>
+          </label>
+        `).join('')}
+      </div>
     </div>
   `).join('');
 }
 
-function heliRangeToggle(min, on) {
-  if (on) {
-    if (!heliRangeLayers[min]) heliRangeLayers[min] = buildHeliRangeLayer(min);
-    heliRangeLayers[min].addTo(map);
-  } else if (heliRangeLayers[min]) {
-    map.removeLayer(heliRangeLayers[min]);
-  }
+function renderHeliInemSublist() {
+  const el = $('heli-inem-sublist');
+  if (el) el.innerHTML = heliInemSublistHtml();
+}
+
+function saveHeliInemState() {
   try {
-    const active = HELI_RANGE_MINUTES.filter(m => heliRangeLayers[m] && map.hasLayer(heliRangeLayers[m]));
-    localStorage.setItem('firemap_cfg_heli_range', JSON.stringify(active));
+    localStorage.setItem('firemap_cfg_heli_inem_visible', JSON.stringify(heliInemVisible));
+    localStorage.setItem('firemap_cfg_heli_range', JSON.stringify(heliRangeChecked));
   } catch {}
 }
+
+function setHeliInemMaster(on) {
+  heliInemMasterOn = on;
+  const sublistEl = $('heli-inem-sublist');
+  if (on) {
+    renderHeliInemSublist();
+    INEM_HELIS.forEach((h, idx) => applyHeliVisibility(idx));
+    if (sublistEl) sublistEl.style.display = '';
+  } else {
+    INEM_HELIS.forEach((h, idx) => applyHeliVisibility(idx));
+    if (sublistEl) sublistEl.style.display = 'none';
+  }
+  try { localStorage.setItem('firemap_cfg_show_heli_inem', on ? '1' : '0'); } catch {}
+}
+
+// Delegação de eventos: a lista é reconstruída sempre que o painel
+// principal é ligado, por isso os handlers ficam no contentor fixo.
+document.addEventListener('change', (e) => {
+  if (e.target.matches('.heli-inem-toggle')) {
+    heliInemToggle(Number(e.target.dataset.idx), e.target.checked);
+  } else if (e.target.matches('.heli-range-toggle')) {
+    heliRangeToggle(Number(e.target.dataset.idx), Number(e.target.dataset.min), e.target.checked);
+  }
+});
 
 // ---------------------------------------------------------------
 // Ponto de referência — um ponto colocado manualmente no mapa (ex.:
@@ -1294,16 +1364,7 @@ $('show-heli').addEventListener('change', (e) => {
   try { localStorage.setItem('firemap_cfg_show_heli', e.target.checked ? '1' : '0'); } catch {}
 });
 $('show-heli-inem').addEventListener('change', (e) => {
-  if (e.target.checked) heliInemLayer.addTo(map);
-  else map.removeLayer(heliInemLayer);
-  try { localStorage.setItem('firemap_cfg_show_heli_inem', e.target.checked ? '1' : '0'); } catch {}
-});
-const heliRangeLegendEl = $('heli-range-legend');
-if (heliRangeLegendEl) heliRangeLegendEl.innerHTML = heliRangeLegendHtml();
-document.querySelectorAll('.heli-range-toggle').forEach(cb => {
-  cb.addEventListener('change', (e) => {
-    heliRangeToggle(Number(e.target.dataset.min), e.target.checked);
-  });
+  setHeliInemMaster(e.target.checked);
 });
 $('target-place-btn').addEventListener('click', () => {
   setPlacingTarget(!placingTarget);
@@ -1910,18 +1971,18 @@ try {
     $('show-heli').checked = true;
     heliLayer.addTo(map);
   }
+  const savedVisible = JSON.parse(localStorage.getItem('firemap_cfg_heli_inem_visible') || 'null');
+  if (Array.isArray(savedVisible) && savedVisible.length === INEM_HELIS.length) {
+    heliInemVisible = savedVisible.map(v => !!v);
+  }
+  const savedRangeChecked = JSON.parse(localStorage.getItem('firemap_cfg_heli_range') || 'null');
+  if (savedRangeChecked && typeof savedRangeChecked === 'object') {
+    heliRangeChecked = savedRangeChecked;
+  }
   if (localStorage.getItem('firemap_cfg_show_heli_inem') === '1') {
     $('show-heli-inem').checked = true;
-    heliInemLayer.addTo(map);
+    setHeliInemMaster(true);
   }
-  const savedRanges = JSON.parse(localStorage.getItem('firemap_cfg_heli_range') || '[]');
-  savedRanges.forEach(min => {
-    const cb = document.querySelector(`.heli-range-toggle[data-min="${min}"]`);
-    if (cb) {
-      cb.checked = true;
-      heliRangeToggle(min, true);
-    }
-  });
   const savedTarget = JSON.parse(localStorage.getItem(TARGET_POINT_KEY) || 'null');
   if (savedTarget && typeof savedTarget.lat === 'number' && typeof savedTarget.lon === 'number') {
     placeTargetPoint(savedTarget.lat, savedTarget.lon);
