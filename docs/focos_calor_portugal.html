@@ -104,12 +104,31 @@
      base, canto inferior esquerdo do mapa */
   #target-point-panel{
     position:absolute;left:16px;bottom:150px;z-index:900;
-    width:240px;max-width:70vw;max-height:56vh;overflow-y:auto;
+    width:270px;max-width:82vw;max-height:60vh;overflow-y:auto;
     background:rgba(18,26,23,.96);border:1px solid var(--line);border-radius:10px;
     backdrop-filter:blur(4px);
   }
   #target-point-panel .panel-group-header{padding:10px 12px;}
   #target-point-panel .panel-group-body{padding:0 12px 12px;}
+  #target-search-input{
+    flex:1;min-width:0;background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+    padding:7px 9px;border-radius:6px;font-family:var(--mono);font-size:11.5px;
+  }
+  #target-search-input:focus{outline:none;border-color:var(--amber);}
+  .target-search-result{
+    padding:6px 8px;border:1px solid var(--line);border-radius:6px;margin-top:4px;
+    font-size:11px;color:var(--muted);cursor:pointer;line-height:1.4;
+  }
+  .target-search-result:hover{border-color:var(--amber);color:var(--text);}
+  .target-point-card{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-top:8px;}
+  .target-point-head{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;}
+  .target-point-label{font-size:11.5px;font-weight:600;color:var(--text);line-height:1.3;}
+  .target-point-coords{font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:2px;}
+  .target-point-remove{
+    flex:none;background:transparent;border:1px solid var(--line);color:var(--muted);
+    border-radius:5px;width:20px;height:20px;line-height:1;cursor:pointer;font-size:11px;
+  }
+  .target-point-remove:hover{border-color:var(--ember-hot);color:var(--ember-hot);}
 
   /* setas para mudar a hora da previsão meteorológica, canto inferior
      direito do mapa — só aparece quando algum campo/vento está ligado */
@@ -320,25 +339,25 @@
     <button id="panel-toggle-btn" title="Mostrar/esconder painel">☰</button>
 
     <div id="target-point-panel" class="panel-group collapsed">
-      <div class="panel-group-header"><span>📍 Ponto de referência</span><span class="chevron">▾</span></div>
+      <div class="panel-group-header"><span>📍 Pontos de referência</span><span class="chevron">▾</span></div>
       <div class="panel-group-body">
         <div class="hint">
-          Coloca um ponto no mapa (ex.: local de um incidente) para veres
-          o tempo estimado de cada Heli INEM até lá — e, assim que a
-          lista de hospitais estiver disponível, também até aos
-          hospitais. O ponto fica guardado neste browser até o removeres.
+          Coloca pontos no mapa (ex.: locais de incidentes) clicando no
+          mapa ou pesquisando uma morada. Cada ponto mostra o tempo
+          estimado de cada Heli INEM e dos hospitais mais próximos.
+          Ficam guardados neste browser até os removeres.
         </div>
+        <div style="display:flex;gap:6px;margin-top:10px;">
+          <input type="text" id="target-search-input" placeholder="Pesquisar morada ou local…">
+          <button class="ghost" id="target-search-btn">Procurar</button>
+        </div>
+        <div id="target-search-status" class="hint" style="display:none;margin-top:4px;"></div>
+        <div id="target-search-results" style="display:none;margin-top:4px;"></div>
         <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
-          <button class="ghost" id="target-place-btn" style="flex:1;">Colocar ponto</button>
-          <button class="ghost" id="target-clear-btn" style="display:none;flex:1;">✕ Remover</button>
+          <button class="ghost" id="target-place-btn" style="flex:1;">Colocar ponto no mapa</button>
+          <button class="ghost" id="target-clear-btn" style="display:none;flex:1;">✕ Remover todos</button>
         </div>
-        <div id="target-info" style="display:none;margin-top:10px;">
-          <div class="source-meta" id="target-coords" style="font-size:12px;"></div>
-          <div class="panel-subgroup-title" style="margin-top:10px;">Heli INEM — tempo estimado</div>
-          <div id="target-heli-list"></div>
-          <div class="panel-subgroup-title" style="margin-top:10px;">Hospitais — tempo estimado</div>
-          <div id="target-hosp-list" class="hint">Lista de hospitais ainda não carregada.</div>
-        </div>
+        <div id="target-points-list" style="margin-top:10px;"></div>
       </div>
     </div>
 
@@ -1092,9 +1111,10 @@ const HOSPITALS = [
   { nome: 'Vila Real Santo António', local: 'SUB Vila Real Santo António', lat: 37.190245, lon: -7.418229 }
 ];
 
-let targetPoint = null;   // { lat, lon } | null
-let targetMarker = null;  // L.Marker | null
+let targetPoints = [];        // [{ id, lat, lon, label }]
+const targetMarkers = {};     // { [id]: L.Marker }
 let placingTarget = false;
+let targetIdSeq = 0;
 
 function haversineKm(lat1, lon1, lat2, lon2) {
   const R = 6371; // km
@@ -1118,65 +1138,75 @@ function computeEtas(point, sources, speedKey, activationMin) {
   }).sort((a, b) => a.totalMin - b.totalMin);
 }
 
-function renderTargetInfo() {
-  const infoBox = document.getElementById('target-info');
-  const clearBtn = document.getElementById('target-clear-btn');
-  if (!targetPoint) {
-    if (infoBox) infoBox.style.display = 'none';
-    if (clearBtn) clearBtn.style.display = 'none';
-    return;
-  }
-  if (infoBox) infoBox.style.display = '';
-  if (clearBtn) clearBtn.style.display = '';
+function etaBlockHtml(point) {
+  const heliEtas = computeEtas(point, INEM_HELIS, 'velocidade', HELI_ACTIVATION_MIN);
+  const heliHtml = heliEtas.map(e => `
+    <div class="target-eta-row">
+      <span>${e.nome} <small style="color:var(--muted);">(${e.local})</small></span>
+      <b>${e.flightMin.toFixed(0)} min voo <small style="color:var(--muted);">· ${e.totalMin.toFixed(0)} min total · ${e.distKm.toFixed(0)} km</small></b>
+    </div>
+  `).join('');
 
-  const coordsEl = document.getElementById('target-coords');
-  if (coordsEl) coordsEl.textContent = `${targetPoint.lat.toFixed(5)}, ${targetPoint.lon.toFixed(5)}`;
-
-  const heliEtas = computeEtas(targetPoint, INEM_HELIS, 'velocidade', HELI_ACTIVATION_MIN);
-  const heliListEl = document.getElementById('target-heli-list');
-  if (heliListEl) {
-    heliListEl.innerHTML = heliEtas.map(e => `
-      <div class="target-eta-row">
-        <span>${e.nome} <small style="color:var(--muted);">(${e.local})</small></span>
-        <b>${e.flightMin.toFixed(0)} min voo <small style="color:var(--muted);">· ${e.totalMin.toFixed(0)} min total · ${e.distKm.toFixed(0)} km</small></b>
+  let hospHtml;
+  if (HOSPITALS.length === 0) {
+    hospHtml = `<div class="hint">Lista de hospitais ainda não carregada.</div>`;
+  } else {
+    const HOSP_SHOW = 6;
+    const hospEtas = computeEtas(point, HOSPITALS, 'velocidade', 0);
+    const top = hospEtas.slice(0, HOSP_SHOW);
+    hospHtml = `
+      <div style="max-height:130px;overflow-y:auto;">
+        ${top.map(e => `
+          <div class="target-eta-row">
+            <span>${e.nome} <small style="color:var(--muted);">(${e.local})</small></span>
+            <b>${e.flightMin.toFixed(0)} min <small style="color:var(--muted);">· ${e.distKm.toFixed(0)} km</small></b>
+          </div>
+        `).join('')}
       </div>
-    `).join('');
+      <div class="hint" style="margin-top:4px;">
+        ${HOSP_SHOW} mais próximos de ${HOSPITALS.length} carregados
+        (voo direto a 241 Km/h, sem rota real).
+      </div>
+    `;
   }
 
-  const hospListEl = document.getElementById('target-hosp-list');
-  if (hospListEl) {
-    if (HOSPITALS.length === 0) {
-      hospListEl.className = 'hint';
-      hospListEl.textContent = 'Lista de hospitais ainda não carregada.';
-    } else {
-      const HOSP_SHOW = 6;
-      const hospEtas = computeEtas(targetPoint, HOSPITALS, 'velocidade', 0);
-      const top = hospEtas.slice(0, HOSP_SHOW);
-      hospListEl.className = '';
-      hospListEl.innerHTML = `
-        <div style="max-height:150px;overflow-y:auto;">
-          ${top.map(e => `
-            <div class="target-eta-row">
-              <span>${e.nome} <small style="color:var(--muted);">(${e.local})</small></span>
-              <b>${e.flightMin.toFixed(0)} min <small style="color:var(--muted);">· ${e.distKm.toFixed(0)} km</small></b>
-            </div>
-          `).join('')}
-        </div>
-        <div class="hint" style="margin-top:4px;">
-          ${HOSP_SHOW} mais próximos de ${HOSPITALS.length} hospitais/SUB carregados
-          (tempo estimado por voo direto a 241 Km/h, sem rota real).
-        </div>
-      `;
-    }
-  }
+  return `
+    <div class="panel-subgroup-title" style="margin-top:8px;">Heli INEM — tempo estimado</div>
+    ${heliHtml}
+    <div class="panel-subgroup-title" style="margin-top:8px;">Hospitais — tempo estimado</div>
+    ${hospHtml}
+  `;
 }
 
-function placeTargetPoint(lat, lon) {
-  targetPoint = { lat, lon };
-  try { localStorage.setItem(TARGET_POINT_KEY, JSON.stringify(targetPoint)); } catch {}
+function renderTargetPointsList() {
+  const listEl = document.getElementById('target-points-list');
+  const clearBtn = document.getElementById('target-clear-btn');
+  if (clearBtn) clearBtn.style.display = targetPoints.length ? '' : 'none';
+  if (!listEl) return;
+  listEl.innerHTML = targetPoints.map(p => `
+    <div class="target-point-card" data-id="${p.id}">
+      <div class="target-point-head">
+        <span class="target-point-label">${p.label || 'Ponto sem nome'}</span>
+        <button class="target-point-remove" data-id="${p.id}" title="Remover este ponto">✕</button>
+      </div>
+      <div class="target-point-coords">${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}</div>
+      ${etaBlockHtml(p)}
+    </div>
+  `).join('');
+}
 
-  if (targetMarker) { map.removeLayer(targetMarker); targetMarker = null; }
-  targetMarker = L.marker([lat, lon], {
+function saveTargetPoints() {
+  try {
+    localStorage.setItem(TARGET_POINT_KEY, JSON.stringify(targetPoints));
+  } catch {}
+}
+
+function addTargetPoint(lat, lon, label) {
+  const id = ++targetIdSeq;
+  const point = { id, lat, lon, label: label || null };
+  targetPoints.push(point);
+
+  const marker = L.marker([lat, lon], {
     draggable: true,
     icon: L.divIcon({
       className: 'heli-marker-icon',
@@ -1186,23 +1216,37 @@ function placeTargetPoint(lat, lon) {
       popupAnchor: [0, -26]
     })
   });
-  targetMarker.on('dragend', () => {
-    const pos = targetMarker.getLatLng();
-    targetPoint = { lat: pos.lat, lon: pos.lng };
-    try { localStorage.setItem(TARGET_POINT_KEY, JSON.stringify(targetPoint)); } catch {}
-    renderTargetInfo();
+  marker.bindTooltip(point.label || `${lat.toFixed(5)}, ${lon.toFixed(5)}`, { direction: 'top', offset: [0, -20] });
+  marker.on('dragend', () => {
+    const pos = marker.getLatLng();
+    point.lat = pos.lat; point.lon = pos.lng;
+    saveTargetPoints();
+    renderTargetPointsList();
   });
-  targetMarker.addTo(map);
+  marker.addTo(map);
+  targetMarkers[id] = marker;
+
   const targetPanelEl = document.getElementById('target-point-panel');
   if (targetPanelEl) targetPanelEl.classList.remove('collapsed');
-  renderTargetInfo();
+  saveTargetPoints();
+  renderTargetPointsList();
+  return point;
 }
 
-function clearTargetPoint() {
-  targetPoint = null;
-  if (targetMarker) { map.removeLayer(targetMarker); targetMarker = null; }
-  try { localStorage.removeItem(TARGET_POINT_KEY); } catch {}
-  renderTargetInfo();
+function removeTargetPoint(id) {
+  id = Number(id);
+  targetPoints = targetPoints.filter(p => p.id !== id);
+  if (targetMarkers[id]) { map.removeLayer(targetMarkers[id]); delete targetMarkers[id]; }
+  saveTargetPoints();
+  renderTargetPointsList();
+}
+
+function clearAllTargetPoints() {
+  targetPoints.forEach(p => { if (targetMarkers[p.id]) map.removeLayer(targetMarkers[p.id]); });
+  targetPoints = [];
+  Object.keys(targetMarkers).forEach(k => delete targetMarkers[k]);
+  saveTargetPoints();
+  renderTargetPointsList();
 }
 
 function setPlacingTarget(on) {
@@ -1210,14 +1254,54 @@ function setPlacingTarget(on) {
   const mapEl = document.getElementById('map');
   if (mapEl) mapEl.classList.toggle('placing-target', on);
   const placeBtn = document.getElementById('target-place-btn');
-  if (placeBtn) placeBtn.textContent = on ? '📍 Clica no mapa…' : '📍 Colocar ponto no mapa';
+  if (placeBtn) placeBtn.textContent = on ? '📍 Clica no mapa (toca para parar)' : '📍 Colocar ponto no mapa';
 }
 
 map.on('click', (e) => {
   if (!placingTarget) return;
-  placeTargetPoint(e.latlng.lat, e.latlng.lng);
-  setPlacingTarget(false);
+  addTargetPoint(e.latlng.lat, e.latlng.lng, null);
 });
+
+// Pesquisa de morada (geocoding) via Nominatim/OpenStreetMap — serviço
+// público e gratuito, sem chave. Só é chamado quando o utilizador clica
+// em "Procurar" (ou Enter), nunca a cada tecla.
+async function searchAddress(query) {
+  const statusEl = document.getElementById('target-search-status');
+  const resultsEl = document.getElementById('target-search-results');
+  if (!query || !query.trim()) return;
+  if (statusEl) { statusEl.style.display = ''; statusEl.textContent = 'A procurar…'; }
+  if (resultsEl) { resultsEl.style.display = 'none'; resultsEl.innerHTML = ''; }
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=0&limit=5&countrycodes=pt&q=${encodeURIComponent(query)}`;
+    const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      if (statusEl) statusEl.textContent = 'Sem resultados para essa morada/local.';
+      return;
+    }
+    if (statusEl) statusEl.style.display = 'none';
+    if (resultsEl) {
+      resultsEl.style.display = '';
+      resultsEl.innerHTML = data.map((r, i) => `
+        <div class="target-search-result" data-idx="${i}">${r.display_name}</div>
+      `).join('');
+      resultsEl.querySelectorAll('.target-search-result').forEach(el => {
+        el.addEventListener('click', () => {
+          const r = data[Number(el.dataset.idx)];
+          addTargetPoint(parseFloat(r.lat), parseFloat(r.lon), r.display_name.split(',').slice(0, 2).join(','));
+          map.setView([parseFloat(r.lat), parseFloat(r.lon)], Math.max(map.getZoom(), 13));
+          resultsEl.style.display = 'none';
+          resultsEl.innerHTML = '';
+          const input = document.getElementById('target-search-input');
+          if (input) input.value = '';
+        });
+      });
+    }
+  } catch (err) {
+    if (statusEl) { statusEl.style.display = ''; statusEl.textContent = 'Não foi possível pesquisar (sem ligação ao serviço de mapas).'; }
+  }
+}
 
 // --- UI refs ---
 const $ = (id) => document.getElementById(id);
@@ -1469,8 +1553,19 @@ $('target-place-btn').addEventListener('click', () => {
   setPlacingTarget(!placingTarget);
 });
 $('target-clear-btn').addEventListener('click', () => {
-  clearTargetPoint();
+  if (targetPoints.length && !confirm(`Remover os ${targetPoints.length} pontos guardados?`)) return;
+  clearAllTargetPoints();
   setPlacingTarget(false);
+});
+$('target-search-btn').addEventListener('click', () => {
+  searchAddress($('target-search-input').value);
+});
+$('target-search-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); searchAddress(e.target.value); }
+});
+document.getElementById('target-points-list').addEventListener('click', (e) => {
+  const btn = e.target.closest('.target-point-remove');
+  if (btn) removeTargetPoint(btn.dataset.id);
 });
 
 function setStatus(state, text) {
@@ -2083,8 +2178,16 @@ try {
     setHeliInemMaster(true);
   }
   const savedTarget = JSON.parse(localStorage.getItem(TARGET_POINT_KEY) || 'null');
-  if (savedTarget && typeof savedTarget.lat === 'number' && typeof savedTarget.lon === 'number') {
-    placeTargetPoint(savedTarget.lat, savedTarget.lon);
+  if (Array.isArray(savedTarget)) {
+    // formato atual: lista de pontos
+    savedTarget.forEach(p => {
+      if (p && typeof p.lat === 'number' && typeof p.lon === 'number') {
+        addTargetPoint(p.lat, p.lon, p.label || null);
+      }
+    });
+  } else if (savedTarget && typeof savedTarget.lat === 'number' && typeof savedTarget.lon === 'number') {
+    // compatibilidade com a versão anterior (um único ponto guardado)
+    addTargetPoint(savedTarget.lat, savedTarget.lon, null);
   }
 } catch {}
 setStatus('stale', 'aguarda configuração');
