@@ -1161,6 +1161,14 @@ function etaBlockHtml(point) {
   `;
 }
 
+function targetPointPopupHtml(point) {
+  return `
+    <div class="popup-title">📍 ${point.label || 'Ponto de referência'}</div>
+    <div class="popup-row"><span>Coordenadas</span><b>${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}</b></div>
+    ${etaBlockHtml(point)}
+  `;
+}
+
 function renderTargetPointsList() {
   const listEl = document.getElementById('target-points-list');
   const clearBtn = document.getElementById('target-clear-btn');
@@ -1200,9 +1208,11 @@ function addTargetPoint(lat, lon, label) {
     })
   });
   marker.bindTooltip(point.label || `${lat.toFixed(5)}, ${lon.toFixed(5)}`, { direction: 'top', offset: [0, -20] });
+  marker.bindPopup(targetPointPopupHtml(point), { maxWidth: 300, minWidth: 240 });
   marker.on('dragend', () => {
     const pos = marker.getLatLng();
     point.lat = pos.lat; point.lon = pos.lng;
+    marker.setPopupContent(targetPointPopupHtml(point));
     saveTargetPoints();
     renderTargetPointsList();
   });
