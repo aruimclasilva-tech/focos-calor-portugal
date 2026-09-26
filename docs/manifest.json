@@ -1,0 +1,17 @@
+{
+  "name": "DRC - Focos de Calor - Portugal Continental",
+  "short_name": "Focos de Calor",
+  "description": "Deteção térmica por satélite (NASA FIRMS + EUMETSAT MTG) para Portugal Continental",
+  "start_url": "./focos_calor_portugal.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0c1210",
+  "theme_color": "#0c1210",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

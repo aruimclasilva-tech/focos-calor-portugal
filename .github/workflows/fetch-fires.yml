@@ -41,4 +41,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "Atualiza focos de calor MTG"
-          file_pattern: docs/portugal_fires_mtg.json
+          file_pattern: docs/portugal_fires_mtg.json docs/portugal_fires_mtg_history.json

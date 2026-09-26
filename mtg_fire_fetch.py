@@ -70,6 +70,8 @@ BASE_URL = "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/"
 BBOX = (36.85, 42.2, -9.65, -6.05)
 
 OUTPUT_PATH = "portugal_fires_mtg.json"
+HISTORY_PATH = "portugal_fires_mtg_history.json"
+HISTORY_RETENTION_HOURS = 24     # quantas horas de snapshots manter no histórico partilhado
 POLL_INTERVAL_SEC = 600          # 10 minutos, igual à cadência da fonte
 LATENCY_BUFFER_SEC = 5 * 60      # margem extra antes de tentar o próximo ciclo
 REQUEST_TIMEOUT = 60
@@ -211,10 +213,55 @@ def timestamp_from_url(url):
 
 
 # --------------------------------------------------------------------------
+# HISTÓRICO PARTILHADO (guardado no repositório, visível a partir de
+# qualquer dispositivo que abra a página — complementa o histórico local
+# por browser que a própria página também mantém em localStorage)
+# --------------------------------------------------------------------------
+
+def load_history(history_path):
+    if not os.path.exists(history_path):
+        return []
+    try:
+        with open(history_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, list) else []
+    except (json.JSONDecodeError, OSError) as e:
+        log(f"Aviso: não consegui ler o histórico existente ({e}), a começar de novo.")
+        return []
+
+
+def prune_history(history, retention_hours):
+    cutoff = dt.datetime.utcnow() - dt.timedelta(hours=retention_hours)
+    kept = []
+    for snap in history:
+        try:
+            snap_time = dt.datetime.fromisoformat(snap["source_timestamp_utc"].replace("Z", "+00:00")).replace(tzinfo=None)
+        except (KeyError, ValueError):
+            continue
+        if snap_time >= cutoff:
+            kept.append(snap)
+    return kept
+
+
+def append_to_history(history_path, snapshot, retention_hours):
+    history = load_history(history_path)
+    # evita duplicar se já existir um snapshot com o mesmo timestamp de origem
+    history = [h for h in history if h.get("source_timestamp_utc") != snapshot["source_timestamp_utc"]]
+    history.append(snapshot)
+    history.sort(key=lambda h: h.get("source_timestamp_utc", ""))
+    history = prune_history(history, retention_hours)
+    os.makedirs(os.path.dirname(history_path) or ".", exist_ok=True)
+    with open(history_path, "w", encoding="utf-8") as f:
+        json.dump(history, f, ensure_ascii=False, indent=0)
+    log(f"Histórico partilhado atualizado: {len(history)} snapshots guardados "
+        f"(retenção: {retention_hours}h) em {history_path}")
+
+
+# --------------------------------------------------------------------------
 # CICLO PRINCIPAL
 # --------------------------------------------------------------------------
 
-def run_once(output_path):
+def run_once(output_path, history_path=None, history_retention_hours=HISTORY_RETENTION_HOURS):
     url = find_latest_csv_gz()
     if not url:
         log("Não encontrei nenhum ficheiro ListProduct recente na listagem.")
@@ -242,6 +289,10 @@ def run_once(output_path):
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
     log(f"Escrito em {output_path}")
+
+    if history_path:
+        append_to_history(history_path, payload, history_retention_hours)
+
     return True
 
 
@@ -249,18 +300,22 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--outdir", default=".", help="Pasta onde escrever o JSON (por omissão, pasta atual)")
     parser.add_argument("--watch", action="store_true", help="Corre em ciclo contínuo, a cada 10 minutos")
+    parser.add_argument("--no-history", action="store_true", help="Não guardar histórico partilhado (só o snapshot mais recente)")
+    parser.add_argument("--history-retention-hours", type=float, default=HISTORY_RETENTION_HOURS,
+                         help=f"Horas de histórico a manter (por omissão {HISTORY_RETENTION_HOURS})")
     args = parser.parse_args()
 
     output_path = os.path.join(args.outdir, OUTPUT_PATH)
+    history_path = None if args.no_history else os.path.join(args.outdir, HISTORY_PATH)
 
     if not args.watch:
-        ok = run_once(output_path)
+        ok = run_once(output_path, history_path, args.history_retention_hours)
         sys.exit(0 if ok else 1)
 
     log("Modo contínuo iniciado (Ctrl+C para parar).")
     while True:
         try:
-            run_once(output_path)
+            run_once(output_path, history_path, args.history_retention_hours)
         except Exception as e:
             log(f"Erro inesperado: {e}")
         time.sleep(POLL_INTERVAL_SEC)

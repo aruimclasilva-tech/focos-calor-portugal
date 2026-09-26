@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DRC - FOCOS DE CALOR - PORTUGAL CONTINENTAL</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0c1210">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Focos de Calor">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <style>
@@ -65,15 +73,62 @@
   .tl-btn{padding:6px 10px;font-size:13px;flex:none;}
   #tl-slider{flex:1;accent-color:var(--amber);}
   .tl-label{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap;flex:none;min-width:150px;text-align:right;}
-  #sidebar{
-    width:340px;flex:none;background:var(--panel);border-left:1px solid var(--line);
-    display:flex;flex-direction:column;min-height:0;
+
+  /* botão flutuante para mostrar/esconder o painel, sobre o canto
+     superior direito do mapa — o painel começa sempre escondido */
+  #panel-toggle-btn{
+    position:absolute;top:12px;right:12px;z-index:1100;
+    width:38px;height:38px;border-radius:8px;
+    background:rgba(18,26,23,.92);border:1px solid var(--line);color:var(--text);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;font-size:17px;line-height:1;transition:right .2s,border-color .15s,color .15s;
+    backdrop-filter:blur(4px);
   }
+  #panel-toggle-btn:hover{border-color:var(--amber);color:var(--amber);}
+  #main.sidebar-open #panel-toggle-btn{right:356px;}
+
+  /* seletor de mapa base (mapa padrão / satélite / terreno), canto
+     inferior esquerdo do mapa */
+  #basemap-switcher{
+    position:absolute;left:16px;bottom:96px;z-index:900;
+    display:flex;gap:6px;
+    background:rgba(18,26,23,.94);border:1px solid var(--line);border-radius:10px;
+    padding:6px;backdrop-filter:blur(4px);
+  }
+  #basemap-switcher button.active{border-color:var(--amber);color:var(--amber);}
+
+  #sidebar{
+    position:absolute;top:0;right:0;bottom:0;z-index:1000;
+    width:340px;max-width:92vw;background:var(--panel);border-left:1px solid var(--line);
+    display:flex;flex-direction:column;min-height:0;
+    transform:translateX(100%);transition:transform .2s;
+    box-shadow:-6px 0 24px rgba(0,0,0,.4);
+  }
+  #sidebar.open{transform:translateX(0);}
   #sidebar section{border-bottom:1px solid var(--line);padding:14px 16px;}
   #sidebar h2{
     font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
     margin:0 0 10px;font-weight:700;
   }
+
+  /* painel — grupos recolhíveis (estilo "fogos.pt") */
+  .panel-group{border-bottom:1px solid var(--line);}
+  .panel-group-header{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:12px 16px;cursor:pointer;user-select:none;
+    font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--text);
+  }
+  .panel-group-header:hover{color:var(--amber);}
+  .panel-group-header .chevron{transition:transform .15s;color:var(--muted);font-size:10px;flex:none;}
+  .panel-group.collapsed .chevron{transform:rotate(-90deg);}
+  .panel-group-body{padding:0 16px 14px;}
+  .panel-group.collapsed .panel-group-body{display:none;}
+  .panel-group.list-group{flex:1;display:flex;flex-direction:column;min-height:0;border-bottom:none;}
+  .panel-group.list-group .panel-group-body{flex:1;display:flex;flex-direction:column;min-height:0;padding:0;}
+  .panel-group.list-group.collapsed{flex:none;}
+  .panel-subgroup{margin-bottom:12px;}
+  .panel-subgroup:last-child{margin-bottom:0;}
+  .panel-subgroup-title{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;font-weight:600;}
   .cfg-row{display:flex;gap:8px;margin-bottom:8px;}
   .cfg-row input[type=text]{
     flex:1;background:var(--panel-2);border:1px solid var(--line);color:var(--text);
@@ -162,9 +217,7 @@
   .legend-box .sw{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;}
 
   @media (max-width: 820px){
-    #sidebar{position:absolute;right:0;top:53px;bottom:24px;z-index:1000;transform:translateX(100%);transition:transform .2s;}
-    #sidebar.open{transform:translateX(0);}
-    #main{position:relative;}
+    #sidebar{top:53px;}
   }
 </style>
 </head>
@@ -181,16 +234,24 @@
     </div>
     <div class="status-strip">
       <div class="status-item"><span class="dot" id="conn-dot"></span><span id="conn-text">a inicializar…</span></div>
-      <div class="status-item">Última atualização: <span id="last-update">—</span></div>
+      <div class="status-item">FIRMS: <span id="last-update-firms">—</span></div>
+      <div class="status-item">EUMETSAT: <span id="last-update-mtg">—</span></div>
       <div class="status-item">Próxima em: <span id="next-update">—</span></div>
       <button class="ghost" id="refresh-btn">Atualizar agora</button>
       <button class="ghost" id="settings-btn">⚙ Definições</button>
-      <button class="ghost" id="sidebar-toggle" style="display:none;">Painel</button>
     </div>
   </header>
 
   <div id="main">
     <div id="map"></div>
+
+    <button id="panel-toggle-btn" title="Mostrar/esconder painel">☰</button>
+
+    <div id="basemap-switcher">
+      <button class="ghost tl-btn active" id="basemap-standard" title="Mapa padrão (OpenStreetMap)">Mapa</button>
+      <button class="ghost tl-btn" id="basemap-satellite" title="Imagem de satélite">Satélite</button>
+      <button class="ghost tl-btn" id="basemap-terrain" title="Mapa de terreno">Terreno</button>
+    </div>
 
     <div id="timeline-bar">
       <div id="history-banner" style="display:none;">
@@ -199,7 +260,9 @@
       </div>
       <div class="timeline-controls">
         <button class="ghost tl-btn" id="tl-first" title="Snapshot mais antigo">⏮</button>
+        <button class="ghost tl-btn" id="tl-prev" title="Snapshot anterior">‹</button>
         <button class="ghost tl-btn" id="tl-play" title="Reproduzir evolução">▶</button>
+        <button class="ghost tl-btn" id="tl-next" title="Snapshot seguinte">›</button>
         <input type="range" id="tl-slider" min="0" max="0" value="0" step="1">
         <button class="ghost tl-btn" id="tl-last" title="Ir para o mais recente (ao vivo)">⏭</button>
         <span id="tl-label" class="tl-label">sem histórico ainda</span>
@@ -207,49 +270,61 @@
     </div>
 
     <div id="sidebar">
-      <section>
-        <h2>Fontes de dados</h2>
-        <div class="source-row" id="source-firms">
-          <div class="source-info">
-            <div class="source-name">NASA FIRMS <span class="source-sub">(satélite VIIRS)</span></div>
-            <div class="source-meta" id="firms-summary">sem MAP_KEY configurado</div>
+      <div class="panel-group" id="group-sources">
+        <div class="panel-group-header"><span>Fontes de dados</span><span class="chevron">▾</span></div>
+        <div class="panel-group-body">
+          <div class="source-row" id="source-firms">
+            <div class="source-info">
+              <div class="source-name">NASA FIRMS <span class="source-sub">(satélite VIIRS)</span></div>
+              <div class="source-meta" id="firms-summary">sem MAP_KEY configurado</div>
+            </div>
+            <label class="switch big"><input type="checkbox" id="show-firms" checked><span class="slider"></span></label>
           </div>
-          <label class="switch big"><input type="checkbox" id="show-firms" checked><span class="slider"></span></label>
-        </div>
-        <div class="source-row" id="source-mtg">
-          <div class="source-info">
-            <div class="source-name">EUMETSAT MTG <span class="source-sub">(FRP-Pixel, ~10 min)</span></div>
-            <div class="source-meta" id="mtg-summary">fonte não configurada</div>
+          <div class="source-row" id="source-mtg">
+            <div class="source-info">
+              <div class="source-name">EUMETSAT MTG <span class="source-sub">(FRP-Pixel, ~10 min)</span></div>
+              <div class="source-meta" id="mtg-summary">fonte não configurada</div>
+            </div>
+            <label class="switch big"><input type="checkbox" id="show-mtg"><span class="slider"></span></label>
           </div>
-          <label class="switch big"><input type="checkbox" id="show-mtg"><span class="slider"></span></label>
+          <div class="hint">
+            O interruptor mostra/esconde cada fonte no mapa e na lista. Configura
+            as chaves/URLs em <b>⚙ Definições</b>, no cabeçalho.
+          </div>
         </div>
-        <div class="hint">
-          O interruptor mostra/esconde cada fonte no mapa e na lista. Configura
-          as chaves/URLs em <b>⚙ Definições</b>, no cabeçalho.
-        </div>
-      </section>
+      </div>
 
-      <section>
-        <h2>Resumo</h2>
-        <div class="stat-grid">
-          <div class="stat"><div class="n" id="stat-total">0</div><div class="l">Focos ativos (24h)</div></div>
-          <div class="stat hot"><div class="n" id="stat-recent">0</div><div class="l">Última hora</div></div>
+      <div class="panel-group" id="group-summary">
+        <div class="panel-group-header"><span>Resumo</span><span class="chevron">▾</span></div>
+        <div class="panel-group-body">
+          <div class="stat-grid">
+            <div class="stat"><div class="n" id="stat-total">0</div><div class="l">Focos ativos (24h)</div></div>
+            <div class="stat hot"><div class="n" id="stat-recent">0</div><div class="l">Última hora</div></div>
+          </div>
+          <div class="panel-subgroup" style="margin-top:10px;">
+            <div class="panel-subgroup-title">FIRMS — confiança/idade</div>
+            <div class="legend-box">
+              <div><span class="sw" style="background:#e2a23c;box-shadow:0 0 5px #e2a23c;"></span>Confiança nominal/baixa</div>
+              <div><span class="sw" style="background:#ef5b2c;box-shadow:0 0 5px #ef5b2c;"></span>Confiança alta</div>
+              <div><span class="sw" style="background:#ff2d1f;box-shadow:0 0 5px #ff2d1f;"></span>Deteção &lt; 1h</div>
+            </div>
+          </div>
+          <div class="panel-subgroup">
+            <div class="panel-subgroup-title">EUMETSAT MTG — intensidade FRP</div>
+            <div class="legend-box">
+              <div style="height:10px;border-radius:5px;margin:4px 0;background:linear-gradient(90deg, hsl(55,92%,58%), hsl(27,92%,52%), hsl(0,92%,46%));"></div>
+              <div style="display:flex;justify-content:space-between;font-size:10px;"><span>frio (baixa FRP)</span><span>quente (alta FRP)</span></div>
+            </div>
+          </div>
         </div>
-        <div class="legend-box" style="margin-top:10px;">
-          <div style="margin-bottom:6px;"><b>FIRMS (confiança/idade)</b></div>
-          <div><span class="sw" style="background:#e2a23c;box-shadow:0 0 5px #e2a23c;"></span>Confiança nominal/baixa</div>
-          <div><span class="sw" style="background:#ef5b2c;box-shadow:0 0 5px #ef5b2c;"></span>Confiança alta</div>
-          <div><span class="sw" style="background:#ff2d1f;box-shadow:0 0 5px #ff2d1f;"></span>Deteção &lt; 1h</div>
-          <div style="margin:8px 0 4px;"><b>EUMETSAT MTG (intensidade FRP)</b></div>
-          <div style="height:10px;border-radius:5px;margin:4px 0;background:linear-gradient(90deg, hsl(55,92%,58%), hsl(27,92%,52%), hsl(0,92%,46%));"></div>
-          <div style="display:flex;justify-content:space-between;font-size:10px;"><span>frio (baixa FRP)</span><span>quente (alta FRP)</span></div>
-        </div>
-      </section>
+      </div>
 
-      <section style="flex:1;display:flex;flex-direction:column;min-height:0;padding-bottom:0;">
-        <h2>Deteções recentes</h2>
-      </section>
-      <div id="list"><div class="empty-state">Abre ⚙ Definições para configurar uma fonte.</div></div>
+      <div class="panel-group list-group" id="group-list">
+        <div class="panel-group-header"><span>Deteções recentes</span><span class="chevron">▾</span></div>
+        <div class="panel-group-body">
+          <div id="list"><div class="empty-state">Abre ⚙ Definições para configurar uma fonte.</div></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -343,6 +418,12 @@
           poderes rever a evolução de um incêndio na barra por baixo do mapa.
           Fica só neste dispositivo/browser — não é partilhado nem enviado
           para lado nenhum.
+        </div>
+        <div class="hint" style="margin-top:8px;">
+          Se a fonte EUMETSAT MTG estiver configurada, o histórico
+          <b>partilhado</b> gerado pelo <code>mtg_fire_fetch.py</code> no
+          GitHub (guardado no repositório, visível em qualquer dispositivo)
+          é importado automaticamente para a linha do tempo.
         </div>
       </section>
     </div>
@@ -438,19 +519,66 @@ function forgetSavedCreds() {
 
 // --- Map setup ---
 const map = L.map('map', { zoomControl: true }).setView([39.6, -8.2], 7);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 18,
-  attribution: '&copy; OpenStreetMap contributors'
-}).addTo(map);
+
+// Mapas base disponíveis: padrão (OSM), satélite (Esri World Imagery) e
+// terreno (OpenTopoMap). Só um fica ativo de cada vez.
+const baseLayers = {
+  standard: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  }),
+  satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19,
+    attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics'
+  }),
+  terrain: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    maxZoom: 17,
+    attribution: 'Map data: &copy; OpenStreetMap contributors, SRTM · Map style: &copy; OpenTopoMap (CC-BY-SA)'
+  })
+};
+let currentBase = 'standard';
+baseLayers.standard.addTo(map);
+
+function setBasemap(name) {
+  if (name === currentBase || !baseLayers[name]) return;
+  map.removeLayer(baseLayers[currentBase]);
+  baseLayers[name].addTo(map);
+  currentBase = name;
+  document.querySelectorAll('#basemap-switcher button').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('basemap-' + name);
+  if (btn) btn.classList.add('active');
+}
 
 let markerLayer = L.layerGroup().addTo(map);
 
 // --- UI refs ---
 const $ = (id) => document.getElementById(id);
 const connDot = $('conn-dot'), connText = $('conn-text');
-const lastUpdateEl = $('last-update'), nextUpdateEl = $('next-update');
+const lastUpdateFirmsEl = $('last-update-firms'), lastUpdateMtgEl = $('last-update-mtg'), nextUpdateEl = $('next-update');
 const statTotal = $('stat-total'), statRecent = $('stat-recent');
 const listEl = $('list'), txCountEl = $('tx-count');
+
+// Hora real dos DADOS-FONTE (não da última vez que a página foi consultar o
+// servidor). FIRMS não expõe um timestamp único de "ficheiro"; usa-se como
+// proxy a deteção mais recente devolvida pela API. O MTG expõe um timestamp
+// próprio (source_timestamp_utc) no JSON gerado pelo mtg_fire_fetch.py.
+let firmsSourceTs = null; // Date | null
+let mtgSourceTs = null;   // Date | null
+let isRefreshing = false; // impede atualizações concorrentes (ver refreshData)
+
+function fmtDateTime(d) {
+  if (!d || isNaN(d.getTime())) return '—';
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  return sameDay
+    ? d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+function updateHeaderTimestamps() {
+  lastUpdateFirmsEl.textContent = isRefreshing ? 'a atualizar…' : fmtDateTime(firmsSourceTs);
+  lastUpdateMtgEl.textContent = isRefreshing ? 'a atualizar…' : fmtDateTime(mtgSourceTs);
+}
 
 $('save-key').addEventListener('click', () => {
   mapKey = $('map-key').value.trim();
@@ -494,6 +622,14 @@ $('save-gh-trigger').addEventListener('click', () => {
     : 'estado: faltam dados (repositório e/ou token)';
 });
 $('gh-trigger-toggle').addEventListener('change', (e) => {
+  // Lê e guarda os campos diretamente aqui, para não depender de o
+  // utilizador ter clicado em "Usar" antes de ligar o interruptor.
+  ghRepo = $('gh-repo').value.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, '');
+  ghToken = $('gh-token').value.trim();
+  $('gh-repo').value = ghRepo;
+  saveCred('gh-repo');
+  saveCred('gh-token');
+
   ghTriggerEnabled = e.target.checked;
   if (ghTriggerEnabled && (!ghRepo || !ghToken)) {
     $('gh-trigger-status').textContent = 'estado: preenche repositório e token primeiro';
@@ -507,7 +643,17 @@ $('gh-trigger-toggle').addEventListener('change', (e) => {
     : 'estado: desligado';
   if (ghTriggerEnabled) triggerGithubWorkflow();
 });
+$('basemap-standard').addEventListener('click', () => setBasemap('standard'));
+$('basemap-satellite').addEventListener('click', () => setBasemap('satellite'));
+$('basemap-terrain').addEventListener('click', () => setBasemap('terrain'));
+$('panel-toggle-btn').addEventListener('click', () => {
+  const isOpen = $('sidebar').classList.toggle('open');
+  $('main').classList.toggle('sidebar-open', isOpen);
+  $('panel-toggle-btn').textContent = isOpen ? '✕' : '☰';
+});
 $('show-firms').addEventListener('change', () => { renderAll(); updateSourceSummaries(); });
+$('gh-repo').addEventListener('blur', () => saveCred('gh-repo'));
+$('gh-token').addEventListener('blur', () => saveCred('gh-token'));
 $('show-mtg').addEventListener('change', () => { renderAll(); updateSourceSummaries(); });
 
 function setStatus(state, text) {
@@ -703,7 +849,14 @@ async function fetchMtgLocal() {
   if (!res.ok) throw new Error(`HTTP ${res.status} ao ler o JSON MTG`);
   const payload = await res.json();
   const rows = payload.detections || [];
-  $('mtg-status').textContent = `estado: ok · ${rows.length} deteções · ficheiro gerado ${new Date(payload.generated_at).toLocaleTimeString('pt-PT')}`;
+  if (payload.source_timestamp_utc) {
+    const d = new Date(payload.source_timestamp_utc);
+    if (!isNaN(d.getTime())) mtgSourceTs = d;
+  }
+  $('mtg-status').textContent = `estado: ok · ${rows.length} deteções · dados de ${fmtDateTime(mtgSourceTs)} (hora local)`;
+
+  importServerHistory().catch(err => console.warn('Histórico partilhado indisponível:', err.message));
+
   return rows.map(d => ({
     lat: d.lat,
     lon: d.lon,
@@ -715,6 +868,49 @@ async function fetchMtgLocal() {
     brightness: '',
     sourceGroup: 'mtg'
   }));
+}
+
+// Importa o histórico partilhado (gerado pelo mtg_fire_fetch.py e guardado no
+// repositório) para o histórico local, para a linha do tempo mostrar dados
+// consistentes em qualquer dispositivo/browser, não só no que fez a captura.
+let lastHistoryImportUrl = null;
+async function importServerHistory() {
+  if (!mtgUrl) return;
+  const historyUrl = mtgUrl.replace(/portugal_fires_mtg\.json(\?.*)?$/, 'portugal_fires_mtg_history.json');
+  if (historyUrl === mtgUrl) return; // não conseguiu derivar o nome, evita loop
+  const bust = (historyUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+  const res = await fetch(historyUrl + bust, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const snapshots = await res.json();
+  if (!Array.isArray(snapshots)) return;
+
+  let imported = 0;
+  for (const snap of snapshots) {
+    const ts = Date.parse(snap.source_timestamp_utc);
+    if (isNaN(ts) || historyIndex.includes(ts)) continue; // já existe localmente
+    const compact = (snap.detections || []).map(d => ({
+      lat: d.lat, lon: d.lon, frp: d.frp || 0,
+      confidence: String(d.confidence || 'n').toLowerCase(),
+      satellite: d.satellite || 'MTG-FCI',
+      sourceGroup: 'mtg',
+      dt: snap.source_timestamp_utc
+    }));
+    try {
+      localStorage.setItem(HISTORY_STORAGE_PREFIX + ts, JSON.stringify(compact));
+      historyIndex.push(ts);
+      imported++;
+    } catch (e) {
+      console.warn('Armazenamento cheio ao importar histórico partilhado, a parar.', e);
+      break;
+    }
+  }
+  if (imported > 0) {
+    historyIndex.sort((a, b) => a - b);
+    saveHistoryIndex();
+    pruneHistory();
+    updateTimelineUI();
+    console.log(`[histórico partilhado] Importados ${imported} snapshots do servidor.`);
+  }
 }
 
 async function triggerGithubWorkflow() {
@@ -741,10 +937,19 @@ async function triggerGithubWorkflow() {
 }
 
 async function refreshData() {
+  if (isRefreshing) {
+    // Já há uma atualização em curso — deixa-a terminar em vez de
+    // disparar outra em paralelo (evita pedidos duplicados/condições de
+    // corrida). O cabeçalho já está a mostrar "a atualizar…".
+    console.log('Atualização já em curso — pedido ignorado.');
+    return;
+  }
   if (!mapKey && !mtgUrl) {
     setStatus('err', 'nenhuma fonte configurada — abre ⚙ Definições');
     return;
   }
+  isRefreshing = true;
+  updateHeaderTimestamps();
   setStatus('stale', 'a atualizar…');
   if (ghTriggerEnabled) triggerGithubWorkflow(); // não bloqueia — o resultado só aparece no próximo ciclo
   try {
@@ -770,6 +975,16 @@ async function refreshData() {
       return true;
     }).sort((a, b) => b.dt - a.dt);
 
+    // Hora dos "dados-fonte" da FIRMS: não há um único timestamp de ficheiro
+    // exposto pela API, por isso usa-se como proxy a deteção mais recente
+    // devolvida nesta atualização.
+    if (mapKey) {
+      const firmsRows = merged.filter(d => d.sourceGroup === 'firms');
+      if (firmsRows.length) {
+        firmsSourceTs = firmsRows.reduce((mx, d) => (d.dt > mx ? d.dt : mx), firmsRows[0].dt);
+      }
+    }
+
     const snapTs = Date.now();
     saveSnapshot(snapTs, liveDetections);
     updateTimelineUI();
@@ -780,11 +995,12 @@ async function refreshData() {
       updateSourceSummaries();
     }
     setStatus('ok', historyMode ? 'ligado (a ver histórico)' : 'ligado');
-    lastUpdateEl.textContent = fmtTime(new Date());
   } catch (err) {
     console.error(err);
     setStatus('err', err.message.slice(0, 60));
   } finally {
+    isRefreshing = false;
+    updateHeaderTimestamps();
     scheduleNext();
   }
 }
@@ -851,7 +1067,7 @@ function renderAll() {
       });
       marker.bindPopup(`
         <div class="popup-title">Foco de calor detetado</div>
-        <div class="popup-row"><span>Hora (UTC)</span><b>${iso.slice(11,16)} · ${iso.slice(0,10)}</b></div>
+        <div class="popup-row"><span>Hora (local)</span><b>${d.dt.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })} · ${d.dt.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' })}</b></div>
         <div class="popup-row"><span>Satélite</span><b>${d.satellite}</b></div>
         <div class="popup-row"><span>FRP</span><b>${d.frp.toFixed(1)} MW</b></div>
         <div class="popup-row"><span>Confiança</span><b>${d.confidence}</b></div>
@@ -896,15 +1112,11 @@ function timeAgo(ms) {
   return `há ${h}h${String(min % 60).padStart(2,'0')}`;
 }
 
-// Mobile sidebar toggle
-function checkMobile() {
-  const isMobile = window.innerWidth <= 820;
-  $('sidebar-toggle').style.display = isMobile ? 'inline-block' : 'none';
-}
-window.addEventListener('resize', checkMobile);
-checkMobile();
-$('sidebar-toggle').addEventListener('click', () => {
-  document.getElementById('sidebar').classList.toggle('open');
+// Grupos recolhíveis do painel lateral (estilo secções com seta)
+document.querySelectorAll('.panel-group-header').forEach(h => {
+  h.addEventListener('click', () => {
+    h.closest('.panel-group').classList.toggle('collapsed');
+  });
 });
 
 function updateTimelineUI() {
@@ -973,6 +1185,8 @@ $('tl-slider').addEventListener('input', (e) => {
   goToHistoryPos(Number(e.target.value));
 });
 $('tl-first').addEventListener('click', () => { stopPlayback(); goToHistoryPos(0); });
+$('tl-prev').addEventListener('click', () => { stopPlayback(); goToHistoryPos(Number($('tl-slider').value) - 1); });
+$('tl-next').addEventListener('click', () => { stopPlayback(); goToHistoryPos(Number($('tl-slider').value) + 1); });
 $('tl-last').addEventListener('click', () => { stopPlayback(); goToHistoryPos(historyIndex.length - 1); });
 $('live-btn').addEventListener('click', () => { stopPlayback(); exitHistoryMode(); });
 $('tl-play').addEventListener('click', () => {
@@ -1068,6 +1282,15 @@ if (ghRepo && ghToken) $('gh-trigger-status').textContent = 'estado: credenciais
 if (mtgUrl && !$('mtg-status').textContent.includes('detetado')) $('mtg-status').textContent = 'estado: configurado (guardado neste browser)';
 updateSourceSummaries();
 if (mapKey || mtgUrl) refreshData();
+
+// Regista o service worker (torna a página instalável como app).
+// Só funciona servida via http/https (GitHub Pages); não em file://.
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  navigator.serviceWorker.register('./sw.js').catch((err) => {
+    console.warn('Não consegui registar o service worker:', err);
+  });
+}
+
 </script>
 </body>
 </html>
