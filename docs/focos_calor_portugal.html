@@ -205,6 +205,13 @@
 
   /* leaflet popup theming */
   .leaflet-popup-content-wrapper{background:var(--panel);color:var(--text);border-radius:8px;border:1px solid var(--line);}
+  .heli-marker-icon{background:transparent;border:none;}
+  .heli-pin{
+    width:22px;height:22px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    color:#0c1210;font-weight:800;font-size:11px;font-family:var(--mono);
+    border:1.5px solid rgba(0,0,0,.4);
+  }
   .leaflet-popup-tip{background:var(--panel);}
   .popup-title{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--amber);margin-bottom:4px;}
   .popup-row{font-size:11px;color:var(--muted);display:flex;justify-content:space-between;gap:12px;}
@@ -591,25 +598,34 @@ function heliStatusColor(status) {
   return '#8ea198';
 }
 
+// Rótulo mostrado ao utilizador — "Efectuada"/"efectuada" (tal como vem da
+// folha de origem) aparece como "Aterragem efetuada"; os outros estados
+// mantêm-se como estão na fonte.
+function heliStatusLabel(status) {
+  if (!status) return 'sem informação';
+  return /efectuad/i.test(status) ? 'Aterragem efetuada' : status;
+}
+
 function renderHeliPrimarios() {
   heliLayer.clearLayers();
   HELI_PRIMARIOS.forEach(h => {
     const color = heliStatusColor(h.status);
     const nome = h.nome || h.concelho || 'Local sem nome';
-    const marker = L.circleMarker([h.lat, h.lon], {
-      radius: 6,
-      color: color,
-      fillColor: color,
-      fillOpacity: 0.85,
-      weight: 1.5
+    const marker = L.marker([h.lat, h.lon], {
+      icon: L.divIcon({
+        className: 'heli-marker-icon',
+        html: `<div class="heli-pin" style="background:${color};box-shadow:0 0 6px ${color};">H</div>`,
+        iconSize: [22, 22],
+        iconAnchor: [11, 11],
+        popupAnchor: [0, -11]
+      })
     });
     const rows = [
       `<div class="popup-row"><span>Concelho</span><b>${h.concelho || '—'}</b></div>`,
       `<div class="popup-row"><span>Distrito</span><b>${h.distrito || '—'}</b></div>`,
       `<div class="popup-row"><span>Local</span><b>${h.local || '—'}</b></div>`,
       h.terreno ? `<div class="popup-row"><span>Terreno</span><b>${h.terreno}</b></div>` : '',
-      `<div class="popup-row"><span>Estado</span><b>${h.status || 'sem informação'}</b></div>`,
-      h.opcem ? `<div class="popup-row"><span>Confirmado por</span><b>${h.opcem}</b></div>` : '',
+      `<div class="popup-row"><span>Estado</span><b>${heliStatusLabel(h.status)}</b></div>`,
       `<div class="popup-row"><span>Coordenadas</span><b>${h.lat.toFixed(5)}, ${h.lon.toFixed(5)}</b></div>`
     ].filter(Boolean).join('');
     marker.bindPopup(`
