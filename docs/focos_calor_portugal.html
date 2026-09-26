@@ -1181,7 +1181,7 @@ function renderTargetPointsList() {
         <button class="target-point-remove" data-id="${p.id}" title="Remover este ponto">✕</button>
       </div>
       <div class="target-point-coords">${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}</div>
-      ${etaBlockHtml(p)}
+      <div class="hint" style="margin-top:3px;">Clica no ponto no mapa para ver os tempos estimados.</div>
     </div>
   `).join('');
 }
