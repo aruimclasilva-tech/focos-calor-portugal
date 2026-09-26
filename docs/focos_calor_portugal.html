@@ -999,9 +999,98 @@ document.addEventListener('change', (e) => {
 // ---------------------------------------------------------------
 const TARGET_POINT_KEY = 'firemap_cfg_target_point';
 
-// Lista de hospitais (a preencher: { nome, lat, lon }). Enquanto estiver
-// vazia, o painel mostra "lista ainda não carregada" em vez dos tempos.
-const HOSPITALS = [];
+// Lista de hospitais (fonte: HeliTools.V2025, folha DB_Hospitais).
+// "local" é a designação SIADEM/CODU; "nome" é o nome oficial do
+// hospital. A coluna "ETA AO SU" da folha original foi ignorada (não é
+// usada para calcular tempos — esses são sempre calculados a partir da
+// velocidade do meio, tal como para os Heli INEM).
+const HOSPITALS = [
+  { nome: 'CENTRO HOSPITALAR ALTO MINHO SA', local: 'SUMC HOSPITAL DE VIANA DO CASTELO', lat: 41.697367, lon: -8.831935 },
+  { nome: 'CENTRO HOSPITALAR POVOA VARZIM VILA CONDE', local: 'SUMC HOSPITAL DE POVOA DE VARZIM', lat: 41.383051, lon: -8.759221 },
+  { nome: 'CENTRO HOSPITALAR VILA NOVA GAIA', local: 'SUP HOSPITAL DE VILA NOVA GAIA', lat: 41.102833, lon: -8.58975 },
+  { nome: 'HOSPITAL BRAGA', local: 'SUP HOSPITAL DE BRAGA', lat: 41.565886, lon: -8.398407 },
+  { nome: 'HOSPITAL DISTRITAL BRAGANCA', local: 'SUMC HOSPITAL DE BRAGANCA', lat: 41.802667, lon: -6.7682 },
+  { nome: 'HOSPITAL DISTRITAL CHAVES', local: 'SUMC HOSPITAL DE CHAVES', lat: 41.743391, lon: -7.476772 },
+  { nome: 'HOSPITAL GERAL STO ANTONIO S', local: 'SUP HOSPITAL SANTO ANTONIO - PORTO', lat: 41.147229, lon: -8.620411 },
+  { nome: 'HOSPITAL NOSSA SENHORA OLIVEIRA S GUIMARAES', local: 'SUMC HOSPITAL DE GUIMARAES', lat: 41.441415, lon: -8.304938 },
+  { nome: 'HOSPITAL PADRE AMERICO VALE SOUSA S', local: 'SUMC HOSPITAL DE PENAFIEL', lat: 41.196167, lon: -8.30944 },
+  { nome: 'HOSPITAL PEDRO HISPANO SA MATOSINHOS', local: 'SUMC HOSPITAL PEDRO HISPANO - MATOSINHOS', lat: 41.181247, lon: -8.663259 },
+  { nome: 'HOSPITAL S PEDRO VILA REAL', local: 'SUP HOSPITAL DE VILA REAL', lat: 41.30844, lon: -7.758767 },
+  { nome: 'HOSPITAL SAO JOAO', local: 'SUP HOSPITAL SÃO JOAO - PORTO', lat: 41.182884, lon: -8.601308 },
+  { nome: 'HOSPITAL SAO JOAO DEUS S VILA NOVA FAMALICAO', local: 'SUMC HOSPITAL DE FAMALICAO', lat: 41.412038, lon: -8.521798 },
+  { nome: 'HOSPITAL SAO SEBASTIAO S STA MARIA FEIRA', local: 'SUMC HOSPITAL DE SANTA MARIA FEIRA', lat: 40.929488, lon: -8.547297 },
+  { nome: 'HOSPITAL SAO TEOTONIO S VISEU', local: 'SUP HOSPITAL DE VISEU', lat: 40.6505, lon: -7.90463 },
+  { nome: 'HOSPITAL SOUSA MARTINS GUARDA', local: 'SUMC HOSPITAL DA GUARDA', lat: 40.531598, lon: -7.273976 },
+  { nome: 'HOSPITAL INFANTE D PEDRO S AVEIRO', local: 'SUMC HOSPITAL DE AVEIRO', lat: 40.634418, lon: -8.655174 },
+  { nome: 'CENTRO HOSPITALAR COIMBRA HOSPITAL PEDIATRICO COIMBRA', local: 'SUP HOSPITAL PEDIATRICO DE COIMBRA', lat: 40.223918, lon: -8.413856, heliporto: 'INTERDITO', obs: 'Aterra no Heliporto CHUC-HUC' },
+  { nome: 'HOSPITAIS UNIVERSIDADE COIMBRA HOSPITAL GERAL', local: 'SUP HOSPITAL DE COIMBRA - HUC', lat: 40.220105, lon: -8.412893 },
+  { nome: 'CENTRO HOSPITALAR COVA BEIRA HOSPITAL GERAL', local: 'SUP HOSPITAL DE COVILHA', lat: 40.265697, lon: -7.492378 },
+  { nome: 'HOSPITAL AMATO LUSITANO CASTELO BRANCO', local: 'SUMC HOSPITAL DE CASTELO BRANCO', lat: 39.822093, lon: -7.499998 },
+  { nome: 'CENTRO HOSPITALAR COIMBRA HOSPITAL GERAL', local: 'SUP HOSPITAL DE COIMBRA - CHC (encerrado)', lat: 40.195308, lon: -8.458886 },
+  { nome: 'HOSPITAL DISTRITAL FIGUEIRA FOZ', local: 'SUMC HOSPITAL DA FIGUEIRA FOZ', lat: 40.131013, lon: -8.86119 },
+  { nome: 'HOSPITAL STO ANDRE S LEIRIA', local: 'SUMC HOSPITAL DE LEIRIA', lat: 39.743313, lon: -8.793801 },
+  { nome: 'CENTRO HOSPITALAR CALDAS RAINHA', local: 'SUMC HOSPITAL DE CALDAS RAINHA', lat: 39.405217, lon: -9.130218 },
+  { nome: 'HOSPITAL SAO JOSE LISBOA', local: 'SUP HOSPITAL SÃO JOSE - LISBOA', lat: 38.717311, lon: -9.137926 },
+  { nome: 'HOSPITAL JOSE JOAQUIM FERNANDES S BEJA', local: 'SUMC HOSPITAL DE BEJA', lat: 38.01469, lon: -7.869839 },
+  { nome: 'HOSPITAL LITORAL ALENTEJANO SANTIAGO CACEM', local: 'SUMC HOSPITAL DE SANTIAGO CACEM', lat: 38.041892, lon: -8.732052, heliporto: 'ANAC 24H' },
+  { nome: 'HOSPITAL ESPIRITO STO EVORA', local: 'SUP HOSPITAL DE EVORA', lat: 38.568127, lon: -7.90307 },
+  { nome: 'HOSPITAL GARCIA ORTA ALMADA GERAL', local: 'SUP HOSPITAL DE ALMADA', lat: 38.673108, lon: -9.177134 },
+  { nome: 'HOSPITAL DISTRITAL FARO', local: 'SUP HOSPITAL DE FARO', lat: 37.021959, lon: -7.940629 },
+  { nome: 'HOSPITAL BARLAVENTO ALGARVIO PORTIMAO', local: 'SUMC HOSPITAL DE PORTIMAO', lat: 37.155294, lon: -8.541054 },
+  { nome: 'HOSPITAL REYNALDO SANTOS VILA FRANCA XIRA', local: 'SUMC HOSPITAL DE VILA FRANCA XIRA', lat: 38.952558, lon: -8.99222 },
+  { nome: 'HOSPITAL DR FERNANDO FONSECA AMADORA SINTRA', local: 'SUMC HOSPITAL DA AMADORA-SINTRA', lat: 38.744717, lon: -9.246208 },
+  { nome: 'HOSPITAL STA MARIA LISBOA', local: 'SUP HOSPITAL SANTA MARIA - LISBOA', lat: 38.748708, lon: -9.161222 },
+  { nome: 'HOSPITAL SAO FRANCISCO XAVIER S', local: 'SUP HOSPITAL SÃO FRANCISCO XAVIER - LISBOA', lat: 38.701998, lon: -9.22634 },
+  { nome: 'HOSPITAL DR JOSE MARIA ANTUNES JUNIOR TORRES VEDRAS', local: 'SUMC HOSPITAL DE TORRES VEDRAS', lat: 39.086567, lon: -9.25754 },
+  { nome: 'HOSPITAL CONDES CASTRO GUIMARAES CASCAIS', local: 'SUMC HOSPITAL DE CASCAIS', lat: 38.729797, lon: -9.419993 },
+  { nome: 'HOSPITAL DOUTOR JOSE MARIA GRANDE PORTALEGRE', local: 'SUMC HOSPITAL DE PORTALEGRE', lat: 39.299888, lon: -7.427706 },
+  { nome: 'HOSPITAL DISTRITAL SANTAREM', local: 'SUMC HOSPITAL DE SANTAREM', lat: 39.241493, lon: -8.696576 },
+  { nome: 'HOSPITAL SAO BERNARDO SETUBAL', local: 'SUMC HOSPITAL DE SETUBAL', lat: 38.529678, lon: -8.881043 },
+  { nome: 'HOSPITAL NOSSA SENHORA ROSARIO S BARREIRO', local: 'SUMC HOSPITAL DO BARREIRO', lat: 38.656338, lon: -9.057142 },
+  { nome: 'HOSPITAL BEATRIZ ANGELO LOURES', local: 'SUMC HOSPITAL DE LOURES', lat: 38.820232, lon: -9.176391 },
+  { nome: 'HOSPITAL DOUTOR MANOEL CONSTANCIO ABRANTES', local: 'SUMC HOSPITAL DE ABRANTES', lat: 39.4562, lon: -8.198801 },
+  { nome: 'Águeda - Centro Hospitalar Baixo Vouga', local: 'SUB Águeda - Centro Hospitalar Baixo Vouga', lat: 40.575597, lon: -8.448892 },
+  { nome: 'Albufeira', local: 'SUB Albufeira', lat: 37.098223, lon: -8.254884 },
+  { nome: 'Alcácer do Sal', local: 'SUB Alcácer do Sal', lat: 38.375717, lon: -8.509625 },
+  { nome: 'Alcobaça - Centro Hospitalar Oeste Norte', local: 'SUB Alcobaça - Centro Hospitalar Oeste Norte', lat: 39.55048, lon: -8.972409 },
+  { nome: 'Amarante - Centro Hospitalar Tâmega e Sousa', local: 'SUB Amarante - Centro Hospitalar Tâmega e Sousa', lat: 41.301959, lon: -8.079877 },
+  { nome: 'Arganil', local: 'SUB Arganil', lat: 40.216214, lon: -8.054611 },
+  { nome: 'Arouca', local: 'SUB Arouca', lat: 40.930146, lon: -8.254416 },
+  { nome: 'Barcelos - Hospital Santa Maria Maior', local: 'SUB Barcelos - Hospital Santa Maria Maior', lat: 41.533175, lon: -8.616803 },
+  { nome: 'Castro Verde', local: 'SUB Castro Verde', lat: 37.702211, lon: -8.083778 },
+  { nome: 'Cinfães', local: 'SUB Cinfães', lat: 41.074236, lon: -8.09098 },
+  { nome: 'Elvas - Unidade Local Saúde Norte Alentejano', local: 'SUB Elvas - Unidade Local Saúde Norte Alentejano', lat: 38.875058, lon: -7.16314 },
+  { nome: 'Estremoz', local: 'SUB Estremoz', lat: 38.848183, lon: -7.585885 },
+  { nome: 'Fafe - Centro Hospitalar Alto Ave', local: 'SUB Fafe - Centro Hospitalar Alto Ave', lat: 41.449521, lon: -8.169412 },
+  { nome: 'Lagos - Centro Hospitalar Barlavento Algarvio', local: 'SUB Lagos - Centro Hospitalar Barlavento Algarvio', lat: 37.098032, lon: -8.681975 },
+  { nome: 'Lamego - Centro Hospitalar Trás-os-Montes e Alto Douro', local: 'SUB Lamego - Centro Hospitalar Trás-os-Montes e Alto Douro', lat: 41.083779, lon: -7.795834 },
+  { nome: 'Loulé', local: 'SUB Loulé', lat: 37.145551, lon: -8.012361 },
+  { nome: 'Macedo Cavaleiros - Unidade Local Saúde Nordeste', local: 'SUB Macedo Cavaleiros - Unidade Local Saúde Nordeste', lat: 41.535128, lon: -6.960256 },
+  { nome: 'Mirandela - Unidade Local Saúde Nordeste', local: 'SUB Mirandela - Unidade Local Saúde Nordeste', lat: 41.485134, lon: -7.189091 },
+  { nome: 'Mogadouro', local: 'SUB Mogadouro', lat: 41.342994, lon: -6.712231 },
+  { nome: 'Moimenta da Beira', local: 'SUB Moimenta da Beira', lat: 40.972168, lon: -7.611592 },
+  { nome: 'Monção', local: 'SUB Monção', lat: 42.069187, lon: -8.486406 },
+  { nome: 'Montalegre', local: 'SUB Montalegre', lat: 41.831095, lon: -7.78312 },
+  { nome: 'Montemor-o-Novo', local: 'SUB Montemor-o-Novo', lat: 38.652384, lon: -8.214388 },
+  { nome: 'Montijo - Centro Hospitalar Barreiro e Montijo', local: 'SUB Montijo - Centro Hospitalar Barreiro e Montijo', lat: 38.707361, lon: -8.971886 },
+  { nome: 'Moura', local: 'SUB Moura', lat: 38.137906, lon: -7.451915 },
+  { nome: 'Odemira', local: 'SUB Odemira', lat: 37.601378, lon: -8.645385 },
+  { nome: 'Oliveira Azeméis - Centro Hospitalar Entre o Douro e Vouga', local: 'SUB Oliveira Azeméis - Centro Hospitalar Entre o Douro e Vouga', lat: 40.841209, lon: -8.471386 },
+  { nome: 'Peniche - Centro Hospitalar Oeste Norte', local: 'SUB Peniche - Centro Hospitalar Oeste Norte', lat: 39.363549, lon: -9.382395 },
+  { nome: 'Pombal - Centro Hospitalar Leiria e Pombal', local: 'SUB Pombal - Centro Hospitalar Leiria e Pombal', lat: 39.917539, lon: -8.625324 },
+  { nome: 'Ponte Lima - Unidade Local Saúde Alto Minho', local: 'SUB Ponte Lima - Unidade Local Saúde Alto Minho', lat: 41.7671, lon: -8.579467 },
+  { nome: 'Ponte Sôr', local: 'SUB Ponte Sôr', lat: 39.250644, lon: -8.014317 },
+  { nome: 'Santo Tirso - Centro Hospitalar Médio Ave', local: 'SUB Santo Tirso - Centro Hospitalar Médio Ave', lat: 41.346701, lon: -8.482855 },
+  { nome: 'São Pedro do Sul', local: 'SUB São Pedro do Sul', lat: 40.759698, lon: -8.061693 },
+  { nome: 'Seia - Unidade Local Saúde da Guarda', local: 'SUB Seia - Unidade Local Saúde da Guarda', lat: 40.421037, lon: -7.695701 },
+  { nome: 'Serpa - Unidade Local Saúde Baixo Alentejo', local: 'SUB Serpa - Unidade Local Saúde Baixo Alentejo', lat: 37.944235, lon: -7.595726 },
+  { nome: 'Tomar - Centro Hospitalar Médio Tejo', local: 'SUB Tomar - Centro Hospitalar Médio Tejo', lat: 39.610067, lon: -8.395847 },
+  { nome: 'Tondela - Centro Hospitalar Tondela e Viseu', local: 'SUB Tondela - Centro Hospitalar Tondela e Viseu', lat: 40.516728, lon: -8.083378 },
+  { nome: 'Torres Novas - Centro Hospitalar Médio Tejo', local: 'SUB Torres Novas - Centro Hospitalar Médio Tejo', lat: 39.46845, lon: -8.536001 },
+  { nome: 'Valongo - Centro Hospitalar São João', local: 'SUB Valongo - Centro Hospitalar São João', lat: 41.187352, lon: -8.498251 },
+  { nome: 'Vila Nova Foz Côa', local: 'SUB Vila Nova Foz Côa', lat: 41.079321, lon: -7.140738 },
+  { nome: 'Vila Real Santo António', local: 'SUB Vila Real Santo António', lat: 37.190245, lon: -7.418229 }
+];
 
 let targetPoint = null;   // { lat, lon } | null
 let targetMarker = null;  // L.Marker | null
@@ -1060,14 +1149,24 @@ function renderTargetInfo() {
       hospListEl.className = 'hint';
       hospListEl.textContent = 'Lista de hospitais ainda não carregada.';
     } else {
+      const HOSP_SHOW = 6;
       const hospEtas = computeEtas(targetPoint, HOSPITALS, 'velocidade', 0);
+      const top = hospEtas.slice(0, HOSP_SHOW);
       hospListEl.className = '';
-      hospListEl.innerHTML = hospEtas.map(e => `
-        <div class="target-eta-row">
-          <span>${e.nome}</span>
-          <b>${e.flightMin.toFixed(0)} min <small style="color:var(--muted);">· ${e.distKm.toFixed(0)} km</small></b>
+      hospListEl.innerHTML = `
+        <div style="max-height:150px;overflow-y:auto;">
+          ${top.map(e => `
+            <div class="target-eta-row">
+              <span>${e.nome} <small style="color:var(--muted);">(${e.local})</small></span>
+              <b>${e.flightMin.toFixed(0)} min <small style="color:var(--muted);">· ${e.distKm.toFixed(0)} km</small></b>
+            </div>
+          `).join('')}
         </div>
-      `).join('');
+        <div class="hint" style="margin-top:4px;">
+          ${HOSP_SHOW} mais próximos de ${HOSPITALS.length} hospitais/SUB carregados
+          (tempo estimado por voo direto a 241 Km/h, sem rota real).
+        </div>
+      `;
     }
   }
 }
