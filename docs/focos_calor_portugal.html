@@ -237,6 +237,12 @@
   }
   .heli-cluster-pin .h-letter{font-size:13px;}
   .heli-cluster-pin .h-count{font-size:9px;font-weight:700;margin-top:1px;}
+  .inem-pin{
+    width:28px;height:28px;border-radius:50%;
+    background:#ffd100;border:2px solid #1a1a1a;
+    display:flex;align-items:center;justify-content:center;
+    font-size:15px;line-height:1;box-shadow:0 0 6px rgba(255,209,0,.7);
+  }
   .leaflet-popup-tip{background:var(--panel);}
   .popup-title{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--amber);margin-bottom:4px;}
   .popup-row{font-size:11px;color:var(--muted);display:flex;justify-content:space-between;gap:12px;}
@@ -351,6 +357,18 @@
           <div class="hint">
             Locais de aterragem primários (dados internos DRC). Referência
             de apoio — confirma sempre as condições do local antes de usar.
+          </div>
+
+          <div class="source-row" id="source-heli-inem" style="margin-top:12px;">
+            <div class="source-info">
+              <div class="source-name">Heli INEM <span class="source-sub">(bases, meios aéreos)</span></div>
+              <div class="source-meta" id="heli-inem-summary">4 bases carregadas</div>
+            </div>
+            <label class="switch big"><input type="checkbox" id="show-heli-inem"><span class="slider"></span></label>
+          </div>
+          <div class="hint">
+            Bases dos meios aéreos do INEM (dados internos DRC). Posição
+            de base — não é o rastreio ao vivo do meio.
           </div>
         </div>
       </div>
@@ -732,6 +750,45 @@ function renderHeliPrimarios() {
 }
 renderHeliPrimarios();
 
+// ---------------------------------------------------------------
+// Heli INEM — bases dos meios aéreos de emergência médica (dados internos
+// DRC). Camada de referência estática (posição da base, não rastreio ao
+// vivo do meio).
+// ---------------------------------------------------------------
+const INEM_HELIS = [
+  { nome: 'Heli Sul', local: 'Évora', modelo: 'H145', velocidade: 241, tempoInicio: '0:05:00', lat: 38.53123082, lon: -7.888340203 },
+  { nome: 'Heli Algarve', local: 'Loulé', modelo: 'H145', velocidade: 241, tempoInicio: '0:05:00', lat: 37.138955, lon: -8.022851 },
+  { nome: 'Heli Norte', local: 'Macedo de Cavaleiros', modelo: 'H145', velocidade: 241, tempoInicio: '0:05:00', lat: 41.539071, lon: -6.959911 },
+  { nome: 'Heli Centro', local: 'Viseu', modelo: 'H145', velocidade: 241, tempoInicio: '0:05:00', lat: 40.72785485, lon: -7.889402708 }
+];
+
+let heliInemLayer = L.layerGroup();
+
+function renderHeliInem() {
+  heliInemLayer.clearLayers();
+  INEM_HELIS.forEach(h => {
+    const marker = L.marker([h.lat, h.lon], {
+      icon: L.divIcon({
+        className: 'heli-marker-icon',
+        html: `<div class="inem-pin">🚁</div>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+        popupAnchor: [0, -14]
+      })
+    });
+    marker.bindPopup(`
+      <div class="popup-title">🚁 ${h.nome}</div>
+      <div class="popup-row"><span>Local</span><b>${h.local}</b></div>
+      <div class="popup-row"><span>Modelo</span><b>${h.modelo}</b></div>
+      <div class="popup-row"><span>Velocidade</span><b>${h.velocidade} Km/h</b></div>
+      <div class="popup-row"><span>Tempo de ativação</span><b>${h.tempoInicio}</b></div>
+      <div class="popup-row"><span>Coordenadas</span><b>${h.lat.toFixed(5)}, ${h.lon.toFixed(5)}</b></div>
+    `);
+    marker.addTo(heliInemLayer);
+  });
+}
+renderHeliInem();
+
 // --- UI refs ---
 const $ = (id) => document.getElementById(id);
 const connDot = $('conn-dot'), connText = $('conn-text');
@@ -974,6 +1031,11 @@ $('show-heli').addEventListener('change', (e) => {
   if (e.target.checked) heliLayer.addTo(map);
   else map.removeLayer(heliLayer);
   try { localStorage.setItem('firemap_cfg_show_heli', e.target.checked ? '1' : '0'); } catch {}
+});
+$('show-heli-inem').addEventListener('change', (e) => {
+  if (e.target.checked) heliInemLayer.addTo(map);
+  else map.removeLayer(heliInemLayer);
+  try { localStorage.setItem('firemap_cfg_show_heli_inem', e.target.checked ? '1' : '0'); } catch {}
 });
 
 function setStatus(state, text) {
@@ -1572,6 +1634,10 @@ try {
   if (localStorage.getItem('firemap_cfg_show_heli') === '1') {
     $('show-heli').checked = true;
     heliLayer.addTo(map);
+  }
+  if (localStorage.getItem('firemap_cfg_show_heli_inem') === '1') {
+    $('show-heli-inem').checked = true;
+    heliInemLayer.addTo(map);
   }
 } catch {}
 setStatus('stale', 'aguarda configuração');
