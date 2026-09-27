@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DRC - FOCOS DE CALOR - PORTUGAL CONTINENTAL</title>
+<title>FOCOS DE CALOR - PORTUGAL CONTINENTAL</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0c1210">
 <meta name="mobile-web-app-capable" content="yes">
@@ -251,23 +251,37 @@
   .switch.big .slider:before{width:18px;height:18px;}
   .switch.big input:checked + .slider:before{transform:translateX(20px);}
 
-  .source-row{
-    display:flex;align-items:center;justify-content:space-between;gap:12px;
+  /* moldura única que agrupa vários itens (ex. FIRMS+EUMETSAT, ou
+     Heli INEM+Heli Primários), com um separador fino entre eles em vez
+     de uma caixa própria para cada um. */
+  .source-frame{
     background:var(--panel-2);border:1px solid var(--line);border-radius:10px;
-    padding:12px 14px;margin-bottom:10px;
+    padding:0 14px;margin-bottom:10px;
   }
+  .source-item{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:12px 0;
+  }
+  .source-item + .source-item{border-top:1px solid var(--line);}
   .source-name{font-size:13px;font-weight:700;}
   .source-name .source-sub{font-weight:400;color:var(--muted);font-size:11px;}
   .source-meta{font-size:11px;color:var(--muted);margin-top:3px;font-family:var(--mono);}
 
+  /* gaveta de definições — desliza a partir do lado direito do mapa,
+     igual ao painel principal (#sidebar), para nunca ficar fora do ecrã
+     em telemóvel. Fica escondida (fora da vista, à direita) até se
+     clicar em ⚙ / Fechar. */
   #settings-overlay{
-    position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:2000;
-    display:none;align-items:flex-start;justify-content:flex-end;
+    position:fixed;top:0;right:0;bottom:0;z-index:2000;
+    width:400px;max-width:92vw;
+    transform:translateX(100%);transition:transform .2s;
+    pointer-events:none;
   }
-  #settings-overlay.open{display:flex;}
+  #settings-overlay.open{transform:translateX(0);pointer-events:auto;}
   #settings-panel{
-    width:400px;max-width:92vw;height:100%;background:var(--panel);
+    width:100%;height:100%;background:var(--panel);
     border-left:1px solid var(--line);overflow-y:auto;padding-bottom:24px;
+    box-shadow:-6px 0 24px rgba(0,0,0,.4);
   }
   .settings-header{
     display:flex;align-items:center;justify-content:space-between;
@@ -392,7 +406,7 @@
     <div class="brand">
       <svg class="flame" viewBox="0 0 24 24" fill="none"><path d="M12 2c1 3-2 4-2 7a4 4 0 0 0 8 0c0-1-.5-2-1-2 1 4-1 5-2 5-2 0-2-2-1-4-3 1-4 4-4 6a5 5 0 0 0 10 0c0-5-4-7-8-12z" fill="#ef5b2c"/></svg>
       <div>
-        <h1>DRC - Focos de Calor - Portugal Continental</h1>
+        <h1>Focos de Calor - Portugal Continental</h1>
         <small>Deteção térmica por satélite · NASA FIRMS (VIIRS) e EUMETSAT (MTG)</small>
       </div>
     </div>
@@ -402,7 +416,7 @@
       <div class="status-item">EUMETSAT: <span id="last-update-mtg">—</span></div>
       <div class="status-item">Próxima em: <span id="next-update">—</span></div>
       <button class="ghost" id="refresh-btn">Atualizar agora</button>
-      <button class="ghost" id="settings-btn">⚙ Definições</button>
+      <button class="ghost" id="settings-btn" title="Definições">⚙</button>
     </div>
   </header>
 
@@ -473,19 +487,21 @@
       <div class="panel-group" id="group-sources">
         <div class="panel-group-header"><span>Fontes de dados</span><span class="chevron">▾</span></div>
         <div class="panel-group-body">
-          <div class="source-row" id="source-firms">
+          <div class="source-frame">
+          <div class="source-item" id="source-firms">
             <div class="source-info">
-              <div class="source-name">FIRMS <span class="source-sub">(satélite, ~cada poucas horas)</span></div>
+              <div class="source-name">FIRMS</div>
               <div class="source-meta" id="firms-summary">sem MAP_KEY configurado</div>
             </div>
             <label class="switch big"><input type="checkbox" id="show-firms" checked><span class="slider"></span></label>
           </div>
-          <div class="source-row" id="source-mtg">
+          <div class="source-item" id="source-mtg">
             <div class="source-info">
-              <div class="source-name">EUMETSAT <span class="source-sub">(~10 min)</span></div>
+              <div class="source-name">EUMETSAT</div>
               <div class="source-meta" id="mtg-summary">fonte não configurada</div>
             </div>
             <label class="switch big"><input type="checkbox" id="show-mtg"><span class="slider"></span></label>
+          </div>
           </div>
           <div class="hint">
             O interruptor mostra/esconde cada fonte no mapa e na lista. Configura
@@ -497,19 +513,21 @@
       <div class="panel-group" id="group-layers">
         <div class="panel-group-header"><span>Camadas de referência</span><span class="chevron">▾</span></div>
         <div class="panel-group-body">
-          <div class="source-row" id="source-heli">
+          <div class="source-frame">
+          <div class="source-item" id="source-heli-inem">
+            <div class="source-info">
+              <div class="source-name">Heli INEM <span class="source-sub">(bases)</span></div>
+              <div class="source-meta" id="heli-inem-summary">4 bases carregadas</div>
+            </div>
+            <label class="switch big"><input type="checkbox" id="show-heli-inem"><span class="slider"></span></label>
+          </div>
+          <div class="source-item" id="source-heli">
             <div class="source-info">
               <div class="source-name">Heli Primários <span class="source-sub">(locais de aterragem)</span></div>
               <div class="source-meta" id="heli-summary">63 locais carregados</div>
             </div>
             <label class="switch big"><input type="checkbox" id="show-heli"><span class="slider"></span></label>
           </div>
-          <div class="source-row" id="source-heli-inem" style="margin-top:12px;">
-            <div class="source-info">
-              <div class="source-name">Heli INEM <span class="source-sub">(bases, meios aéreos)</span></div>
-              <div class="source-meta" id="heli-inem-summary">4 bases carregadas</div>
-            </div>
-            <label class="switch big"><input type="checkbox" id="show-heli-inem"><span class="slider"></span></label>
           </div>
           <div id="heli-inem-sublist" style="display:none;margin-top:8px;"></div>
         </div>
@@ -604,7 +622,7 @@
         <button class="ghost" id="settings-close">Fechar ✕</button>
       </div>
       <div style="padding:8px 16px;font-family:var(--mono);font-size:10px;color:var(--muted);border-bottom:1px solid var(--line);">
-        DRC · Focos de Calor · Portugal Continental — versão 0.12
+        Focos de Calor · Portugal Continental — versão 0.12
       </div>
 
       <section>
@@ -916,10 +934,10 @@ renderHeliPrimarios();
 // vivo do meio).
 // ---------------------------------------------------------------
 const INEM_HELIS = [
-  { nome: 'Heli Sul', local: 'Évora', modelo: 'H145', velocidade: 241, tempoInicio: '0:05:00', lat: 38.53123082, lon: -7.888340203 },
-  { nome: 'Heli Algarve', local: 'Loulé', modelo: 'H145', velocidade: 241, tempoInicio: '0:05:00', lat: 37.138955, lon: -8.022851 },
   { nome: 'Heli Norte', local: 'Macedo de Cavaleiros', modelo: 'H145', velocidade: 241, tempoInicio: '0:05:00', lat: 41.539071, lon: -6.959911 },
-  { nome: 'Heli Centro', local: 'Viseu', modelo: 'H145', velocidade: 241, tempoInicio: '0:05:00', lat: 40.72785485, lon: -7.889402708 }
+  { nome: 'Heli Centro', local: 'Viseu', modelo: 'H145', velocidade: 241, tempoInicio: '0:05:00', lat: 40.72785485, lon: -7.889402708 },
+  { nome: 'Heli Sul', local: 'Évora', modelo: 'H145', velocidade: 241, tempoInicio: '0:05:00', lat: 38.53123082, lon: -7.888340203 },
+  { nome: 'Heli Algarve', local: 'Loulé', modelo: 'H145', velocidade: 241, tempoInicio: '0:05:00', lat: 37.138955, lon: -8.022851 }
 ];
 
 // Estado por meio: visibilidade individual (checkbox "on" de cada Heli)
@@ -1061,8 +1079,8 @@ function renderHeliInemSublist() {
 
 function saveHeliInemState() {
   try {
-    localStorage.setItem('firemap_cfg_heli_inem_visible', JSON.stringify(heliInemVisible));
-    localStorage.setItem('firemap_cfg_heli_range', JSON.stringify(heliRangeChecked));
+    localStorage.setItem('firemap_cfg_heli_inem_visible_v2', JSON.stringify(heliInemVisible));
+    localStorage.setItem('firemap_cfg_heli_range_v2', JSON.stringify(heliRangeChecked));
   } catch {}
 }
 
@@ -2415,11 +2433,11 @@ try {
     $('show-heli').checked = true;
     heliLayer.addTo(map);
   }
-  const savedVisible = JSON.parse(localStorage.getItem('firemap_cfg_heli_inem_visible') || 'null');
+  const savedVisible = JSON.parse(localStorage.getItem('firemap_cfg_heli_inem_visible_v2') || 'null');
   if (Array.isArray(savedVisible) && savedVisible.length === INEM_HELIS.length) {
     heliInemVisible = savedVisible.map(v => !!v);
   }
-  const savedRangeChecked = JSON.parse(localStorage.getItem('firemap_cfg_heli_range') || 'null');
+  const savedRangeChecked = JSON.parse(localStorage.getItem('firemap_cfg_heli_range_v2') || 'null');
   if (savedRangeChecked && typeof savedRangeChecked === 'object') {
     heliRangeChecked = savedRangeChecked;
   }
