@@ -112,6 +112,14 @@
   .fab-btn:hover{border-color:var(--amber);color:var(--amber);}
   .fab-btn.active{border-color:var(--amber);color:var(--amber);}
 
+  /* botão de geolocalização: mira com anel vermelho quando desligada,
+     anel verde quando ligada — em vez do amarelo genérico dos outros fab. */
+  #geoloc-toggle-btn{border-color:#c0392b;color:#c0392b;}
+  #geoloc-toggle-btn:hover{border-color:#c0392b;color:#c0392b;}
+  #geoloc-toggle-btn.active{border-color:#2ecc71;color:#2ecc71;}
+  #geoloc-toggle-btn.active:hover{border-color:#2ecc71;color:#2ecc71;}
+  #geoloc-toggle-btn svg{display:block;}
+
   /* seletor de mapa base (mapa padrão / satélite / terreno) — popup
      acima do botão "🗺" */
   #basemap-switcher{
@@ -184,7 +192,7 @@
   /* cabeçalho fixo do painel — fica sempre visível, o resto do painel
      desliza (scroll normal) por baixo dele */
   #sidebar-header{
-    flex:none;display:flex;align-items:center;
+    flex:none;display:flex;align-items:center;justify-content:flex-end;
     padding:8px 10px;border-bottom:1px solid var(--line);
   }
   /* área com todas as ferramentas do painel — arrasta com o dedo
@@ -407,7 +415,15 @@
     <div id="map-tools-row">
       <button id="basemap-toggle-btn" class="fab-btn" title="Tipo de mapa">🗺</button>
       <button id="target-point-fab" class="fab-btn" title="Inserção de pontos">+</button>
-      <button id="geoloc-toggle-btn" class="fab-btn" title="A minha localização">📍</button>
+      <button id="geoloc-toggle-btn" class="fab-btn" title="A minha localização">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="12" cy="12" r="6.5"/>
+          <line x1="12" y1="1" x2="12" y2="5"/>
+          <line x1="12" y1="19" x2="12" y2="23"/>
+          <line x1="1" y1="12" x2="5" y2="12"/>
+          <line x1="19" y1="12" x2="23" y2="12"/>
+        </svg>
+      </button>
     </div>
     <div id="geoloc-status" class="hint" style="display:none;position:absolute;left:16px;bottom:60px;z-index:900;max-width:220px;background:rgba(18,26,23,.94);border:1px solid var(--line);border-radius:8px;padding:6px 10px;"></div>
 
@@ -459,14 +475,14 @@
         <div class="panel-group-body">
           <div class="source-row" id="source-firms">
             <div class="source-info">
-              <div class="source-name">NASA FIRMS <span class="source-sub">(satélite VIIRS)</span></div>
+              <div class="source-name">FIRMS <span class="source-sub">(~10 min)</span></div>
               <div class="source-meta" id="firms-summary">sem MAP_KEY configurado</div>
             </div>
             <label class="switch big"><input type="checkbox" id="show-firms" checked><span class="slider"></span></label>
           </div>
           <div class="source-row" id="source-mtg">
             <div class="source-info">
-              <div class="source-name">EUMETSAT MTG <span class="source-sub">(FRP-Pixel, ~10 min)</span></div>
+              <div class="source-name">EUMETSAT <span class="source-sub">(~10 min)</span></div>
               <div class="source-meta" id="mtg-summary">fonte não configurada</div>
             </div>
             <label class="switch big"><input type="checkbox" id="show-mtg"><span class="slider"></span></label>
@@ -544,7 +560,7 @@
             </div>
           </div>
           <div class="panel-subgroup">
-            <div class="panel-subgroup-title">EUMETSAT MTG — intensidade FRP</div>
+            <div class="panel-subgroup-title">EUMETSAT — intensidade FRP</div>
             <div class="legend-box">
               <div style="height:10px;border-radius:5px;margin:4px 0;background:linear-gradient(90deg, hsl(55,92%,58%), hsl(27,92%,52%), hsl(0,92%,46%));"></div>
               <div style="display:flex;justify-content:space-between;font-size:10px;"><span>frio (baixa FRP)</span><span>quente (alta FRP)</span></div>
@@ -1689,7 +1705,9 @@ function onGeoPosition(pos) {
   if (heading !== null && heading !== undefined && !isNaN(heading)) {
     updateGeoHeading(heading);
   }
-  setGeoStatus('Localização ativa (precisão ±' + Math.round(accuracy || 0) + 'm)');
+  // Enquanto ligado, o anel verde do botão já mostra o estado — não é
+  // preciso repetir "Localização ativa" no painel.
+  setGeoStatus('', false);
 }
 
 function onGeoError(err) {
@@ -1698,6 +1716,7 @@ function onGeoError(err) {
   else if (err && err.code === 2) msg = 'Localização indisponível.';
   else if (err && err.code === 3) msg = 'Tempo esgotado a obter localização.';
   setGeoStatus(msg);
+  $('geoloc-toggle-btn').classList.remove('active');
 }
 
 function onDeviceOrientation(e) {
@@ -2344,16 +2363,16 @@ $('tl-play').addEventListener('click', () => {
 });
 
 function updateSourceSummaries() {
-  const firmsCount = displayDetections.filter(d => d.sourceGroup === 'firms').length;
-  const mtgCount = displayDetections.filter(d => d.sourceGroup === 'mtg').length;
+  // Só mostra o estado de configuração (falta chave/URL); a contagem de
+  // deteções e o visível/escondido já são óbvios pelo próprio interruptor
+  // e pelo mapa, por isso deixam de ocupar espaço aqui.
+  const firmsEl = $('firms-summary');
+  firmsEl.textContent = !mapKey ? 'sem MAP_KEY configurado' : '';
+  firmsEl.style.display = !mapKey ? '' : 'none';
 
-  $('firms-summary').textContent = !mapKey
-    ? 'sem MAP_KEY configurado'
-    : `${firmsCount} deteções · ${$('show-firms').checked ? 'visível' : 'escondido'}`;
-
-  $('mtg-summary').textContent = !mtgUrl
-    ? 'fonte não configurada'
-    : `${mtgCount} deteções · ${$('show-mtg').checked ? 'visível' : 'escondido'}`;
+  const mtgEl = $('mtg-summary');
+  mtgEl.textContent = !mtgUrl ? 'fonte não configurada' : '';
+  mtgEl.style.display = !mtgUrl ? '' : 'none';
 }
 
 $('settings-btn').addEventListener('click', () => {
