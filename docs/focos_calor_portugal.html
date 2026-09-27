@@ -95,13 +95,6 @@
   #panel-toggle-btn:hover{border-color:var(--amber);color:var(--amber);}
   #map-area.sidebar-open #panel-toggle-btn{display:none;}
 
-  /* botão de fechar o painel lateral, sempre no canto superior
-     esquerdo do próprio painel — nunca sai do ecrã, ao contrário de um
-     botão posicionado a partir da borda direita do ecrã (que em
-     telemóveis estreitos podia ficar fora do display). */
-  #sidebar-close-btn{
-    position:absolute;top:10px;left:10px;z-index:10;
-  }
 
   /* linha de pequenos botões, canto inferior esquerdo do mapa: tipo de
      mapa e pontos de referência. Cada um abre o seu próprio popup por
@@ -184,11 +177,23 @@
     position:absolute;top:0;right:0;bottom:0;z-index:1000;
     width:340px;max-width:92vw;background:var(--panel);border-left:1px solid var(--line);
     display:flex;flex-direction:column;min-height:0;
-    padding-top:46px;
     transform:translateX(100%);transition:transform .2s;
     box-shadow:-6px 0 24px rgba(0,0,0,.4);
   }
   #sidebar.open{transform:translateX(0);}
+  /* cabeçalho fixo do painel — fica sempre visível, o resto do painel
+     desliza (scroll normal) por baixo dele */
+  #sidebar-header{
+    flex:none;display:flex;align-items:center;
+    padding:8px 10px;border-bottom:1px solid var(--line);
+  }
+  /* área com todas as ferramentas do painel — arrasta com o dedo
+     (scroll normal do browser) para ver tudo; o cabeçalho com o "✕"
+     não se mexe */
+  #sidebar-scroll{
+    flex:1;min-height:0;overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+  }
   #sidebar section{border-bottom:1px solid var(--line);padding:14px 16px;}
   #sidebar h2{
     font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
@@ -268,7 +273,7 @@
   .stat.hot .n{color:var(--ember-hot);}
   .stat .l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:2px;}
 
-  #list{flex:1;overflow-y:auto;padding:6px 0;}
+  #list{max-height:340px;overflow-y:auto;padding:6px 0;-webkit-overflow-scrolling:touch;}
   .fire-item{
     padding:10px 16px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .1s;
     display:flex;gap:10px;align-items:flex-start;
@@ -424,7 +429,10 @@
     </div>
 
     <div id="sidebar">
-      <button id="sidebar-close-btn" class="fab-btn" title="Fechar painel">✕</button>
+      <div id="sidebar-header">
+        <button id="sidebar-close-btn" class="fab-btn" title="Fechar painel">✕</button>
+      </div>
+      <div id="sidebar-scroll">
       <div class="panel-group" id="group-sources">
         <div class="panel-group-header"><span>Fontes de dados</span><span class="chevron">▾</span></div>
         <div class="panel-group-body">
@@ -529,6 +537,7 @@
         <div class="panel-group-body">
           <div id="list"><div class="empty-state">Abre ⚙ Definições para configurar uma fonte.</div></div>
         </div>
+      </div>
       </div>
     </div>
     </div>
@@ -1586,40 +1595,6 @@ $('panel-toggle-btn').addEventListener('click', () => {
   setSidebarOpen(!$('sidebar').classList.contains('open'));
 });
 $('sidebar-close-btn').addEventListener('click', () => setSidebarOpen(false));
-
-// Gesto tátil: arrastar de cima para baixo dentro do painel fecha-o —
-// útil em telemóveis, onde alcançar um botão de fechar é mais incómodo.
-// Não atua sobre a lista de deteções recentes, para não interferir com
-// o scroll normal dessa lista.
-(function () {
-  const sidebarEl = $('sidebar');
-  const CLOSE_THRESHOLD = 70;  // px, distância vertical mínima
-  const MAX_HORIZONTAL = 60;   // px, tolerância horizontal (gesto deve ser vertical)
-  let startX = 0, startY = 0, startInList = false, tracking = false;
-
-  sidebarEl.addEventListener('touchstart', (e) => {
-    if (e.touches.length !== 1) return;
-    const t = e.touches[0];
-    startX = t.clientX;
-    startY = t.clientY;
-    startInList = !!e.target.closest('#list');
-    tracking = true;
-  }, { passive: true });
-
-  sidebarEl.addEventListener('touchend', (e) => {
-    if (!tracking) return;
-    tracking = false;
-    if (startInList) return;
-    const t = e.changedTouches[0];
-    const deltaY = t.clientY - startY;
-    const deltaX = Math.abs(t.clientX - startX);
-    if (deltaY > CLOSE_THRESHOLD && deltaX < MAX_HORIZONTAL) {
-      setSidebarOpen(false);
-    }
-  }, { passive: true });
-
-  sidebarEl.addEventListener('touchcancel', () => { tracking = false; }, { passive: true });
-})();
 $('basemap-toggle-btn').addEventListener('click', () => {
   const isOpen = $('basemap-switcher').classList.toggle('open');
   $('basemap-toggle-btn').classList.toggle('active', isOpen);
