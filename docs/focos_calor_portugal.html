@@ -59,13 +59,16 @@
   button.ghost:hover{border-color:var(--amber);color:var(--amber);}
 
   /* layout */
-  #main{flex:1;display:flex;min-height:0;position:relative;}
-  #map{flex:1;background:#0c1210;}
+  #main{flex:1;display:flex;flex-direction:column;min-height:0;}
+  #map-area{flex:1;position:relative;min-height:0;}
+  #map{width:100%;height:100%;background:#0c1210;}
 
+  /* barra do histórico — agora em fluxo normal, por baixo do mapa (não
+     sobreposta) */
   #timeline-bar{
-    position:absolute;left:16px;right:16px;bottom:16px;z-index:900;
-    background:rgba(18,26,23,.94);border:1px solid var(--line);border-radius:10px;
-    padding:10px 14px;backdrop-filter:blur(4px);
+    flex:none;position:relative;z-index:5;
+    background:rgba(18,26,23,.94);border-top:1px solid var(--line);
+    padding:10px 14px;
   }
   #history-banner{
     display:flex;align-items:center;justify-content:space-between;gap:10px;
@@ -88,28 +91,55 @@
     backdrop-filter:blur(4px);
   }
   #panel-toggle-btn:hover{border-color:var(--amber);color:var(--amber);}
-  #main.sidebar-open #panel-toggle-btn{right:356px;}
+  #map-area.sidebar-open #panel-toggle-btn{right:356px;}
 
-  /* seletor de mapa base (mapa padrão / satélite / terreno), canto
-     inferior esquerdo do mapa */
+  /* linha de pequenos botões, canto inferior esquerdo do mapa: tipo de
+     mapa e pontos de referência. Cada um abre o seu próprio popup por
+     cima quando clicado. */
+  #map-tools-row{
+    position:absolute;left:16px;bottom:16px;z-index:900;
+    display:flex;gap:8px;
+  }
+  .fab-btn{
+    width:38px;height:38px;border-radius:8px;flex:none;
+    background:rgba(18,26,23,.92);border:1px solid var(--line);color:var(--text);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;font-size:17px;line-height:1;backdrop-filter:blur(4px);
+  }
+  .fab-btn:hover{border-color:var(--amber);color:var(--amber);}
+  .fab-btn.active{border-color:var(--amber);color:var(--amber);}
+
+  /* seletor de mapa base (mapa padrão / satélite / terreno) — popup
+     acima do botão "🗺" */
   #basemap-switcher{
-    position:absolute;left:16px;bottom:96px;z-index:900;
-    display:flex;gap:6px;
+    position:absolute;left:16px;bottom:60px;z-index:900;
+    display:none;gap:6px;
     background:rgba(18,26,23,.94);border:1px solid var(--line);border-radius:10px;
     padding:6px;backdrop-filter:blur(4px);
   }
+  #basemap-switcher.open{display:flex;}
   #basemap-switcher button.active{border-color:var(--amber);color:var(--amber);}
 
-  /* painel flutuante "Ponto de referência", por cima do seletor de mapa
-     base, canto inferior esquerdo do mapa */
+  /* painel flutuante "Pontos de referência" — popup acima do botão "+" */
   #target-point-panel{
-    position:absolute;left:16px;bottom:150px;z-index:900;
+    position:absolute;left:16px;bottom:60px;z-index:901;
     width:270px;max-width:82vw;max-height:60vh;overflow-y:auto;
     background:rgba(18,26,23,.96);border:1px solid var(--line);border-radius:10px;
     backdrop-filter:blur(4px);
+    display:none;
   }
-  #target-point-panel .panel-group-header{padding:10px 12px;}
-  #target-point-panel .panel-group-body{padding:0 12px 12px;}
+  #target-point-panel.open{display:block;}
+  .floating-card-header{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:10px 12px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;
+    color:var(--text);border-bottom:1px solid var(--line);
+  }
+  .floating-card-close{
+    flex:none;background:transparent;border:1px solid var(--line);color:var(--muted);
+    border-radius:5px;width:20px;height:20px;line-height:1;cursor:pointer;font-size:12px;
+  }
+  .floating-card-close:hover{border-color:var(--ember-hot);color:var(--ember-hot);}
+  .floating-card-body{padding:10px 12px 12px;}
   #target-search-input{
     flex:1;min-width:0;background:var(--panel-2);border:1px solid var(--line);color:var(--text);
     padding:7px 9px;border-radius:6px;font-family:var(--mono);font-size:11.5px;
@@ -133,7 +163,7 @@
   /* setas para mudar a hora da previsão meteorológica, canto inferior
      direito do mapa — só aparece quando algum campo/vento está ligado */
   #wx-time-control{
-    position:absolute;right:16px;bottom:96px;z-index:900;
+    position:absolute;right:16px;bottom:16px;z-index:900;
     display:flex;align-items:center;gap:6px;
     background:rgba(18,26,23,.94);border:1px solid var(--line);border-radius:10px;
     padding:6px 8px;backdrop-filter:blur(4px);
@@ -334,13 +364,22 @@
   </header>
 
   <div id="main">
+    <div id="map-area">
     <div id="map"></div>
 
     <button id="panel-toggle-btn" title="Mostrar/esconder painel">☰</button>
 
-    <div id="target-point-panel" class="panel-group collapsed">
-      <div class="panel-group-header"><span>📍 Pontos de referência</span><span class="chevron">▾</span></div>
-      <div class="panel-group-body">
+    <div id="map-tools-row">
+      <button id="basemap-toggle-btn" class="fab-btn" title="Tipo de mapa">🗺</button>
+      <button id="target-point-fab" class="fab-btn" title="Pontos de referência">+</button>
+    </div>
+
+    <div id="target-point-panel">
+      <div class="floating-card-header">
+        <span>📍 Pontos de referência</span>
+        <button class="floating-card-close" id="target-point-close" title="Fechar">✕</button>
+      </div>
+      <div class="floating-card-body">
         <div class="hint">
           Coloca pontos no mapa (ex.: locais de incidentes) clicando no
           mapa ou pesquisando uma morada. Cada ponto mostra o tempo
@@ -371,22 +410,6 @@
       <button class="ghost tl-btn" id="wx-time-prev" title="Hora anterior">‹</button>
       <span id="wx-time-label" class="tl-label">Agora</span>
       <button class="ghost tl-btn" id="wx-time-next" title="Hora seguinte">›</button>
-    </div>
-
-    <div id="timeline-bar">
-      <div id="history-banner" style="display:none;">
-        <span>🕐 MODO HISTÓRICO — a ver dados de <b id="history-banner-time">—</b></span>
-        <button class="ghost" id="live-btn">Voltar ao vivo ▶</button>
-      </div>
-      <div class="timeline-controls">
-        <button class="ghost tl-btn" id="tl-first" title="Snapshot mais antigo">⏮</button>
-        <button class="ghost tl-btn" id="tl-prev" title="Snapshot anterior">‹</button>
-        <button class="ghost tl-btn" id="tl-play" title="Reproduzir evolução">▶</button>
-        <button class="ghost tl-btn" id="tl-next" title="Snapshot seguinte">›</button>
-        <input type="range" id="tl-slider" min="0" max="0" value="0" step="1">
-        <button class="ghost tl-btn" id="tl-last" title="Ir para o mais recente (ao vivo)">⏭</button>
-        <span id="tl-label" class="tl-label">sem histórico ainda</span>
-      </div>
     </div>
 
     <div id="sidebar">
@@ -494,6 +517,23 @@
         <div class="panel-group-body">
           <div id="list"><div class="empty-state">Abre ⚙ Definições para configurar uma fonte.</div></div>
         </div>
+      </div>
+    </div>
+    </div>
+
+    <div id="timeline-bar">
+      <div id="history-banner" style="display:none;">
+        <span>🕐 MODO HISTÓRICO — a ver dados de <b id="history-banner-time">—</b></span>
+        <button class="ghost" id="live-btn">Voltar ao vivo ▶</button>
+      </div>
+      <div class="timeline-controls">
+        <button class="ghost tl-btn" id="tl-first" title="Snapshot mais antigo">⏮</button>
+        <button class="ghost tl-btn" id="tl-prev" title="Snapshot anterior">‹</button>
+        <button class="ghost tl-btn" id="tl-play" title="Reproduzir evolução">▶</button>
+        <button class="ghost tl-btn" id="tl-next" title="Snapshot seguinte">›</button>
+        <input type="range" id="tl-slider" min="0" max="0" value="0" step="1">
+        <button class="ghost tl-btn" id="tl-last" title="Ir para o mais recente (ao vivo)">⏭</button>
+        <span id="tl-label" class="tl-label">sem histórico ainda</span>
       </div>
     </div>
   </div>
@@ -1220,7 +1260,7 @@ function addTargetPoint(lat, lon, label) {
   targetMarkers[id] = marker;
 
   const targetPanelEl = document.getElementById('target-point-panel');
-  if (targetPanelEl) targetPanelEl.classList.remove('collapsed');
+  if (targetPanelEl) targetPanelEl.classList.add('open');
   saveTargetPoints();
   renderTargetPointsList();
   return point;
@@ -1527,8 +1567,18 @@ $('basemap-satellite').addEventListener('click', () => setBasemap('satellite'));
 $('basemap-terrain').addEventListener('click', () => setBasemap('terrain'));
 $('panel-toggle-btn').addEventListener('click', () => {
   const isOpen = $('sidebar').classList.toggle('open');
-  $('main').classList.toggle('sidebar-open', isOpen);
+  $('map-area').classList.toggle('sidebar-open', isOpen);
   $('panel-toggle-btn').textContent = isOpen ? '✕' : '☰';
+});
+$('basemap-toggle-btn').addEventListener('click', () => {
+  const isOpen = $('basemap-switcher').classList.toggle('open');
+  $('basemap-toggle-btn').classList.toggle('active', isOpen);
+});
+$('target-point-fab').addEventListener('click', () => {
+  $('target-point-panel').classList.add('open');
+});
+$('target-point-close').addEventListener('click', () => {
+  $('target-point-panel').classList.remove('open');
 });
 $('show-firms').addEventListener('change', () => { renderAll(); updateSourceSummaries(); });
 $('gh-repo').addEventListener('blur', () => saveCred('gh-repo'));
