@@ -256,16 +256,20 @@
      de uma caixa própria para cada um. */
   .source-frame{
     background:var(--panel-2);border:1px solid var(--line);border-radius:10px;
-    padding:0 14px;margin-bottom:10px;
+    padding:0 12px;margin-bottom:8px;
   }
   .source-item{
     display:flex;align-items:center;justify-content:space-between;gap:12px;
-    padding:12px 0;
+    padding:9px 0;
   }
-  .source-item + .source-item{border-top:1px solid var(--line);}
+  .source-item ~ .source-item{border-top:1px solid var(--line);}
+  /* lista dos Heli INEM, quando aberta dentro da moldura, entre os dois
+     itens (Heli INEM / Primários) */
+  #heli-inem-sublist:not(:empty){padding:2px 0 10px;}
   .source-name{font-size:13px;font-weight:700;}
   .source-name .source-sub{font-weight:400;color:var(--muted);font-size:11px;}
   .source-meta{font-size:11px;color:var(--muted);margin-top:3px;font-family:var(--mono);}
+  .source-meta a{color:var(--amber);text-decoration:underline;cursor:pointer;}
 
   /* gaveta de definições — desliza a partir do lado direito do mapa,
      igual ao painel principal (#sidebar), para nunca ficar fora do ecrã
@@ -503,10 +507,6 @@
             <label class="switch big"><input type="checkbox" id="show-mtg"><span class="slider"></span></label>
           </div>
           </div>
-          <div class="hint">
-            O interruptor mostra/esconde cada fonte no mapa e na lista. Configura
-            as chaves/URLs em <b>⚙ Definições</b>, no cabeçalho.
-          </div>
         </div>
       </div>
 
@@ -516,20 +516,18 @@
           <div class="source-frame">
           <div class="source-item" id="source-heli-inem">
             <div class="source-info">
-              <div class="source-name">Heli INEM <span class="source-sub">(bases)</span></div>
-              <div class="source-meta" id="heli-inem-summary">4 bases carregadas</div>
+              <div class="source-name">Heli INEM</div>
             </div>
             <label class="switch big"><input type="checkbox" id="show-heli-inem"><span class="slider"></span></label>
           </div>
+          <div id="heli-inem-sublist" style="display:none;"></div>
           <div class="source-item" id="source-heli">
             <div class="source-info">
-              <div class="source-name">Heli Primários <span class="source-sub">(locais de aterragem)</span></div>
-              <div class="source-meta" id="heli-summary">63 locais carregados</div>
+              <div class="source-name">Primários <span class="source-sub">(locais de aterragem)</span></div>
             </div>
             <label class="switch big"><input type="checkbox" id="show-heli"><span class="slider"></span></label>
           </div>
           </div>
-          <div id="heli-inem-sublist" style="display:none;margin-top:8px;"></div>
         </div>
       </div>
 
@@ -625,7 +623,7 @@
         Focos de Calor · Portugal Continental — versão 0.12
       </div>
 
-      <section>
+      <section id="settings-section-firms">
         <h2>NASA FIRMS</h2>
         <div class="cfg-row">
           <input type="text" id="map-key" placeholder="Cola aqui o teu MAP_KEY">
@@ -647,7 +645,7 @@
         <div class="hint" id="firms-diag" style="margin-top:8px;white-space:pre-wrap;font-family:var(--mono);font-size:10px;"></div>
       </section>
 
-      <section>
+      <section id="settings-section-mtg">
         <h2>EUMETSAT MTG (via GitHub Actions)</h2>
         <div class="cfg-row">
           <input type="text" id="mtg-url" placeholder="https://raw.githubusercontent.com/user/repo/main/docs/portugal_fires_mtg.json">
@@ -2380,17 +2378,48 @@ $('tl-play').addEventListener('click', () => {
   }, 900);
 });
 
+// Abre a gaveta de Definições já no sítio certo (a secção da fonte em
+// causa), e põe o foco no campo a preencher.
+function openSettingsSection(sectionId, focusInputId) {
+  document.getElementById('settings-overlay').classList.add('open');
+  requestAnimationFrame(() => {
+    const sec = document.getElementById(sectionId);
+    if (sec) sec.scrollIntoView({ block: 'start' });
+    const input = focusInputId && $(focusInputId);
+    if (input) input.focus();
+  });
+}
+
 function updateSourceSummaries() {
-  // Só mostra o estado de configuração (falta chave/URL); a contagem de
-  // deteções e o visível/escondido já são óbvios pelo próprio interruptor
-  // e pelo mapa, por isso deixam de ocupar espaço aqui.
+  // Só mostra algo quando falta configurar a fonte (chave/URL) — nesse
+  // caso é um link direto para o sítio certo em Definições. A contagem
+  // de deteções e o visível/escondido já são óbvios pelo próprio
+  // interruptor e pelo mapa, por isso deixam de ocupar espaço aqui.
   const firmsEl = $('firms-summary');
-  firmsEl.textContent = !mapKey ? 'sem MAP_KEY configurado' : '';
-  firmsEl.style.display = !mapKey ? '' : 'none';
+  if (!mapKey) {
+    firmsEl.innerHTML = '<a href="#" id="firms-config-link">sem MAP_KEY — clicar para configurar</a>';
+    firmsEl.style.display = '';
+    $('firms-config-link').addEventListener('click', (e) => {
+      e.preventDefault();
+      openSettingsSection('settings-section-firms', 'map-key');
+    });
+  } else {
+    firmsEl.textContent = '';
+    firmsEl.style.display = 'none';
+  }
 
   const mtgEl = $('mtg-summary');
-  mtgEl.textContent = !mtgUrl ? 'fonte não configurada' : '';
-  mtgEl.style.display = !mtgUrl ? '' : 'none';
+  if (!mtgUrl) {
+    mtgEl.innerHTML = '<a href="#" id="mtg-config-link">fonte não configurada — clicar para configurar</a>';
+    mtgEl.style.display = '';
+    $('mtg-config-link').addEventListener('click', (e) => {
+      e.preventDefault();
+      openSettingsSection('settings-section-mtg', 'mtg-url');
+    });
+  } else {
+    mtgEl.textContent = '';
+    mtgEl.style.display = 'none';
+  }
 }
 
 $('settings-btn').addEventListener('click', () => {
