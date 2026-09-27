@@ -80,18 +80,28 @@
   #tl-slider{flex:1;accent-color:var(--amber);}
   .tl-label{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap;flex:none;min-width:150px;text-align:right;}
 
-  /* botão flutuante para mostrar/esconder o painel, sobre o canto
-     superior direito do mapa — o painel começa sempre escondido */
+  /* botão flutuante para mostrar o painel, sobre o canto superior
+     direito do mapa — o painel começa sempre escondido. Esconde-se
+     enquanto o painel está aberto (o painel tem o seu próprio botão de
+     fechar, sempre dentro dos limites do ecrã). */
   #panel-toggle-btn{
     position:absolute;top:12px;right:12px;z-index:1100;
     width:38px;height:38px;border-radius:8px;
     background:rgba(18,26,23,.92);border:1px solid var(--line);color:var(--text);
     display:flex;align-items:center;justify-content:center;
-    cursor:pointer;font-size:17px;line-height:1;transition:right .2s,border-color .15s,color .15s;
+    cursor:pointer;font-size:17px;line-height:1;transition:border-color .15s,color .15s;
     backdrop-filter:blur(4px);
   }
   #panel-toggle-btn:hover{border-color:var(--amber);color:var(--amber);}
-  #map-area.sidebar-open #panel-toggle-btn{right:356px;}
+  #map-area.sidebar-open #panel-toggle-btn{display:none;}
+
+  /* botão de fechar o painel lateral, sempre no canto superior
+     esquerdo do próprio painel — nunca sai do ecrã, ao contrário de um
+     botão posicionado a partir da borda direita do ecrã (que em
+     telemóveis estreitos podia ficar fora do display). */
+  #sidebar-close-btn{
+    position:absolute;top:10px;left:10px;z-index:10;
+  }
 
   /* linha de pequenos botões, canto inferior esquerdo do mapa: tipo de
      mapa e pontos de referência. Cada um abre o seu próprio popup por
@@ -174,6 +184,7 @@
     position:absolute;top:0;right:0;bottom:0;z-index:1000;
     width:340px;max-width:92vw;background:var(--panel);border-left:1px solid var(--line);
     display:flex;flex-direction:column;min-height:0;
+    padding-top:46px;
     transform:translateX(100%);transition:transform .2s;
     box-shadow:-6px 0 24px rgba(0,0,0,.4);
   }
@@ -413,6 +424,7 @@
     </div>
 
     <div id="sidebar">
+      <button id="sidebar-close-btn" class="fab-btn" title="Fechar painel">✕</button>
       <div class="panel-group" id="group-sources">
         <div class="panel-group-header"><span>Fontes de dados</span><span class="chevron">▾</span></div>
         <div class="panel-group-body">
@@ -1565,11 +1577,49 @@ $('gh-trigger-toggle').addEventListener('change', (e) => {
 $('basemap-standard').addEventListener('click', () => setBasemap('standard'));
 $('basemap-satellite').addEventListener('click', () => setBasemap('satellite'));
 $('basemap-terrain').addEventListener('click', () => setBasemap('terrain'));
+function setSidebarOpen(open) {
+  $('sidebar').classList.toggle('open', open);
+  $('map-area').classList.toggle('sidebar-open', open);
+  $('panel-toggle-btn').textContent = open ? '✕' : '☰';
+}
 $('panel-toggle-btn').addEventListener('click', () => {
-  const isOpen = $('sidebar').classList.toggle('open');
-  $('map-area').classList.toggle('sidebar-open', isOpen);
-  $('panel-toggle-btn').textContent = isOpen ? '✕' : '☰';
+  setSidebarOpen(!$('sidebar').classList.contains('open'));
 });
+$('sidebar-close-btn').addEventListener('click', () => setSidebarOpen(false));
+
+// Gesto tátil: arrastar de cima para baixo dentro do painel fecha-o —
+// útil em telemóveis, onde alcançar um botão de fechar é mais incómodo.
+// Não atua sobre a lista de deteções recentes, para não interferir com
+// o scroll normal dessa lista.
+(function () {
+  const sidebarEl = $('sidebar');
+  const CLOSE_THRESHOLD = 70;  // px, distância vertical mínima
+  const MAX_HORIZONTAL = 60;   // px, tolerância horizontal (gesto deve ser vertical)
+  let startX = 0, startY = 0, startInList = false, tracking = false;
+
+  sidebarEl.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    startX = t.clientX;
+    startY = t.clientY;
+    startInList = !!e.target.closest('#list');
+    tracking = true;
+  }, { passive: true });
+
+  sidebarEl.addEventListener('touchend', (e) => {
+    if (!tracking) return;
+    tracking = false;
+    if (startInList) return;
+    const t = e.changedTouches[0];
+    const deltaY = t.clientY - startY;
+    const deltaX = Math.abs(t.clientX - startX);
+    if (deltaY > CLOSE_THRESHOLD && deltaX < MAX_HORIZONTAL) {
+      setSidebarOpen(false);
+    }
+  }, { passive: true });
+
+  sidebarEl.addEventListener('touchcancel', () => { tracking = false; }, { passive: true });
+})();
 $('basemap-toggle-btn').addEventListener('click', () => {
   const isOpen = $('basemap-switcher').classList.toggle('open');
   $('basemap-toggle-btn').classList.toggle('active', isOpen);
