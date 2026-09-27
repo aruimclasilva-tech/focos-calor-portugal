@@ -1240,7 +1240,7 @@ function etaBlockHtml(point) {
   const heliHtml = heliEtas.map(e => `
     <div class="target-eta-row">
       <span>${e.nome} <small style="color:var(--muted);">(${e.local})</small></span>
-      <b>${e.flightMin.toFixed(0)} min voo <small style="color:var(--muted);">· ${e.totalMin.toFixed(0)} min total · ${e.distKm.toFixed(0)} km</small></b>
+      <b>${e.totalMin.toFixed(0)} min <small style="color:var(--muted);">· ${e.distKm.toFixed(0)} km</small></b>
     </div>
   `).join('');
 
@@ -1259,10 +1259,6 @@ function etaBlockHtml(point) {
             <b>${e.flightMin.toFixed(0)} min <small style="color:var(--muted);">· ${e.distKm.toFixed(0)} km</small></b>
           </div>
         `).join('')}
-      </div>
-      <div class="hint" style="margin-top:4px;">
-        ${HOSP_SHOW} mais próximos de ${HOSPITALS.length} carregados
-        (voo direto a 241 Km/h, sem rota real).
       </div>
     `;
   }
