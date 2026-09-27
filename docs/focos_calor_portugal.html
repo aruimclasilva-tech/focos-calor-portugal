@@ -123,7 +123,7 @@
   #basemap-switcher.open{display:flex;}
   #basemap-switcher button.active{border-color:var(--amber);color:var(--amber);}
 
-  /* painel flutuante "Pontos de referência" — popup acima do botão "+" */
+  /* painel flutuante "Inserção de pontos" — popup acima do botão "+" */
   #target-point-panel{
     position:absolute;left:16px;bottom:60px;z-index:901;
     width:270px;max-width:82vw;max-height:60vh;overflow-y:auto;
@@ -387,12 +387,12 @@
 
     <div id="map-tools-row">
       <button id="basemap-toggle-btn" class="fab-btn" title="Tipo de mapa">🗺</button>
-      <button id="target-point-fab" class="fab-btn" title="Pontos de referência">+</button>
+      <button id="target-point-fab" class="fab-btn" title="Inserção de pontos">+</button>
     </div>
 
     <div id="target-point-panel">
       <div class="floating-card-header">
-        <span>📍 Pontos de referência</span>
+        <span>📍 Inserção de pontos</span>
         <button class="floating-card-close" id="target-point-close" title="Fechar">✕</button>
       </div>
       <div class="floating-card-body">
@@ -1282,6 +1282,8 @@ function addTargetPoint(lat, lon, label) {
 
   const targetPanelEl = document.getElementById('target-point-panel');
   if (targetPanelEl) targetPanelEl.classList.add('open');
+  const targetFabEl = document.getElementById('target-point-fab');
+  if (targetFabEl) targetFabEl.classList.add('active');
   saveTargetPoints();
   renderTargetPointsList();
   return point;
@@ -1600,10 +1602,12 @@ $('basemap-toggle-btn').addEventListener('click', () => {
   $('basemap-toggle-btn').classList.toggle('active', isOpen);
 });
 $('target-point-fab').addEventListener('click', () => {
-  $('target-point-panel').classList.add('open');
+  const isOpen = $('target-point-panel').classList.toggle('open');
+  $('target-point-fab').classList.toggle('active', isOpen);
 });
 $('target-point-close').addEventListener('click', () => {
   $('target-point-panel').classList.remove('open');
+  $('target-point-fab').classList.remove('active');
 });
 $('show-firms').addEventListener('change', () => { renderAll(); updateSourceSummaries(); });
 $('gh-repo').addEventListener('blur', () => saveCred('gh-repo'));
