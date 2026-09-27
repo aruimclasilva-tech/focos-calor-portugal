@@ -324,6 +324,25 @@
     background:var(--ember-hot);border:2px solid #1a1a1a;box-shadow:0 0 8px rgba(255,45,31,.8);
   }
 
+  /* "beacon" azul da localização atual — bolinha + seta de direção
+     (só aparece quando há rumo/heading disponível) */
+  .geoloc-marker-icon{background:transparent;border:none;}
+  .geoloc-rotor{position:relative;width:26px;height:26px;transition:transform .25s linear;}
+  .geoloc-arrow{
+    position:absolute;left:50%;top:-2px;width:0;height:0;
+    border-left:6px solid transparent;border-right:6px solid transparent;
+    border-bottom:11px solid #2f8fe0;
+    transform:translateX(-50%);
+    filter:drop-shadow(0 0 2px rgba(0,0,0,.5));
+    display:none;
+  }
+  .geoloc-rotor.has-heading .geoloc-arrow{display:block;}
+  .geoloc-dot{
+    position:absolute;left:50%;top:50%;width:14px;height:14px;
+    transform:translate(-50%,-50%);border-radius:50%;
+    background:#2f8fe0;border:2px solid #fff;box-shadow:0 0 6px rgba(47,143,224,.9);
+  }
+
   /* lista individual dos Heli INEM (visibilidade + raio de ação por meio) */
   .heli-inem-row{border:1px solid var(--line);border-radius:8px;padding:7px 9px;margin-top:6px;}
   .heli-inem-row-head{display:flex;align-items:center;gap:7px;}
@@ -388,7 +407,9 @@
     <div id="map-tools-row">
       <button id="basemap-toggle-btn" class="fab-btn" title="Tipo de mapa">🗺</button>
       <button id="target-point-fab" class="fab-btn" title="Inserção de pontos">+</button>
+      <button id="geoloc-toggle-btn" class="fab-btn" title="A minha localização">📍</button>
     </div>
+    <div id="geoloc-status" class="hint" style="display:none;position:absolute;left:16px;bottom:60px;z-index:900;max-width:220px;background:rgba(18,26,23,.94);border:1px solid var(--line);border-radius:8px;padding:6px 10px;"></div>
 
     <div id="target-point-panel">
       <div class="floating-card-header">
@@ -1608,6 +1629,144 @@ $('target-point-fab').addEventListener('click', () => {
 $('target-point-close').addEventListener('click', () => {
   $('target-point-panel').classList.remove('open');
   $('target-point-fab').classList.remove('active');
+});
+
+// ---- Localização atual (beacon azul + seta de direção) ----
+let geoWatchId = null;
+let geoMarker = null;
+let geoAccuracyCircle = null;
+let geoHasHeading = false;
+let geoOrientationHandler = null;
+let geoOrientationEventName = null;
+
+function geoloIcon() {
+  return L.divIcon({
+    className: 'geoloc-marker-icon',
+    html: '<div class="geoloc-rotor"><div class="geoloc-arrow"></div><div class="geoloc-dot"></div></div>',
+    iconSize: [26, 26],
+    iconAnchor: [13, 13]
+  });
+}
+
+function setGeoStatus(msg, show) {
+  const el = $('geoloc-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = show === false ? 'none' : 'block';
+}
+
+function updateGeoHeading(deg) {
+  if (!geoMarker) return;
+  const el = geoMarker.getElement();
+  if (!el) return;
+  const rotor = el.querySelector('.geoloc-rotor');
+  if (!rotor) return;
+  if (deg !== null && deg !== undefined && !isNaN(deg)) {
+    geoHasHeading = true;
+    rotor.classList.add('has-heading');
+    rotor.style.transform = 'rotate(' + deg + 'deg)';
+  }
+}
+
+function onGeoPosition(pos) {
+  const { latitude, longitude, accuracy, heading } = pos.coords;
+  const latlng = [latitude, longitude];
+  if (!geoMarker) {
+    geoMarker = L.marker(latlng, { icon: geoloIcon(), zIndexOffset: 1000 }).addTo(map);
+  } else {
+    geoMarker.setLatLng(latlng);
+  }
+  if (!geoAccuracyCircle) {
+    geoAccuracyCircle = L.circle(latlng, {
+      radius: accuracy || 0,
+      color: '#2f8fe0', weight: 1, opacity: .5,
+      fillColor: '#2f8fe0', fillOpacity: .12
+    }).addTo(map);
+  } else {
+    geoAccuracyCircle.setLatLng(latlng);
+    geoAccuracyCircle.setRadius(accuracy || 0);
+  }
+  if (heading !== null && heading !== undefined && !isNaN(heading)) {
+    updateGeoHeading(heading);
+  }
+  setGeoStatus('Localização ativa (precisão ±' + Math.round(accuracy || 0) + 'm)');
+}
+
+function onGeoError(err) {
+  let msg = 'Não foi possível obter a localização.';
+  if (err && err.code === 1) msg = 'Permissão de localização negada.';
+  else if (err && err.code === 2) msg = 'Localização indisponível.';
+  else if (err && err.code === 3) msg = 'Tempo esgotado a obter localização.';
+  setGeoStatus(msg);
+}
+
+function onDeviceOrientation(e) {
+  let heading = null;
+  if (typeof e.webkitCompassHeading === 'number' && !isNaN(e.webkitCompassHeading)) {
+    heading = e.webkitCompassHeading;
+  } else if (e.absolute && typeof e.alpha === 'number') {
+    heading = 360 - e.alpha;
+  } else if (typeof e.alpha === 'number') {
+    heading = 360 - e.alpha;
+  }
+  if (heading !== null) updateGeoHeading(((heading % 360) + 360) % 360);
+}
+
+function attachOrientationListener() {
+  if (geoOrientationHandler) return;
+  geoOrientationHandler = onDeviceOrientation;
+  geoOrientationEventName = ('ondeviceorientationabsolute' in window) ? 'deviceorientationabsolute' : 'deviceorientation';
+  window.addEventListener(geoOrientationEventName, geoOrientationHandler);
+}
+
+function detachOrientationListener() {
+  if (geoOrientationHandler && geoOrientationEventName) {
+    window.removeEventListener(geoOrientationEventName, geoOrientationHandler);
+  }
+  geoOrientationHandler = null;
+  geoOrientationEventName = null;
+  geoHasHeading = false;
+}
+
+function startGeoTracking() {
+  if (!('geolocation' in navigator)) {
+    setGeoStatus('O navegador não suporta geolocalização.');
+    return;
+  }
+  setGeoStatus('A obter localização…');
+  geoWatchId = navigator.geolocation.watchPosition(onGeoPosition, onGeoError, {
+    enableHighAccuracy: true, maximumAge: 2000, timeout: 10000
+  });
+
+  // Orientação/rumo (seta): no iOS 13+ Safari precisa de permissão pedida
+  // num gesto do utilizador (este clique) e repetida a cada carregamento da página.
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then(state => {
+      if (state === 'granted') attachOrientationListener();
+    }).catch(() => {});
+  } else if (typeof DeviceOrientationEvent !== 'undefined') {
+    attachOrientationListener();
+  }
+
+  try { localStorage.setItem('firemap_cfg_geoloc', '1'); } catch {}
+}
+
+function stopGeoTracking() {
+  if (geoWatchId !== null) {
+    navigator.geolocation.clearWatch(geoWatchId);
+    geoWatchId = null;
+  }
+  detachOrientationListener();
+  if (geoMarker) { map.removeLayer(geoMarker); geoMarker = null; }
+  if (geoAccuracyCircle) { map.removeLayer(geoAccuracyCircle); geoAccuracyCircle = null; }
+  setGeoStatus('', false);
+  try { localStorage.setItem('firemap_cfg_geoloc', '0'); } catch {}
+}
+
+$('geoloc-toggle-btn').addEventListener('click', () => {
+  const isOn = $('geoloc-toggle-btn').classList.toggle('active');
+  if (isOn) startGeoTracking();
+  else stopGeoTracking();
 });
 $('show-firms').addEventListener('change', () => { renderAll(); updateSourceSummaries(); });
 $('gh-repo').addEventListener('blur', () => saveCred('gh-repo'));
