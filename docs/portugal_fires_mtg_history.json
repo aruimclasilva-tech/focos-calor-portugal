@@ -261,5 +261,20 @@
 "acq_time_utc": "2026-09-28T19:10:00Z"
 }
 ]
+},
+{
+"generated_at": "2026-09-28T19:51:08.383026Z",
+"source_file": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/2026/09/28/LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202609281930.csv.gz",
+"source_timestamp_utc": "2026-09-28T19:30:00Z",
+"detections": [
+{
+"lat": 41.882511138916016,
+"lon": -7.951289176940918,
+"frp": 16.284350087896016,
+"confidence": "0.9293240904808044",
+"satellite": "MTG-FCI",
+"acq_time_utc": "2026-09-28T19:30:00Z"
+}
+]
 }
 ]
