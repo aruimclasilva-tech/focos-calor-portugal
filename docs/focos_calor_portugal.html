@@ -420,6 +420,7 @@
       <div class="status-item">EUMETSAT: <span id="last-update-mtg">—</span></div>
       <div class="status-item">Próxima em: <span id="next-update">—</span></div>
       <button class="ghost" id="refresh-btn">Atualizar agora</button>
+      <button class="ghost" id="install-app-btn" title="Instalar como app" style="display:none;">📲 Instalar app</button>
       <button class="ghost" id="settings-btn" title="Definições">⚙</button>
     </div>
   </header>
@@ -2523,6 +2524,40 @@ if (mapKey || mtgUrl) refreshData();
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('./sw.js').catch((err) => {
     console.warn('Não consegui registar o service worker:', err);
+  });
+}
+
+// ---- Botão "Instalar app" ----
+// O Chrome só mostra o banner automático de instalação de vez em quando
+// (critério interno dele, não controlável) — por isso guardamos o evento
+// e damos um botão sempre visível para o utilizador disparar a instalação
+// quando quiser, em vez de depender só desse banner.
+let deferredInstallPrompt = null;
+const installBtn = $('install-app-btn');
+
+function runningAsInstalledApp() {
+  return window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone === true; // iOS
+}
+
+if (!runningAsInstalledApp() && installBtn) {
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    installBtn.style.display = '';
+  });
+  installBtn.addEventListener('click', async () => {
+    if (!deferredInstallPrompt) return;
+    installBtn.disabled = true;
+    deferredInstallPrompt.prompt();
+    try { await deferredInstallPrompt.userChoice; } catch {}
+    deferredInstallPrompt = null;
+    installBtn.style.display = 'none';
+    installBtn.disabled = false;
+  });
+  window.addEventListener('appinstalled', () => {
+    installBtn.style.display = 'none';
+    deferredInstallPrompt = null;
   });
 }
 
