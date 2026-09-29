@@ -1,0 +1,44 @@
+name: Fetch aircraft positions
+
+# Workflow dedicado às posições de aeronaves (ADS-B), separado do fetch do
+# MTG para poder correr com uma cadência mais curta sem alterar o ritmo dos
+# focos de calor (que continuam nos ~10 min via cron-job.org / fetch-fires.yml).
+on:
+  workflow_dispatch: {}
+  # 5 minutos é o intervalo mínimo prático que o agendamento nativo do
+  # GitHub trata com fiabilidade razoável (pode atrasar-se um pouco em
+  # repositórios com pouca atividade, mas não some horas como acontecia
+  # com o disparo externo a cada 10-15 min só para o MTG).
+  schedule:
+    - cron: '*/5 * * * *'
+
+concurrency:
+  group: fetch-aircraft-data
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependências
+        run: pip install requests
+
+      - name: Descarregar posições de aeronaves (ADS-B)
+        run: python aircraft_fetch.py --outdir docs
+
+      - name: Sincronizar com o repositório remoto (rede de segurança)
+        run: git pull --rebase origin main || true
+
+      - name: Publicar resultado no repositório
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Atualiza posições de aeronaves (ADS-B)"
+          file_pattern: docs/portugal_aircraft.json

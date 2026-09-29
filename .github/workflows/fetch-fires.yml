@@ -39,15 +39,11 @@ jobs:
           LSASAF_USER: ${{ secrets.LSASAF_USER }}
           LSASAF_PASS: ${{ secrets.LSASAF_PASS }}
 
-      - name: Descarregar posições de aeronaves (ADS-B)
-        run: python aircraft_fetch.py --outdir docs
-        continue-on-error: true  # nunca deve impedir a atualização dos focos de calor
-
       - name: Sincronizar com o repositório remoto (rede de segurança)
         run: git pull --rebase origin main || true
 
       - name: Publicar resultado no repositório
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Atualiza focos de calor MTG e posições ADS-B"
-          file_pattern: docs/portugal_fires_mtg.json docs/portugal_fires_mtg_history.json docs/portugal_aircraft.json
+          commit_message: "Atualiza focos de calor MTG"
+          file_pattern: docs/portugal_fires_mtg.json docs/portugal_fires_mtg_history.json

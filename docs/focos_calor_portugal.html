@@ -2070,7 +2070,7 @@ async function refreshAircraft() {
     aircraftTrailPts[hex].push(latlng);
     if (aircraftTrailPts[hex].length > AIRCRAFT_TRAIL_MAX) aircraftTrailPts[hex].shift();
     if (!aircraftTrails[hex]) {
-      aircraftTrails[hex] = L.polyline(aircraftTrailPts[hex], { color: '#5bc0eb', weight: 2, opacity: .6, dashArray: '2,4' }).addTo(map);
+      aircraftTrails[hex] = L.polyline(aircraftTrailPts[hex], { color: '#f1c40f', weight: 2, opacity: .7, dashArray: '2,4' }).addTo(map);
     } else {
       aircraftTrails[hex].setLatLngs(aircraftTrailPts[hex]);
     }
