@@ -1917,16 +1917,24 @@ function buildAircraftIcon(source) {
   });
 }
 
+// Normaliza identificadores para comparação: maiúsculas, sem espaços nem
+// hífens (para "CS-HFB" e "CSHFB" contarem como a mesma coisa).
+function normalizeAircraftIdent(s) {
+  return (s || '').toUpperCase().replace(/[\s-]/g, '');
+}
+
 function aircraftMatches(ac) {
-  const hex = (ac.hex || '').toUpperCase();
-  const reg = (ac.r || '').toUpperCase().trim();
-  const flight = (ac.flight || '').toUpperCase().trim();
   if (aircraftOpenMode) {
     // "modo aberto": qualquer coisa marcada pela ADS-B como rotorcraft (A7).
     return ac.category === 'A7';
   }
   if (aircraftWatchlist.length === 0) return false;
-  return aircraftWatchlist.some(w => w === hex || w === reg || (flight && flight.startsWith(w)));
+  const hex = normalizeAircraftIdent(ac.hex);
+  const reg = normalizeAircraftIdent(ac.r);
+  const flight = normalizeAircraftIdent(ac.flight);
+  // Correspondência exata (não "começa por") — evita apanhar voos civis
+  // por coincidência de prefixo.
+  return aircraftWatchlist.some(w => w === hex || w === reg || (flight && w === flight));
 }
 
 async function fetchAircraftSnapshot() {
@@ -2015,7 +2023,8 @@ async function refreshAircraft() {
   });
 
   const when = result.generatedAt ? fmtTime(new Date(result.generatedAt)) : '—';
-  $('aircraft-summary').textContent = `${matched.length} aeronave(s) · fonte: ${result.source} · atualizado ${when}`;
+  const modeLabel = aircraftOpenMode ? 'modo aberto' : `lista (${aircraftWatchlist.length})`;
+  $('aircraft-summary').textContent = `${matched.length} aeronave(s) · ${modeLabel} · fonte: ${result.source} · atualizado ${when}`;
 }
 
 function startAircraftTracking() {
@@ -2055,7 +2064,7 @@ $('aircraft-config-link').addEventListener('click', (e) => {
   openSettingsSection('settings-section-aircraft', 'aircraft-watchlist-input');
 });
 $('save-aircraft-watchlist').addEventListener('click', () => {
-  const lines = $('aircraft-watchlist-input').value.split('\n').map(s => s.trim().toUpperCase()).filter(Boolean);
+  const lines = $('aircraft-watchlist-input').value.split('\n').map(normalizeAircraftIdent).filter(Boolean);
   aircraftWatchlist = [...new Set(lines)];
   saveAircraftPrefs();
   $('aircraft-watchlist-status').textContent = `${aircraftWatchlist.length} entrada(s) guardada(s)`;
