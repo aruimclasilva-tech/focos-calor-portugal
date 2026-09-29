@@ -1947,10 +1947,7 @@ function aircraftLooksLikeFirefighting(ac) {
   return alt < AIRCRAFT_LOW_ALT_FT && gs < AIRCRAFT_LOW_SPEED_KT;
 }
 
-function aircraftMatches(ac) {
-  if (aircraftOpenMode) {
-    return aircraftLooksLikeFirefighting(ac);
-  }
+function aircraftMatchesWatchlist(ac) {
   if (aircraftWatchlist.length === 0) return false;
   const hex = normalizeAircraftIdent(ac.hex);
   const reg = normalizeAircraftIdent(ac.r);
@@ -1958,6 +1955,15 @@ function aircraftMatches(ac) {
   // Correspondência exata (não "começa por") — evita apanhar voos civis
   // por coincidência de prefixo.
   return aircraftWatchlist.some(w => w === hex || w === reg || (flight && w === flight));
+}
+
+function aircraftMatches(ac) {
+  // "Modo aberto" é aditivo: alarga a seleção ao heurístico, mas nunca
+  // esconde uma aeronave que já esteja na lista guardada.
+  if (aircraftOpenMode) {
+    return aircraftLooksLikeFirefighting(ac) || aircraftMatchesWatchlist(ac);
+  }
+  return aircraftMatchesWatchlist(ac);
 }
 
 async function fetchAircraftSnapshot() {
