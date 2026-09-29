@@ -700,14 +700,18 @@
       <section id="settings-section-aircraft">
         <h2>Aeronaves (ADS-B)</h2>
         <div class="hint" style="margin-bottom:8px;">
-          Mostra no mapa a posição ao vivo (e o trajeto recente, desenhado a
-          partir das posições recebidas nesta sessão) de aeronaves específicas,
+          Mostra no mapa a posição e o trajeto recente (desenhado a partir
+          das posições recebidas nesta sessão) de aeronaves específicas,
           usando dados abertos de ADS-B — sem ligação com o Flightradar24 (a
-          API deles é paga e não pode ser usada aqui). Tenta primeiro
+          API deles é paga e não pode ser usada aqui). Usa
           <a href="https://adsb.fi" target="_blank" rel="noopener">adsb.fi</a>,
-          e se falhar tenta <a href="https://airplanes.live" target="_blank" rel="noopener">airplanes.live</a>
-          como alternativa. Cobre só o continente; um avião só aparece se
-          tiver um recetor ADS-B voluntário por perto a apanhar o sinal dele
+          com <a href="https://airplanes.live" target="_blank" rel="noopener">airplanes.live</a>
+          como alternativa se falhar. Como nenhuma das duas deixa o browser
+          ir lá buscar os dados diretamente, é um automatismo do GitHub que
+          os vai buscar por nós e publica-os no site — por isso a posição
+          não é ao segundo, atualiza-se com a mesma cadência do MTG
+          (~10-15 min). Cobre só o continente; uma aeronave só aparece se
+          tiver um recetor ADS-B voluntário por perto a apanhar o sinal dela
           — pode haver falhas de cobertura, sobretudo a baixa altitude/zonas
           de relevo.
         </div>
@@ -1862,20 +1866,26 @@ $('geoloc-toggle-btn').addEventListener('click', () => {
   else stopGeoTracking();
 });
 
-// ---- Aeronaves — rastreio ao vivo via ADS-B (adsb.fi, com fallback
-// para airplanes.live) ----
+// ---- Aeronaves — rastreio via ADS-B (adsb.fi, com fallback para
+// airplanes.live) ----
 // Não há ligação nenhuma ao Flightradar24: a API deles é paga e fazer
 // scraping ao site viola os termos de serviço deles, por isso não é
-// usado aqui. adsb.fi e airplanes.live são dados abertos, sem chave.
+// usado aqui.
+//
+// O browser NÃO vai buscar os dados diretamente ao adsb.fi/airplanes.live
+// — testámos e nenhuma das duas APIs devolve os cabeçalhos CORS
+// necessários para um browser aceitar a resposta (só funciona feito a
+// partir de um servidor). Por isso, tal como os dados EUMETSAT MTG, um
+// script corrido pelo GitHub Actions (aircraft_fetch.py) é que vai
+// buscar as posições e publica-as em docs/portugal_aircraft.json, que
+// esta página lê como um ficheiro normal do próprio site (sem problema
+// de CORS). Atualiza-se com a mesma cadência do fetch do MTG (~10-15 min)
+// — não é rastreio segundo-a-segundo.
+const AIRCRAFT_JSON_URL = './portugal_aircraft.json';
 const AIRCRAFT_WATCHLIST_KEY = 'firemap_cfg_aircraft_watchlist';
 const AIRCRAFT_SHOW_KEY = 'firemap_cfg_show_aircraft';
 const AIRCRAFT_OPEN_MODE_KEY = 'firemap_cfg_aircraft_open_mode';
-const AIRCRAFT_POLL_MS = 20000;
-// Centro aproximado de Portugal Continental e raio (NM) que cobre todo
-// o território a partir daí, com margem — dentro do limite de 250 NM
-// destas APIs.
-const AIRCRAFT_CENTER = { lat: 39.6, lon: -8.0 };
-const AIRCRAFT_RADIUS_NM = 200;
+const AIRCRAFT_POLL_MS = 60000;
 
 let aircraftWatchlist = [];  // strings em maiúsculas: matrícula, hex ou indicativo
 let aircraftOpenMode = false;
@@ -1915,20 +1925,14 @@ function aircraftMatches(ac) {
   return aircraftWatchlist.some(w => w === hex || w === reg || (flight && flight.startsWith(w)));
 }
 
-async function fetchAircraftADSBfi() {
-  const url = `https://opendata.adsb.fi/api/v3/lat/${AIRCRAFT_CENTER.lat}/lon/${AIRCRAFT_CENTER.lon}/dist/${AIRCRAFT_RADIUS_NM}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('adsb.fi HTTP ' + res.status);
+async function fetchAircraftSnapshot() {
+  // Ficheiro estático, gerado pelo GitHub Actions — cache-bust para não
+  // ficarmos presos a uma cópia antiga guardada pelo browser/CDN.
+  const res = await fetch(`${AIRCRAFT_JSON_URL}?t=${Date.now()}`);
+  if (!res.ok) throw new Error('portugal_aircraft.json HTTP ' + res.status);
   const data = await res.json();
-  return { source: 'adsb.fi', list: data.ac || [] };
-}
-
-async function fetchAircraftAirplanesLive() {
-  const url = `https://api.airplanes.live/v2/point/${AIRCRAFT_CENTER.lat}/${AIRCRAFT_CENTER.lon}/${AIRCRAFT_RADIUS_NM}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('airplanes.live HTTP ' + res.status);
-  const data = await res.json();
-  return { source: 'airplanes.live', list: data.ac || [] };
+  if (!data.source) throw new Error(data.error || 'sem fonte disponível no último fetch');
+  return { source: data.source, list: data.aircraft || [], generatedAt: data.generated_at };
 }
 
 function clearAircraftLayer() {
@@ -1956,14 +1960,10 @@ async function refreshAircraft() {
   if (!aircraftLayerOn) return;
   let result;
   try {
-    result = await fetchAircraftADSBfi();
-  } catch (e1) {
-    try {
-      result = await fetchAircraftAirplanesLive();
-    } catch (e2) {
-      $('aircraft-summary').textContent = 'falha a obter dados (adsb.fi e airplanes.live)';
-      return;
-    }
+    result = await fetchAircraftSnapshot();
+  } catch (e) {
+    $('aircraft-summary').textContent = `sem dados (${e.message})`;
+    return;
   }
 
   const matched = result.list.filter(ac => ac.lat != null && ac.lon != null && aircraftMatches(ac));
@@ -2010,7 +2010,8 @@ async function refreshAircraft() {
     }
   });
 
-  $('aircraft-summary').textContent = `${matched.length} aeronave(s) · fonte: ${result.source}`;
+  const when = result.generatedAt ? fmtTime(new Date(result.generatedAt)) : '—';
+  $('aircraft-summary').textContent = `${matched.length} aeronave(s) · fonte: ${result.source} · atualizado ${when}`;
 }
 
 function startAircraftTracking() {
