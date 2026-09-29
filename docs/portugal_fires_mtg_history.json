@@ -1,17 +1,5 @@
 [
 {
-"generated_at": "2026-09-28T21:02:39.290027Z",
-"source_file": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/2026/09/28/LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202609282040.csv.gz",
-"source_timestamp_utc": "2026-09-28T20:40:00Z",
-"detections": []
-},
-{
-"generated_at": "2026-09-28T21:11:34.035110Z",
-"source_file": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/2026/09/28/LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202609282050.csv.gz",
-"source_timestamp_utc": "2026-09-28T20:50:00Z",
-"detections": []
-},
-{
 "generated_at": "2026-09-29T00:58:47.423530Z",
 "source_file": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/2026/09/29/LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202609290040.csv.gz",
 "source_timestamp_utc": "2026-09-29T00:40:00Z",
@@ -135,6 +123,12 @@
 "generated_at": "2026-09-29T20:13:13.640624Z",
 "source_file": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/2026/09/29/LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202609291950.csv.gz",
 "source_timestamp_utc": "2026-09-29T19:50:00Z",
+"detections": []
+},
+{
+"generated_at": "2026-09-29T22:29:53.938180Z",
+"source_file": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/2026/09/29/LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202609292210.csv.gz",
+"source_timestamp_utc": "2026-09-29T22:10:00Z",
 "detections": []
 }
 ]
