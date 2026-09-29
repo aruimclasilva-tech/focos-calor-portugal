@@ -2011,8 +2011,9 @@ function aircraftTrackerUrl(source, hex) {
 }
 
 function aircraftPopupHtml(ac, source) {
-  const alt = (ac.alt_baro === 'ground') ? 'no solo' : (ac.alt_baro != null ? `${ac.alt_baro} ft` : '—');
-  const gs = ac.gs != null ? `${Math.round(ac.gs)} kt` : '—';
+  const alt = (ac.alt_baro === 'ground') ? 'no solo'
+    : (typeof ac.alt_baro === 'number' ? `${Math.round(ac.alt_baro * 0.3048)} m` : '—');
+  const gs = typeof ac.gs === 'number' ? `${Math.round(ac.gs * 1.852)} km/h` : '—';
   const hex = (ac.hex || '').toLowerCase();
   const icon = isHelicopter(ac) ? '🚁' : '✈';
   return `
