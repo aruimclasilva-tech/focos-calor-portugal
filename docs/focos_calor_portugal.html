@@ -1905,17 +1905,34 @@ const aircraftTrails = {};   // hex -> L.Polyline
 const aircraftTrailPts = {}; // hex -> [[lat,lon], ...]
 const AIRCRAFT_TRAIL_MAX = 40;
 
-function aircraftGlyphSvg(colorHex) {
+function aircraftPlaneGlyphSvg(colorHex) {
   return `<svg viewBox="0 0 24 24" fill="${colorHex}" stroke="#111" stroke-width="0.6">
     <path d="M12 1 L15 10 L23 14 L23 16.5 L15 14.5 L15 19 L19 21.5 L19 23.5 L12 22 L5 23.5 L5 21.5 L9 19 L9 14.5 L1 16.5 L1 14 L9 10 Z"/>
   </svg>`;
 }
 
-function buildAircraftIcon(source) {
+// Silhueta simples de helicóptero (cabina + cauda + rotor principal + rotor
+// de cauda) — para se distinguir claramente do ícone de avião de asa fixa.
+function aircraftHeliGlyphSvg(colorHex) {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="${colorHex}" stroke-width="1.6" stroke-linecap="round">
+    <line x1="2" y1="5" x2="22" y2="5"/>
+    <ellipse cx="10" cy="14" rx="6" ry="3.6" fill="${colorHex}" stroke="${colorHex}"/>
+    <line x1="10" y1="10.4" x2="10" y2="5"/>
+    <line x1="16" y1="14" x2="21" y2="12"/>
+    <line x1="21" y1="12" x2="21" y2="9.5"/>
+  </svg>`;
+}
+
+function isHelicopter(ac) {
+  return ac && ac.category === 'A7';
+}
+
+function buildAircraftIcon(source, ac) {
   const color = source === 'airplanes.live' ? '#e2a23c' : '#5bc0eb';
+  const glyph = isHelicopter(ac) ? aircraftHeliGlyphSvg(color) : aircraftPlaneGlyphSvg(color);
   return L.divIcon({
     className: 'aircraft-marker-icon',
-    html: `<div class="aircraft-glyph">${aircraftGlyphSvg(color)}</div>`,
+    html: `<div class="aircraft-glyph">${glyph}</div>`,
     iconSize: [22, 22],
     iconAnchor: [11, 11],
     popupAnchor: [0, -10]
@@ -1984,16 +2001,28 @@ function clearAircraftLayer() {
   Object.keys(aircraftTrailPts).forEach(k => delete aircraftTrailPts[k]);
 }
 
+function aircraftTrackerUrl(source, hex) {
+  // Página pública de rastreio ao vivo dessa aeronave, na mesma fonte que
+  // originou os dados — mostra histórico, foto (se existir) e mais detalhe
+  // do que cabe neste balão.
+  return source === 'airplanes.live'
+    ? `https://globe.airplanes.live/?icao=${hex}`
+    : `https://globe.adsb.fi/?icao=${hex}`;
+}
+
 function aircraftPopupHtml(ac, source) {
   const alt = (ac.alt_baro === 'ground') ? 'no solo' : (ac.alt_baro != null ? `${ac.alt_baro} ft` : '—');
   const gs = ac.gs != null ? `${Math.round(ac.gs)} kt` : '—';
+  const hex = (ac.hex || '').toLowerCase();
+  const icon = isHelicopter(ac) ? '🚁' : '✈';
   return `
-    <div class="popup-title">✈ ${ac.flight ? ac.flight.trim() : (ac.r || ac.hex)}</div>
+    <div class="popup-title">${icon} ${ac.flight ? ac.flight.trim() : (ac.r || ac.hex)}</div>
     <div class="popup-row"><span>Matrícula</span><b>${ac.r || '—'}</b></div>
     <div class="popup-row"><span>Tipo</span><b>${ac.t || ac.desc || '—'}</b></div>
     <div class="popup-row"><span>Altitude</span><b>${alt}</b></div>
     <div class="popup-row"><span>Velocidade</span><b>${gs}</b></div>
     <div class="popup-row"><span>Fonte</span><b>${source}</b></div>
+    ${hex ? `<div class="popup-row"><a href="${aircraftTrackerUrl(source, hex)}" target="_blank" rel="noopener">Ver esta aeronave em ${source} ↗</a></div>` : ''}
   `;
 }
 
@@ -2017,11 +2046,12 @@ async function refreshAircraft() {
     const heading = ac.track != null ? ac.track : (ac.true_heading != null ? ac.true_heading : 0);
 
     if (!aircraftMarkers[hex]) {
-      aircraftMarkers[hex] = L.marker(latlng, { icon: buildAircraftIcon(result.source), zIndexOffset: 800 })
+      aircraftMarkers[hex] = L.marker(latlng, { icon: buildAircraftIcon(result.source, ac), zIndexOffset: 800 })
         .bindPopup(aircraftPopupHtml(ac, result.source))
         .addTo(map);
     } else {
       aircraftMarkers[hex].setLatLng(latlng);
+      aircraftMarkers[hex].setIcon(buildAircraftIcon(result.source, ac));
       aircraftMarkers[hex].setPopupContent(aircraftPopupHtml(ac, result.source));
     }
     const el = aircraftMarkers[hex].getElement();
