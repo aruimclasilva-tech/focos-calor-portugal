@@ -216,5 +216,11 @@
 "source_file": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/2026/09/29/LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202609291550.csv.gz",
 "source_timestamp_utc": "2026-09-29T15:50:00Z",
 "detections": []
+},
+{
+"generated_at": "2026-09-29T16:19:56.156824Z",
+"source_file": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/2026/09/29/LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202609291600.csv.gz",
+"source_timestamp_utc": "2026-09-29T16:00:00Z",
+"detections": []
 }
 ]
