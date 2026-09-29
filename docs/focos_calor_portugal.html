@@ -555,7 +555,7 @@
           </div>
           <div class="source-item" id="source-aircraft-open">
             <div class="source-info">
-              <div class="source-name">Modo aberto <span class="source-sub">(todos os helis na zona)</span></div>
+              <div class="source-name">Modo aberto <span class="source-sub">(helis + aviões a baixa altitude)</span></div>
             </div>
             <label class="switch"><input type="checkbox" id="aircraft-open-mode"><span class="slider"></span></label>
           </div>
@@ -722,9 +722,14 @@
         <div class="hint" style="margin-bottom:8px;">
           Uma entrada por linha: matrícula (ex. <code>CS-HFB</code>), código
           hex do transponder (ex. <code>4949fa</code>) ou indicativo/callsign
-          (ex. <code>RESCUE21</code>). Não sabes as matrículas atuais dos
-          meios? Ativa antes o "modo aberto" no painel — mostra todos os
-          helicópteros na zona, sem precisares da lista.
+          (ex. <code>RESCUE21</code>) — correspondência exata, não parcial.
+          Não sabes as matrículas atuais dos meios? Ativa antes o "modo
+          aberto" no painel: mostra todos os helicópteros da zona, mais
+          qualquer avião a voar baixo e devagar (o perfil típico de um avião
+          de combate a incêndios). Não é perfeito — perto de aeródromos pode
+          apanhar outro tráfego a baixa altitude por engano — por isso
+          confirma sempre no balão (tipo/indicativo) antes de dar como
+          certo que é um meio de combate a incêndios.
         </div>
         <textarea id="aircraft-watchlist-input" rows="5" style="width:100%;box-sizing:border-box;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;color:var(--text);font-family:var(--mono);font-size:12px;padding:8px;" placeholder="CS-HFB&#10;4949fa&#10;RESCUE21"></textarea>
         <button class="ghost" id="save-aircraft-watchlist" style="margin-top:8px;width:100%;">Guardar lista</button>
@@ -1923,10 +1928,28 @@ function normalizeAircraftIdent(s) {
   return (s || '').toUpperCase().replace(/[\s-]/g, '');
 }
 
+// "modo aberto": helicópteros (categoria ADS-B "A7" = rotorcraft) MAIS
+// qualquer avião a voar baixo e devagar — o perfil típico de um avião de
+// combate a incêndios (a trabalhar sobre um fogo ou em ferry a baixa
+// altitude), tanto quanto dá para aproximar sem saber a matrícula exata.
+// Não é perfeito: por vezes apanha outro tráfego geral que também voe
+// baixo (ex. perto de um aeródromo). Confirma sempre pelo balão (tipo,
+// indicativo) antes de dar como certo que é um meio de combate a
+// incêndios.
+const AIRCRAFT_LOW_ALT_FT = 8000;
+const AIRCRAFT_LOW_SPEED_KT = 220;
+
+function aircraftLooksLikeFirefighting(ac) {
+  if (ac.category === 'A7') return true; // qualquer helicóptero
+  const alt = ac.alt_baro;
+  if (typeof alt !== 'number') return false; // 'ground' ou sem dado — ignora
+  const gs = typeof ac.gs === 'number' ? ac.gs : 0;
+  return alt < AIRCRAFT_LOW_ALT_FT && gs < AIRCRAFT_LOW_SPEED_KT;
+}
+
 function aircraftMatches(ac) {
   if (aircraftOpenMode) {
-    // "modo aberto": qualquer coisa marcada pela ADS-B como rotorcraft (A7).
-    return ac.category === 'A7';
+    return aircraftLooksLikeFirefighting(ac);
   }
   if (aircraftWatchlist.length === 0) return false;
   const hex = normalizeAircraftIdent(ac.hex);
