@@ -369,6 +369,16 @@
     background:#2f8fe0;border:2px solid #fff;box-shadow:0 0 6px rgba(47,143,224,.9);
   }
 
+  /* aeronaves rastreadas por ADS-B — triângulo/seta rodado para o rumo
+     real (track), cor consoante a fonte de dados. */
+  .aircraft-marker-icon{background:transparent;border:none;}
+  .aircraft-glyph{
+    width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+    transition:transform .3s linear;
+    filter:drop-shadow(0 0 3px rgba(0,0,0,.7));
+  }
+  .aircraft-glyph svg{width:20px;height:20px;}
+
   /* lista individual dos Heli INEM (visibilidade + raio de ação por meio) */
   .heli-inem-row{border:1px solid var(--line);border-radius:8px;padding:7px 9px;margin-top:6px;}
   .heli-inem-row-head{display:flex;align-items:center;gap:7px;}
@@ -532,6 +542,31 @@
         </div>
       </div>
 
+      <div class="panel-group" id="group-aircraft">
+        <div class="panel-group-header"><span>Aeronaves (ADS-B)</span><span class="chevron">▾</span></div>
+        <div class="panel-group-body">
+          <div class="source-frame">
+          <div class="source-item" id="source-aircraft">
+            <div class="source-info">
+              <div class="source-name">Rastreio ao vivo</div>
+              <div class="source-meta" id="aircraft-summary">desligado</div>
+            </div>
+            <label class="switch big"><input type="checkbox" id="show-aircraft"><span class="slider"></span></label>
+          </div>
+          <div class="source-item" id="source-aircraft-open">
+            <div class="source-info">
+              <div class="source-name">Modo aberto <span class="source-sub">(todos os helis na zona)</span></div>
+            </div>
+            <label class="switch"><input type="checkbox" id="aircraft-open-mode"><span class="slider"></span></label>
+          </div>
+          </div>
+          <div class="hint" id="aircraft-watchlist-hint">
+            Sem matrículas/indicativos na lista — liga o "modo aberto" acima ou
+            <a href="#" id="aircraft-config-link">configura a lista</a> em Definições.
+          </div>
+        </div>
+      </div>
+
       <div class="panel-group" id="group-wx">
         <div class="panel-group-header"><span>Meteorologia (IPMA)</span><span class="chevron">▾</span></div>
         <div class="panel-group-body">
@@ -660,6 +695,32 @@
           neste browser.
         </div>
         <div class="hint" id="mtg-status" style="margin-top:6px;">estado: desligado</div>
+      </section>
+
+      <section id="settings-section-aircraft">
+        <h2>Aeronaves (ADS-B)</h2>
+        <div class="hint" style="margin-bottom:8px;">
+          Mostra no mapa a posição ao vivo (e o trajeto recente, desenhado a
+          partir das posições recebidas nesta sessão) de aeronaves específicas,
+          usando dados abertos de ADS-B — sem ligação com o Flightradar24 (a
+          API deles é paga e não pode ser usada aqui). Tenta primeiro
+          <a href="https://adsb.fi" target="_blank" rel="noopener">adsb.fi</a>,
+          e se falhar tenta <a href="https://airplanes.live" target="_blank" rel="noopener">airplanes.live</a>
+          como alternativa. Cobre só o continente; um avião só aparece se
+          tiver um recetor ADS-B voluntário por perto a apanhar o sinal dele
+          — pode haver falhas de cobertura, sobretudo a baixa altitude/zonas
+          de relevo.
+        </div>
+        <div class="hint" style="margin-bottom:8px;">
+          Uma entrada por linha: matrícula (ex. <code>CS-HFB</code>), código
+          hex do transponder (ex. <code>4949fa</code>) ou indicativo/callsign
+          (ex. <code>RESCUE21</code>). Não sabes as matrículas atuais dos
+          meios? Ativa antes o "modo aberto" no painel — mostra todos os
+          helicópteros na zona, sem precisares da lista.
+        </div>
+        <textarea id="aircraft-watchlist-input" rows="5" style="width:100%;box-sizing:border-box;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;color:var(--text);font-family:var(--mono);font-size:12px;padding:8px;" placeholder="CS-HFB&#10;4949fa&#10;RESCUE21"></textarea>
+        <button class="ghost" id="save-aircraft-watchlist" style="margin-top:8px;width:100%;">Guardar lista</button>
+        <div class="hint" id="aircraft-watchlist-status" style="margin-top:6px;">0 entradas guardadas</div>
       </section>
 
       <section>
@@ -1800,6 +1861,202 @@ $('geoloc-toggle-btn').addEventListener('click', () => {
   if (isOn) startGeoTracking();
   else stopGeoTracking();
 });
+
+// ---- Aeronaves — rastreio ao vivo via ADS-B (adsb.fi, com fallback
+// para airplanes.live) ----
+// Não há ligação nenhuma ao Flightradar24: a API deles é paga e fazer
+// scraping ao site viola os termos de serviço deles, por isso não é
+// usado aqui. adsb.fi e airplanes.live são dados abertos, sem chave.
+const AIRCRAFT_WATCHLIST_KEY = 'firemap_cfg_aircraft_watchlist';
+const AIRCRAFT_SHOW_KEY = 'firemap_cfg_show_aircraft';
+const AIRCRAFT_OPEN_MODE_KEY = 'firemap_cfg_aircraft_open_mode';
+const AIRCRAFT_POLL_MS = 20000;
+// Centro aproximado de Portugal Continental e raio (NM) que cobre todo
+// o território a partir daí, com margem — dentro do limite de 250 NM
+// destas APIs.
+const AIRCRAFT_CENTER = { lat: 39.6, lon: -8.0 };
+const AIRCRAFT_RADIUS_NM = 200;
+
+let aircraftWatchlist = [];  // strings em maiúsculas: matrícula, hex ou indicativo
+let aircraftOpenMode = false;
+let aircraftLayerOn = false;
+let aircraftTimer = null;
+const aircraftMarkers = {};  // hex -> L.Marker
+const aircraftTrails = {};   // hex -> L.Polyline
+const aircraftTrailPts = {}; // hex -> [[lat,lon], ...]
+const AIRCRAFT_TRAIL_MAX = 40;
+
+function aircraftGlyphSvg(colorHex) {
+  return `<svg viewBox="0 0 24 24" fill="${colorHex}" stroke="#111" stroke-width="0.6">
+    <path d="M12 1 L15 10 L23 14 L23 16.5 L15 14.5 L15 19 L19 21.5 L19 23.5 L12 22 L5 23.5 L5 21.5 L9 19 L9 14.5 L1 16.5 L1 14 L9 10 Z"/>
+  </svg>`;
+}
+
+function buildAircraftIcon(source) {
+  const color = source === 'airplanes.live' ? '#e2a23c' : '#5bc0eb';
+  return L.divIcon({
+    className: 'aircraft-marker-icon',
+    html: `<div class="aircraft-glyph">${aircraftGlyphSvg(color)}</div>`,
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+    popupAnchor: [0, -10]
+  });
+}
+
+function aircraftMatches(ac) {
+  const hex = (ac.hex || '').toUpperCase();
+  const reg = (ac.r || '').toUpperCase().trim();
+  const flight = (ac.flight || '').toUpperCase().trim();
+  if (aircraftOpenMode) {
+    // "modo aberto": qualquer coisa marcada pela ADS-B como rotorcraft (A7).
+    return ac.category === 'A7';
+  }
+  if (aircraftWatchlist.length === 0) return false;
+  return aircraftWatchlist.some(w => w === hex || w === reg || (flight && flight.startsWith(w)));
+}
+
+async function fetchAircraftADSBfi() {
+  const url = `https://opendata.adsb.fi/api/v3/lat/${AIRCRAFT_CENTER.lat}/lon/${AIRCRAFT_CENTER.lon}/dist/${AIRCRAFT_RADIUS_NM}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('adsb.fi HTTP ' + res.status);
+  const data = await res.json();
+  return { source: 'adsb.fi', list: data.ac || [] };
+}
+
+async function fetchAircraftAirplanesLive() {
+  const url = `https://api.airplanes.live/v2/point/${AIRCRAFT_CENTER.lat}/${AIRCRAFT_CENTER.lon}/${AIRCRAFT_RADIUS_NM}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('airplanes.live HTTP ' + res.status);
+  const data = await res.json();
+  return { source: 'airplanes.live', list: data.ac || [] };
+}
+
+function clearAircraftLayer() {
+  Object.values(aircraftMarkers).forEach(m => map.removeLayer(m));
+  Object.values(aircraftTrails).forEach(t => map.removeLayer(t));
+  Object.keys(aircraftMarkers).forEach(k => delete aircraftMarkers[k]);
+  Object.keys(aircraftTrails).forEach(k => delete aircraftTrails[k]);
+  Object.keys(aircraftTrailPts).forEach(k => delete aircraftTrailPts[k]);
+}
+
+function aircraftPopupHtml(ac, source) {
+  const alt = (ac.alt_baro === 'ground') ? 'no solo' : (ac.alt_baro != null ? `${ac.alt_baro} ft` : '—');
+  const gs = ac.gs != null ? `${Math.round(ac.gs)} kt` : '—';
+  return `
+    <div class="popup-title">✈ ${ac.flight ? ac.flight.trim() : (ac.r || ac.hex)}</div>
+    <div class="popup-row"><span>Matrícula</span><b>${ac.r || '—'}</b></div>
+    <div class="popup-row"><span>Tipo</span><b>${ac.t || ac.desc || '—'}</b></div>
+    <div class="popup-row"><span>Altitude</span><b>${alt}</b></div>
+    <div class="popup-row"><span>Velocidade</span><b>${gs}</b></div>
+    <div class="popup-row"><span>Fonte</span><b>${source}</b></div>
+  `;
+}
+
+async function refreshAircraft() {
+  if (!aircraftLayerOn) return;
+  let result;
+  try {
+    result = await fetchAircraftADSBfi();
+  } catch (e1) {
+    try {
+      result = await fetchAircraftAirplanesLive();
+    } catch (e2) {
+      $('aircraft-summary').textContent = 'falha a obter dados (adsb.fi e airplanes.live)';
+      return;
+    }
+  }
+
+  const matched = result.list.filter(ac => ac.lat != null && ac.lon != null && aircraftMatches(ac));
+  const seenHex = new Set();
+
+  matched.forEach(ac => {
+    const hex = ac.hex.toUpperCase();
+    seenHex.add(hex);
+    const latlng = [ac.lat, ac.lon];
+    const heading = ac.track != null ? ac.track : (ac.true_heading != null ? ac.true_heading : 0);
+
+    if (!aircraftMarkers[hex]) {
+      aircraftMarkers[hex] = L.marker(latlng, { icon: buildAircraftIcon(result.source), zIndexOffset: 800 })
+        .bindPopup(aircraftPopupHtml(ac, result.source))
+        .addTo(map);
+    } else {
+      aircraftMarkers[hex].setLatLng(latlng);
+      aircraftMarkers[hex].setPopupContent(aircraftPopupHtml(ac, result.source));
+    }
+    const el = aircraftMarkers[hex].getElement();
+    if (el) {
+      const glyph = el.querySelector('.aircraft-glyph');
+      if (glyph) glyph.style.transform = `rotate(${heading}deg)`;
+    }
+
+    if (!aircraftTrailPts[hex]) aircraftTrailPts[hex] = [];
+    aircraftTrailPts[hex].push(latlng);
+    if (aircraftTrailPts[hex].length > AIRCRAFT_TRAIL_MAX) aircraftTrailPts[hex].shift();
+    if (!aircraftTrails[hex]) {
+      aircraftTrails[hex] = L.polyline(aircraftTrailPts[hex], { color: '#5bc0eb', weight: 2, opacity: .6, dashArray: '2,4' }).addTo(map);
+    } else {
+      aircraftTrails[hex].setLatLngs(aircraftTrailPts[hex]);
+    }
+  });
+
+  // Remove aeronaves que já não aparecem na resposta (saíram da zona /
+  // desligaram o transponder).
+  Object.keys(aircraftMarkers).forEach(hex => {
+    if (!seenHex.has(hex)) {
+      map.removeLayer(aircraftMarkers[hex]);
+      delete aircraftMarkers[hex];
+      if (aircraftTrails[hex]) { map.removeLayer(aircraftTrails[hex]); delete aircraftTrails[hex]; }
+      delete aircraftTrailPts[hex];
+    }
+  });
+
+  $('aircraft-summary').textContent = `${matched.length} aeronave(s) · fonte: ${result.source}`;
+}
+
+function startAircraftTracking() {
+  aircraftLayerOn = true;
+  refreshAircraft();
+  if (aircraftTimer) clearInterval(aircraftTimer);
+  aircraftTimer = setInterval(refreshAircraft, AIRCRAFT_POLL_MS);
+}
+
+function stopAircraftTracking() {
+  aircraftLayerOn = false;
+  if (aircraftTimer) { clearInterval(aircraftTimer); aircraftTimer = null; }
+  clearAircraftLayer();
+  $('aircraft-summary').textContent = 'desligado';
+}
+
+function saveAircraftPrefs() {
+  try {
+    localStorage.setItem(AIRCRAFT_WATCHLIST_KEY, JSON.stringify(aircraftWatchlist));
+    localStorage.setItem(AIRCRAFT_SHOW_KEY, aircraftLayerOn ? '1' : '0');
+    localStorage.setItem(AIRCRAFT_OPEN_MODE_KEY, aircraftOpenMode ? '1' : '0');
+  } catch {}
+}
+
+$('show-aircraft').addEventListener('change', (e) => {
+  if (e.target.checked) startAircraftTracking();
+  else stopAircraftTracking();
+  saveAircraftPrefs();
+});
+$('aircraft-open-mode').addEventListener('change', (e) => {
+  aircraftOpenMode = e.target.checked;
+  saveAircraftPrefs();
+  if (aircraftLayerOn) refreshAircraft();
+});
+$('aircraft-config-link').addEventListener('click', (e) => {
+  e.preventDefault();
+  openSettingsSection('settings-section-aircraft', 'aircraft-watchlist-input');
+});
+$('save-aircraft-watchlist').addEventListener('click', () => {
+  const lines = $('aircraft-watchlist-input').value.split('\n').map(s => s.trim().toUpperCase()).filter(Boolean);
+  aircraftWatchlist = [...new Set(lines)];
+  saveAircraftPrefs();
+  $('aircraft-watchlist-status').textContent = `${aircraftWatchlist.length} entrada(s) guardada(s)`;
+  $('aircraft-watchlist-hint').style.display = aircraftWatchlist.length ? 'none' : '';
+  if (aircraftLayerOn) refreshAircraft();
+});
 $('show-firms').addEventListener('change', () => { renderAll(); updateSourceSummaries(); });
 $('gh-repo').addEventListener('blur', () => saveCred('gh-repo'));
 $('gh-token').addEventListener('blur', () => saveCred('gh-token'));
@@ -2482,6 +2739,22 @@ try {
   } else if (savedTarget && typeof savedTarget.lat === 'number' && typeof savedTarget.lon === 'number') {
     // compatibilidade com a versão anterior (um único ponto guardado)
     addTargetPoint(savedTarget.lat, savedTarget.lon, null);
+  }
+
+  const savedWatchlist = JSON.parse(localStorage.getItem(AIRCRAFT_WATCHLIST_KEY) || 'null');
+  if (Array.isArray(savedWatchlist)) {
+    aircraftWatchlist = savedWatchlist;
+    $('aircraft-watchlist-input').value = aircraftWatchlist.join('\n');
+    $('aircraft-watchlist-status').textContent = `${aircraftWatchlist.length} entrada(s) guardada(s)`;
+    $('aircraft-watchlist-hint').style.display = aircraftWatchlist.length ? 'none' : '';
+  }
+  if (localStorage.getItem(AIRCRAFT_OPEN_MODE_KEY) === '1') {
+    aircraftOpenMode = true;
+    $('aircraft-open-mode').checked = true;
+  }
+  if (localStorage.getItem(AIRCRAFT_SHOW_KEY) === '1') {
+    $('show-aircraft').checked = true;
+    startAircraftTracking();
   }
 } catch {}
 setStatus('stale', 'aguarda configuração');
