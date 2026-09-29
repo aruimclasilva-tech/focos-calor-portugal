@@ -399,6 +399,8 @@
   .target-eta-row b{color:var(--text);font-weight:600;}
   .leaflet-popup-tip{background:var(--panel);}
   .popup-title{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--amber);margin-bottom:4px;}
+  a.popup-title{display:block;text-decoration:none;cursor:pointer;}
+  a.popup-title:hover{text-decoration:underline;}
   .popup-row{font-size:11px;color:var(--muted);display:flex;justify-content:space-between;gap:12px;}
   .popup-row b{color:var(--text);font-weight:600;}
 
@@ -2016,14 +2018,17 @@ function aircraftPopupHtml(ac, source) {
   const gs = typeof ac.gs === 'number' ? `${Math.round(ac.gs * 1.852)} km/h` : '—';
   const hex = (ac.hex || '').toLowerCase();
   const icon = isHelicopter(ac) ? '🚁' : '✈';
+  const label = `${icon} ${ac.flight ? ac.flight.trim() : (ac.r || ac.hex)}`;
+  const title = hex
+    ? `<a class="popup-title" href="${aircraftTrackerUrl(source, hex)}" target="_blank" rel="noopener">${label} ↗</a>`
+    : `<div class="popup-title">${label}</div>`;
   return `
-    <div class="popup-title">${icon} ${ac.flight ? ac.flight.trim() : (ac.r || ac.hex)}</div>
+    ${title}
     <div class="popup-row"><span>Matrícula</span><b>${ac.r || '—'}</b></div>
     <div class="popup-row"><span>Tipo</span><b>${ac.t || ac.desc || '—'}</b></div>
     <div class="popup-row"><span>Altitude</span><b>${alt}</b></div>
     <div class="popup-row"><span>Velocidade</span><b>${gs}</b></div>
     <div class="popup-row"><span>Fonte</span><b>${source}</b></div>
-    ${hex ? `<div class="popup-row"><a href="${aircraftTrackerUrl(source, hex)}" target="_blank" rel="noopener">Ver esta aeronave em ${source} ↗</a></div>` : ''}
   `;
 }
 
