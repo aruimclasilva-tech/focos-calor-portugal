@@ -1963,17 +1963,23 @@ function aircraftPlaneGlyphSvg(colorHex) {
   </svg>`;
 }
 
-// Helicóptero — símbolo "rotor" bem sólido e contrastado (nariz para
-// cima, para a rotação por rumo continuar a fazer sentido), no estilo
-// dos ícones de rastreadores de voo (adsb.fi/tar1090): barra longa do
-// rotor principal, cabine arredondada, estabilizador/skid a meio da
-// cauda e rotor de cauda — mais grosso e geométrico do que uma silhueta
-// desenhada à mão, para se distinguir bem mesmo em tamanho pequeno.
+// Helicóptero — 4 pás em cruz (X) por cima do corpo (o cubo do rotor fica
+// puxado para trás do nariz, não mesmo na ponta), cabine arredondada,
+// cauda fina e duas pequenas asas (estabilizador) já quase no fim da
+// cauda — nariz para cima, para a rotação por rumo continuar a fazer
+// sentido.
 function aircraftHeliGlyphSvg(colorHex) {
-  return `<svg viewBox="0 0 24 24" fill="${colorHex}" stroke="#111" stroke-width="0.5" stroke-linejoin="round">
-    <rect x="1.5" y="4.3" width="21" height="1.6" rx="0.8"/>
-    <path d="M12 3.4c1.9 0 2.7 1.1 2.4 2.8-.2 1-.6 1.4-1 1.6l-.4 4.6h1.6c.35 0 .6.3.55.65l-.15 1.1c-.05.35-.35.6-.7.6h-1.42l-.34 5.6c-.03.5-.35.8-.75.8h-.2-.2c-.4 0-.72-.3-.75-.8l-.34-5.6H9.05c-.35 0-.65-.25-.7-.6l-.15-1.1c-.05-.35.2-.65.55-.65h1.6l-.4-4.6c-.4-.2-.8-.6-1-1.6-.3-1.7.5-2.8 2.4-2.8Z"/>
-    <rect x="8.7" y="20.6" width="6.6" height="1.4" rx="0.7"/>
+  return `<svg viewBox="0 0 24 24" fill="${colorHex}" stroke="#111" stroke-width="0.4" stroke-linejoin="round">
+    <g stroke="${colorHex}" fill="none" stroke-width="1.9" stroke-linecap="round">
+      <line x1="12" y1="9" x2="4" y2="4"/>
+      <line x1="12" y1="9" x2="20" y2="4"/>
+      <line x1="12" y1="9" x2="4" y2="15"/>
+      <line x1="12" y1="9" x2="20" y2="15"/>
+    </g>
+    <circle cx="12" cy="9" r="1.3" stroke="none"/>
+    <path d="M12 2c1.5 0 2.7 1.3 2.4 3.3-.2 1.3-.7 2.3-1.3 2.9l-.15 13.4c-.02.5-.33.85-.7.85h-.2-.2c-.37 0-.68-.35-.7-.85L11 8.2c-.6-.6-1.1-1.6-1.3-2.9C9.4 3.3 10.5 2 12 2Z"/>
+    <path d="M7.9 18.6c0-.5.4-.85.9-.85h1.9c.2.45.28.85.28 1.35 0 .5-.08.9-.28 1.35H8.8c-.5 0-.9-.35-.9-.85Z"/>
+    <path d="M16.1 18.6c0-.5-.4-.85-.9-.85h-1.9c-.2.45-.28.85-.28 1.35 0 .5.08.9.28 1.35h1.9c.5 0 .9-.35.9-.85Z"/>
   </svg>`;
 }
 
