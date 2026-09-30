@@ -741,10 +741,13 @@
       <section>
         <h2>Acordar o workflow automaticamente (opcional)</h2>
         <div class="hint" style="margin-bottom:8px;">
-          ⚠️ Isto guarda um token do GitHub nesta página (só em memória,
-          nunca em disco). Só dispara o workflow enquanto esta aba estiver
-          aberta — para cobertura 24/7 mesmo com a página fechada, usa
-          também um serviço externo como o cron-job.org.
+          ⚠️ Isto guarda um token do GitHub neste browser/telemóvel
+          (localStorage) — não fica só em memória, persiste mesmo depois de
+          fechares a aba. Só dispara o workflow enquanto esta aba estiver
+          aberta, e usa um serviço externo como o cron-job.org para
+          cobertura 24/7 é preferível a isto — se já tens isso configurado,
+          o mais seguro é deixar esta secção desligada e limpa (botão
+          "Esquecer credenciais" em baixo).
         </div>
         <div class="cfg-row">
           <input type="text" id="gh-repo" placeholder="utilizador/repositorio (ex. aruimclasilva-tech/focos-calor-portugal)">
