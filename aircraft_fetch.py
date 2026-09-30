@@ -42,9 +42,12 @@ CENTER_LON = -8.0
 RADIUS_NM = 200
 
 # Campos que a página realmente usa — mantemos o ficheiro pequeno.
+# "dbFlags" é um bitmask da base de dados da fonte (convenção readsb/tar1090,
+# usada por adsb.fi e airplanes.live): bit 1 = aeronave registada como
+# militar. Serve para o filtro "Militares" no painel.
 KEEP_FIELDS = [
     "hex", "flight", "r", "t", "desc", "category",
-    "lat", "lon", "alt_baro", "gs", "track", "true_heading",
+    "lat", "lon", "alt_baro", "gs", "track", "true_heading", "dbFlags",
 ]
 
 BROWSER_HEADERS = {

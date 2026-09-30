@@ -581,10 +581,30 @@
             </div>
             <label class="switch"><input type="checkbox" id="aircraft-open-mode"><span class="slider"></span></label>
           </div>
+          <div class="source-item" id="source-aircraft-military">
+            <div class="source-info">
+              <div class="source-name">Militares <span class="source-sub">(qualquer altitude/velocidade)</span></div>
+            </div>
+            <label class="switch"><input type="checkbox" id="aircraft-military-mode"><span class="slider"></span></label>
+          </div>
+          <div class="source-item" id="source-aircraft-drones">
+            <div class="source-info">
+              <div class="source-name">Drones <span class="source-sub">(qualquer altitude/velocidade)</span></div>
+            </div>
+            <label class="switch"><input type="checkbox" id="aircraft-drone-mode"><span class="slider"></span></label>
+          </div>
           </div>
           <div class="hint" id="aircraft-watchlist-hint">
             Sem matrículas/indicativos na lista — liga o "modo aberto" acima ou
             <a href="#" id="aircraft-config-link">configura a lista</a> em Definições.
+          </div>
+          <div class="hint" style="margin-top:4px;">
+            "Militares" e "Drones" são independentes do "modo aberto" — mostram
+            sempre esse tipo de aeronave, mesmo a grande altitude/velocidade
+            (ex. um caça em voo de trânsito). "Militares" depende de a fonte
+            ter a aeronave marcada como tal na sua base de dados — pode não
+            cobrir todas. "Drones" identifica pela categoria ADS-B "UAV"
+            transmitida pela própria aeronave.
           </div>
           <div class="hint" style="margin-top:4px;">
             Dados de posição: <a href="https://adsb.fi" target="_blank" rel="noopener">adsb.fi</a>
@@ -1947,10 +1967,14 @@ const AIRCRAFT_JSON_URL = './portugal_aircraft.json';
 const AIRCRAFT_WATCHLIST_KEY = 'firemap_cfg_aircraft_watchlist';
 const AIRCRAFT_SHOW_KEY = 'firemap_cfg_show_aircraft';
 const AIRCRAFT_OPEN_MODE_KEY = 'firemap_cfg_aircraft_open_mode';
+const AIRCRAFT_MILITARY_MODE_KEY = 'firemap_cfg_aircraft_military_mode';
+const AIRCRAFT_DRONE_MODE_KEY = 'firemap_cfg_aircraft_drone_mode';
 const AIRCRAFT_POLL_MS = 60000;
 
 let aircraftWatchlist = [];  // strings em maiúsculas: matrícula, hex ou indicativo
 let aircraftOpenMode = false;
+let aircraftMilitaryMode = false;
+let aircraftDroneMode = false;
 let aircraftLayerOn = false;
 let aircraftTimer = null;
 const aircraftMarkers = {};  // hex -> L.Marker
@@ -2027,13 +2051,31 @@ function aircraftMatchesWatchlist(ac) {
   return aircraftWatchlist.some(w => w === hex || w === reg || (flight && w === flight));
 }
 
+// "Militares": bit 0 do "dbFlags" — convenção da base de dados usada pelo
+// readsb/tar1090 (adsb.fi e airplanes.live), a mesma que alimenta o
+// "DB flags: military" que se vê no site deles. Não é a IPMA nem um cálculo
+// nosso — vem tal e qual da fonte, por isso só cobre o que a base de dados
+// deles tiver classificado como tal.
+function aircraftIsMilitary(ac) {
+  return typeof ac.dbFlags === 'number' && (ac.dbFlags & 1) === 1;
+}
+
+// "Drones": categoria ADS-B "B6" (Unmanned Aerial Vehicle) — transmitida
+// pela própria aeronave, não depende de base de dados nenhuma.
+function aircraftIsDrone(ac) {
+  return ac.category === 'B6';
+}
+
 function aircraftMatches(ac) {
-  // "Modo aberto" é aditivo: alarga a seleção ao heurístico, mas nunca
-  // esconde uma aeronave que já esteja na lista guardada.
-  if (aircraftOpenMode) {
-    return aircraftLooksLikeFirefighting(ac) || aircraftMatchesWatchlist(ac);
-  }
-  return aircraftMatchesWatchlist(ac);
+  // Cada seletor é aditivo — liga-se um a um, nunca esconde o que outro já
+  // esteja a mostrar: lista guardada, "modo aberto" (helis + aviões baixos
+  // e lentos), "Militares" (qualquer altitude/velocidade) e "Drones"
+  // (qualquer altitude/velocidade).
+  if (aircraftMatchesWatchlist(ac)) return true;
+  if (aircraftOpenMode && aircraftLooksLikeFirefighting(ac)) return true;
+  if (aircraftMilitaryMode && aircraftIsMilitary(ac)) return true;
+  if (aircraftDroneMode && aircraftIsDrone(ac)) return true;
+  return false;
 }
 
 async function fetchAircraftSnapshot() {
@@ -2139,8 +2181,11 @@ async function refreshAircraft() {
   });
 
   const when = result.generatedAt ? fmtTime(new Date(result.generatedAt)) : '—';
-  const modeLabel = aircraftOpenMode ? 'modo aberto' : `lista (${aircraftWatchlist.length})`;
-  $('aircraft-summary').textContent = `${matched.length} aeronave(s) · ${modeLabel} · fonte: ${result.source} · atualizado ${when}`;
+  const modeParts = [`lista (${aircraftWatchlist.length})`];
+  if (aircraftOpenMode) modeParts.push('modo aberto');
+  if (aircraftMilitaryMode) modeParts.push('militares');
+  if (aircraftDroneMode) modeParts.push('drones');
+  $('aircraft-summary').textContent = `${matched.length} aeronave(s) · ${modeParts.join(' + ')} · fonte: ${result.source} · atualizado ${when}`;
 }
 
 function startAircraftTracking() {
@@ -2162,6 +2207,8 @@ function saveAircraftPrefs() {
     localStorage.setItem(AIRCRAFT_WATCHLIST_KEY, JSON.stringify(aircraftWatchlist));
     localStorage.setItem(AIRCRAFT_SHOW_KEY, aircraftLayerOn ? '1' : '0');
     localStorage.setItem(AIRCRAFT_OPEN_MODE_KEY, aircraftOpenMode ? '1' : '0');
+    localStorage.setItem(AIRCRAFT_MILITARY_MODE_KEY, aircraftMilitaryMode ? '1' : '0');
+    localStorage.setItem(AIRCRAFT_DRONE_MODE_KEY, aircraftDroneMode ? '1' : '0');
   } catch {}
 }
 
@@ -2172,6 +2219,16 @@ $('show-aircraft').addEventListener('change', (e) => {
 });
 $('aircraft-open-mode').addEventListener('change', (e) => {
   aircraftOpenMode = e.target.checked;
+  saveAircraftPrefs();
+  if (aircraftLayerOn) refreshAircraft();
+});
+$('aircraft-military-mode').addEventListener('change', (e) => {
+  aircraftMilitaryMode = e.target.checked;
+  saveAircraftPrefs();
+  if (aircraftLayerOn) refreshAircraft();
+});
+$('aircraft-drone-mode').addEventListener('change', (e) => {
+  aircraftDroneMode = e.target.checked;
   saveAircraftPrefs();
   if (aircraftLayerOn) refreshAircraft();
 });
@@ -2881,6 +2938,14 @@ try {
   if (localStorage.getItem(AIRCRAFT_OPEN_MODE_KEY) === '1') {
     aircraftOpenMode = true;
     $('aircraft-open-mode').checked = true;
+  }
+  if (localStorage.getItem(AIRCRAFT_MILITARY_MODE_KEY) === '1') {
+    aircraftMilitaryMode = true;
+    $('aircraft-military-mode').checked = true;
+  }
+  if (localStorage.getItem(AIRCRAFT_DRONE_MODE_KEY) === '1') {
+    aircraftDroneMode = true;
+    $('aircraft-drone-mode').checked = true;
   }
   if (localStorage.getItem(AIRCRAFT_SHOW_KEY) === '1') {
     $('show-aircraft').checked = true;
