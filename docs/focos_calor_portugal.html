@@ -592,12 +592,14 @@
           <div class="hint" style="margin-top:8px;">
             Previsão do modelo AROME e produtos de risco LSA SAF do IPMA
             (mf2.ipma.pt), sobrepostos ao mapa. Não são observações em
-            tempo real — são a previsão do último ciclo do modelo. Podes
-            ligar vários campos ao mesmo tempo. O momento da previsão
-            (agora / +1h / +2h…) controla-se pelas setas no canto inferior
-            direito do mapa, assim que ligares algum campo. Se uma camada
-            aparecer em branco, experimenta um horário vizinho (pode não
-            haver dados para esse instante exato).
+            tempo real — são a previsão do último ciclo do modelo. Só um
+            campo fica ativo de cada vez (ligar um desliga o anterior) —
+            exceto a direção do vento (farpas), que é cumulativa com
+            qualquer campo. O momento da previsão (agora / +1h / +2h…)
+            controla-se pelas setas no canto inferior direito do mapa,
+            assim que ligares algum campo. Se uma camada aparecer em
+            branco, experimenta um horário vizinho (pode não haver dados
+            para esse instante exato).
           </div>
         </div>
       </div>
@@ -883,6 +885,16 @@ function forgetSavedCreds() {
 
 // --- Map setup ---
 const map = L.map('map', { zoomControl: true }).setView([39.6, -8.2], 7);
+
+// Pane dedicado para as camadas meteorológicas do IPMA, com z-index fixo
+// acima do "tilePane" (onde vivem os mapas base). Sem isto, o Leaflet
+// empilha tudo o que está no mesmo pane por ordem de inserção — se o mapa
+// base fosse trocado (rua/satélite/terreno) depois de uma camada do IPMA
+// já estar ligada, o novo mapa base ficava por cima e tapava-a. Com um
+// pane próprio, as camadas do IPMA ficam sempre visíveis por cima do mapa
+// base, seja qual for a ordem em que se liga/desliga cada coisa.
+map.createPane('wxPane');
+map.getPane('wxPane').style.zIndex = 250; // tilePane=200, overlayPane=400
 
 // Mapas base disponíveis: padrão (OSM), satélite (Esri World Imagery) e
 // terreno (OpenTopoMap). Só um fica ativo de cada vez.
@@ -1549,7 +1561,8 @@ function wxLayerFor(name) {
     transparent: true,
     version: '1.3.0',
     opacity: name === IPMA_WINDBARBS_LAYER ? 0.9 : 0.55,
-    time: wxTimeIso
+    time: wxTimeIso,
+    pane: 'wxPane'
   });
 }
 
@@ -1586,6 +1599,17 @@ function wxUpdateLegend() {
 
 function wxToggleField(key, on) {
   if (on && !wxFieldLayers[key] && IPMA_WMS_LAYERS[key]) {
+    // Só um campo (temperatura/humidade/precipitação/vento/rajada/risco)
+    // fica ativo de cada vez — ligar um desliga qualquer outro que já
+    // estivesse ligado. As farpas de direção do vento (wxBarbsLayer) não
+    // entram nesta exclusão, são sempre cumulativas.
+    Object.keys(wxFieldLayers).forEach(otherKey => {
+      if (otherKey === key) return;
+      map.removeLayer(wxFieldLayers[otherKey]);
+      delete wxFieldLayers[otherKey];
+      const otherCb = document.querySelector(`.wx-field-toggle[data-field="${otherKey}"]`);
+      if (otherCb) otherCb.checked = false;
+    });
     wxTimeIso = wxIsoForRequest(wxRoundedUtcHour(wxOffsetHours));
     const layer = wxLayerFor(IPMA_WMS_LAYERS[key]);
     layer.addTo(map);
