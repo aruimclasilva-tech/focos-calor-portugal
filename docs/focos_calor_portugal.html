@@ -120,6 +120,21 @@
   #geoloc-toggle-btn.active:hover{border-color:#2ecc71;color:#2ecc71;}
   #geoloc-toggle-btn svg{display:block;}
 
+  /* legenda da camada meteo (IPMA) selecionada — canto superior esquerdo
+     do mapa, logo abaixo dos controlos de zoom do Leaflet. Estreita de
+     propósito, só o suficiente para a chave de cores ser legível. */
+  #wx-legend-box{
+    position:absolute;left:10px;top:88px;z-index:900;
+    max-width:92px;
+    background:rgba(18,26,23,.92);border:1px solid var(--line);border-radius:8px;
+    padding:6px;backdrop-filter:blur(4px);
+  }
+  #wx-legend-title{
+    font-size:10px;color:var(--muted);text-align:center;margin-bottom:4px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  #wx-legend{display:block;width:100%;border-radius:4px;background:#fff;}
+
   /* seletor de mapa base (mapa padrão / satélite / terreno) — popup
      acima do botão "🗺" */
   #basemap-switcher{
@@ -443,6 +458,11 @@
 
     <button id="panel-toggle-btn" title="Mostrar/esconder painel">☰</button>
 
+    <div id="wx-legend-box" style="display:none;">
+      <div id="wx-legend-title"></div>
+      <img id="wx-legend" alt="Legenda">
+    </div>
+
     <div id="map-tools-row">
       <button id="basemap-toggle-btn" class="fab-btn" title="Tipo de mapa">🗺</button>
       <button id="target-point-fab" class="fab-btn" title="Inserção de pontos">+</button>
@@ -588,7 +608,6 @@
             <label class="switch"><input type="checkbox" id="wx-barbs"><span class="slider"></span></label>
           </div>
           <div class="hint" id="wx-status" style="margin-top:8px;">nenhum campo ativo</div>
-          <img id="wx-legend" style="display:none;max-width:100%;margin-top:8px;border-radius:6px;background:#fff;" alt="Legenda">
           <div class="hint" style="margin-top:8px;">
             Previsão do modelo AROME e produtos de risco LSA SAF do IPMA
             (mf2.ipma.pt), sobrepostos ao mapa. Não são observações em
@@ -1591,10 +1610,15 @@ function wxUpdateStatus() {
 
 function wxUpdateLegend() {
   const active = Object.keys(wxFieldLayers);
-  const legendImg = $('wx-legend');
-  if (active.length === 0) { legendImg.style.display = 'none'; return; }
-  const legendUrl = wxLegendUrl(active[active.length - 1]); // mostra a legenda do último campo ligado
-  if (legendUrl) { legendImg.src = legendUrl; legendImg.style.display = 'block'; }
+  const box = $('wx-legend-box');
+  if (active.length === 0) { box.style.display = 'none'; return; }
+  const fieldKey = active[active.length - 1]; // só pode haver um campo ativo (exclusivos), mas por segurança usa o último
+  const legendUrl = wxLegendUrl(fieldKey);
+  if (legendUrl) {
+    $('wx-legend').src = legendUrl;
+    $('wx-legend-title').textContent = WX_FIELD_LABELS[fieldKey] || fieldKey;
+    box.style.display = 'block';
+  }
 }
 
 function wxToggleField(key, on) {
