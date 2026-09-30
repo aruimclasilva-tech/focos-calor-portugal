@@ -252,6 +252,16 @@
     padding:7px 9px;border-radius:6px;font-family:var(--mono);font-size:12px;margin-bottom:2px;
   }
   .wx-select:focus{outline:none;border-color:var(--amber);}
+  .aircraft-dest-picker{position:relative;}
+  .aircraft-dest-list{
+    position:absolute;left:0;right:0;top:100%;z-index:5;margin-top:2px;
+    max-height:150px;overflow-y:auto;background:var(--panel-2);
+    border:1px solid var(--line);border-radius:6px;
+    box-shadow:0 4px 10px rgba(0,0,0,.4);
+  }
+  .aircraft-dest-option{padding:6px 9px;font-size:11.5px;color:var(--text);cursor:pointer;}
+  .aircraft-dest-option:hover{background:var(--line);}
+  .aircraft-dest-option + .aircraft-dest-option{border-top:1px solid var(--line);}
   .hint{color:var(--muted);font-size:11px;line-height:1.5;margin-top:4px;}
   .hint a{color:var(--amber);}
   .toggle-row{display:flex;align-items:center;justify-content:space-between;font-size:12px;margin-top:8px;}
@@ -2074,27 +2084,37 @@ function aircraftTrackerUrl(source, hex) {
     : `https://globe.adsb.fi/?icao=${hex}`;
 }
 
-// Opções do seletor de destino: hospitais (fixos) + pontos de referência
-// guardados pelo utilizador. O valor selecionado atualmente para esta
-// aeronave (se houver) vem marcado com "selected".
-function aircraftDestOptionsHtml(hexUpper) {
-  const current = aircraftDestinations[hexUpper];
-  const curVal = current ? `${current.type}:${current.key}` : '';
-  const hospOpts = HOSPITALS.map((h, idx) => {
-    const val = `h:${idx}`;
-    return `<option value="${val}"${val === curVal ? ' selected' : ''}>${h.local}</option>`;
-  }).join('');
-  const pointOpts = targetPoints.map(p => {
-    const val = `p:${p.id}`;
-    return `<option value="${val}"${val === curVal ? ' selected' : ''}>${p.label || ('Ponto #' + p.id)}</option>`;
-  }).join('');
-  const pointsGroup = targetPoints.length
-    ? `<optgroup label="Pontos guardados">${pointOpts}</optgroup>` : '';
-  return `
-    <option value=""${curVal ? '' : ' selected'}>— escolher destino —</option>
-    <optgroup label="Hospitais">${hospOpts}</optgroup>
-    ${pointsGroup}
-  `;
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+const AIRCRAFT_DEST_LIST_MAX = 8;
+
+// Lista unificada de destinos possíveis: hospitais (fixos) + pontos de
+// referência guardados pelo utilizador.
+function aircraftDestCandidates() {
+  const hosp = HOSPITALS.map((h, idx) => ({ type: 'h', key: String(idx), label: h.local }));
+  const pts = targetPoints.map(p => ({ type: 'p', key: String(p.id), label: p.label || `Ponto #${p.id}` }));
+  return hosp.concat(pts);
+}
+
+// Filtra por qualquer parte do texto (início, fim ou meio da palavra) —
+// não é preciso escrever o nome exato nem começar a escrever pelo início.
+function aircraftDestFilter(query) {
+  const q = (query || '').trim().toUpperCase();
+  if (!q) return [];
+  return aircraftDestCandidates()
+    .filter(c => c.label.toUpperCase().includes(q))
+    .slice(0, AIRCRAFT_DEST_LIST_MAX);
+}
+
+function aircraftDestListHtml(matches, hexUpper) {
+  if (!matches.length) return '';
+  return matches.map(m => `
+    <div class="aircraft-dest-option" data-hex="${hexUpper}" data-type="${m.type}" data-key="${escapeHtml(m.key)}">${escapeHtml(m.label)}</div>
+  `).join('');
 }
 
 // Resolve o destino guardado para uma aeronave nas coordenadas atuais da
@@ -2112,6 +2132,11 @@ function resolveAircraftDest(hexUpper) {
     return p ? { lat: p.lat, lon: p.lon, label: p.label || `Ponto #${p.id}` } : null;
   }
   return null;
+}
+
+function aircraftDestLabel(hexUpper) {
+  const dest = resolveAircraftDest(hexUpper);
+  return dest ? dest.label : '';
 }
 
 // Tempo restante de voo (e ETA entre parêntesis) até ao destino escolhido —
@@ -2159,9 +2184,12 @@ function aircraftPopupHtml(ac, source) {
     <div class="popup-row"><span>Velocidade</span><b>${gs}</b></div>
     <div class="popup-row"><span>Fonte</span><b>${source}</b></div>
     <div class="panel-subgroup-title" style="margin-top:8px;">Destino e ETA</div>
-    <select class="wx-select aircraft-dest-select" data-hex="${hexUpper}">
-      ${aircraftDestOptionsHtml(hexUpper)}
-    </select>
+    <div class="aircraft-dest-picker">
+      <input type="text" class="wx-select aircraft-dest-input" data-hex="${hexUpper}"
+             placeholder="Procurar hospital ou ponto…" autocomplete="off"
+             value="${escapeHtml(aircraftDestLabel(hexUpper))}">
+      <div class="aircraft-dest-list" data-hex="${hexUpper}"></div>
+    </div>
     ${aircraftDestEtaHtml(ac)}
   `;
 }
@@ -2176,27 +2204,37 @@ function updateAircraftPopup(hexUpper) {
   marker.setPopupContent(aircraftPopupHtml(data.ac, data.source));
 }
 
-document.addEventListener('change', (e) => {
-  if (!e.target.matches('.aircraft-dest-select')) return;
+// Filtra a lista à medida que se escreve — atualiza só a lista de
+// resultados (não o balão inteiro), para não perder o foco/cursor do campo.
+document.addEventListener('input', (e) => {
+  if (!e.target.matches('.aircraft-dest-input')) return;
   const hexUpper = e.target.dataset.hex;
-  const val = e.target.value;
-  if (!val) {
-    delete aircraftDestinations[hexUpper];
-  } else {
-    const [type, key] = val.split(':');
-    aircraftDestinations[hexUpper] = { type, key };
+  const listEl = document.querySelector(`.aircraft-dest-list[data-hex="${hexUpper}"]`);
+  if (!listEl) return;
+  const matches = aircraftDestFilter(e.target.value);
+  listEl.innerHTML = aircraftDestListHtml(matches, hexUpper);
+  const marker = aircraftMarkers[hexUpper];
+  if (marker && marker.isPopupOpen && marker.isPopupOpen() && marker.getPopup().update) {
+    marker.getPopup().update();
   }
-  saveAircraftDestinations();
-  updateAircraftPopup(hexUpper);
 });
 
 document.addEventListener('click', (e) => {
-  if (!e.target.matches('.aircraft-dest-clear')) return;
-  e.preventDefault();
-  const hexUpper = e.target.dataset.hex;
-  delete aircraftDestinations[hexUpper];
-  saveAircraftDestinations();
-  updateAircraftPopup(hexUpper);
+  const opt = e.target.closest('.aircraft-dest-option');
+  if (opt) {
+    const hexUpper = opt.dataset.hex;
+    aircraftDestinations[hexUpper] = { type: opt.dataset.type, key: opt.dataset.key };
+    saveAircraftDestinations();
+    updateAircraftPopup(hexUpper);
+    return;
+  }
+  if (e.target.matches('.aircraft-dest-clear')) {
+    e.preventDefault();
+    const hexUpper = e.target.dataset.hex;
+    delete aircraftDestinations[hexUpper];
+    saveAircraftDestinations();
+    updateAircraftPopup(hexUpper);
+  }
 });
 
 async function refreshAircraft() {
