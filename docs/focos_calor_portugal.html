@@ -780,34 +780,15 @@
       </section>
 
       <section>
-        <h2>Acordar o workflow automaticamente (opcional)</h2>
+        <h2>Credenciais guardadas</h2>
         <div class="hint" style="margin-bottom:8px;">
-          ⚠️ Isto guarda um token do GitHub neste browser/telemóvel
-          (localStorage) — não fica só em memória, persiste mesmo depois de
-          fechares a aba. Só dispara o workflow enquanto esta aba estiver
-          aberta, e usa um serviço externo como o cron-job.org para
-          cobertura 24/7 é preferível a isto — se já tens isso configurado,
-          o mais seguro é deixar esta secção desligada e limpa (botão
-          "Esquecer credenciais" em baixo).
+          O MAP_KEY (FIRMS) e o URL do MTG que configuraste ficam guardados
+          neste browser. A atualização automática dos dados (MTG e
+          aeronaves) já corre do lado do GitHub Actions, agendada por um
+          serviço externo (cron-job.org) — não depende desta página estar
+          aberta.
         </div>
-        <div class="cfg-row">
-          <input type="text" id="gh-repo" placeholder="utilizador/repositorio (ex. aruimclasilva-tech/focos-calor-portugal)">
-        </div>
-        <div class="cfg-row">
-          <input type="text" id="gh-token" placeholder="Token GitHub (fine-grained, só Actions:write neste repo)">
-          <button class="ghost" id="save-gh-trigger">Usar</button>
-        </div>
-        <div class="toggle-row">
-          <span>Disparar o workflow a cada atualização (10 min)</span>
-          <label class="switch"><input type="checkbox" id="gh-trigger-toggle"><span class="slider"></span></label>
-        </div>
-        <div class="hint" id="gh-trigger-status" style="margin-top:6px;">estado: desligado</div>
-        <div class="hint">
-          Cria o token em
-          <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener">github.com/settings/tokens</a>
-          → "Fine-grained token" → limita-o só a este repositório → permissão "Actions: Read and write".
-        </div>
-        <button class="ghost" id="forget-creds-btn" style="margin-top:10px;width:100%;">Esquecer todas as credenciais guardadas neste browser</button>
+        <button class="ghost" id="forget-creds-btn" style="width:100%;">Esquecer credenciais guardadas neste browser</button>
       </section>
 
       <section>
@@ -869,9 +850,6 @@ const PROXY_CHAIN = [
 let mapKey = "";
 let useProxy = false;
 let mtgUrl = "";
-let ghRepo = "";
-let ghToken = "";
-let ghTriggerEnabled = false;
 let autoRefresh = true;
 let txCount = 0;
 let refreshTimer = null;
@@ -895,8 +873,6 @@ let historyRetentionHours = 24;
 const CRED_KEYS = {
   'map-key': 'firemap_cfg_mapkey',
   'mtg-url': 'firemap_cfg_mtgurl',
-  'gh-repo': 'firemap_cfg_ghrepo',
-  'gh-token': 'firemap_cfg_ghtoken',
 };
 
 function saveCred(inputId) {
@@ -1750,38 +1726,6 @@ $('save-mtg-url').addEventListener('click', () => {
   }
   refreshData();
 });
-$('save-gh-trigger').addEventListener('click', () => {
-  ghRepo = $('gh-repo').value.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, '');
-  ghToken = $('gh-token').value.trim();
-  $('gh-repo').value = ghRepo;
-  saveCred('gh-repo');
-  saveCred('gh-token');
-  $('gh-trigger-status').textContent = (ghRepo && ghToken)
-    ? 'estado: credenciais guardadas neste browser'
-    : 'estado: faltam dados (repositório e/ou token)';
-});
-$('gh-trigger-toggle').addEventListener('change', (e) => {
-  // Lê e guarda os campos diretamente aqui, para não depender de o
-  // utilizador ter clicado em "Usar" antes de ligar o interruptor.
-  ghRepo = $('gh-repo').value.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, '');
-  ghToken = $('gh-token').value.trim();
-  $('gh-repo').value = ghRepo;
-  saveCred('gh-repo');
-  saveCred('gh-token');
-
-  ghTriggerEnabled = e.target.checked;
-  if (ghTriggerEnabled && (!ghRepo || !ghToken)) {
-    $('gh-trigger-status').textContent = 'estado: preenche repositório e token primeiro';
-    e.target.checked = false;
-    ghTriggerEnabled = false;
-    return;
-  }
-  try { localStorage.setItem('firemap_cfg_ghtrigger', ghTriggerEnabled ? '1' : '0'); } catch {}
-  $('gh-trigger-status').textContent = ghTriggerEnabled
-    ? 'estado: ativo — vai disparar a cada atualização'
-    : 'estado: desligado';
-  if (ghTriggerEnabled) triggerGithubWorkflow();
-});
 $('basemap-standard').addEventListener('click', () => setBasemap('standard'));
 $('basemap-satellite').addEventListener('click', () => setBasemap('satellite'));
 $('basemap-terrain').addEventListener('click', () => setBasemap('terrain'));
@@ -2245,8 +2189,6 @@ $('save-aircraft-watchlist').addEventListener('click', () => {
   if (aircraftLayerOn) refreshAircraft();
 });
 $('show-firms').addEventListener('change', () => { renderAll(); updateSourceSummaries(); });
-$('gh-repo').addEventListener('blur', () => saveCred('gh-repo'));
-$('gh-token').addEventListener('blur', () => saveCred('gh-token'));
 $('show-mtg').addEventListener('change', () => { renderAll(); updateSourceSummaries(); });
 $('show-heli').addEventListener('change', (e) => {
   if (e.target.checked) heliLayer.addTo(map);
@@ -2532,29 +2474,6 @@ async function importServerHistory() {
   }
 }
 
-async function triggerGithubWorkflow() {
-  if (!ghRepo || !ghToken) return;
-  try {
-    const res = await fetch(`https://api.github.com/repos/${ghRepo}/actions/workflows/fetch-fires.yml/dispatches`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${ghToken}`,
-        'Accept': 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28'
-      },
-      body: JSON.stringify({ ref: 'main' })
-    });
-    if (res.status === 204) {
-      $('gh-trigger-status').textContent = `estado: disparado com sucesso às ${fmtTime(new Date())}`;
-    } else {
-      const txt = await res.text();
-      $('gh-trigger-status').textContent = `estado: erro HTTP ${res.status} — ${txt.slice(0, 150)}`;
-    }
-  } catch (err) {
-    $('gh-trigger-status').textContent = 'estado: erro de rede — ' + err.message;
-  }
-}
-
 async function refreshData() {
   if (isRefreshing) {
     // Já há uma atualização em curso — deixa-a terminar em vez de
@@ -2570,7 +2489,6 @@ async function refreshData() {
   isRefreshing = true;
   updateHeaderTimestamps();
   setStatus('stale', 'a atualizar…');
-  if (ghTriggerEnabled) triggerGithubWorkflow(); // não bloqueia — o resultado só aparece no próximo ciclo
   try {
     const tasks = [];
     if (mapKey) tasks.push(...SOURCES.map(fetchSource));
@@ -2883,11 +2801,9 @@ $('clear-history-btn').addEventListener('click', () => {
   }
 });
 $('forget-creds-btn').addEventListener('click', () => {
-  if (confirm('Esquecer o MAP_KEY, URL do MTG, repositório e token do GitHub guardados neste browser?')) {
+  if (confirm('Esquecer o MAP_KEY e o URL do MTG guardados neste browser?')) {
     forgetSavedCreds();
-    mapKey = ''; mtgUrl = ''; ghRepo = ''; ghToken = ''; ghTriggerEnabled = false;
-    $('gh-trigger-toggle').checked = false;
-    $('gh-trigger-status').textContent = 'estado: desligado';
+    mapKey = ''; mtgUrl = '';
     $('mtg-status').textContent = 'estado: desligado';
     updateSourceSummaries();
   }
@@ -2962,8 +2878,15 @@ updateSourceSummaries();
 loadSavedCreds();
 mapKey = $('map-key').value.trim();
 mtgUrl = $('mtg-url').value.trim();
-ghRepo = $('gh-repo').value.trim();
-ghToken = $('gh-token').value.trim();
+
+// Chaves antigas de uma função entretanto removida (disparo do workflow a
+// partir do browser, com token guardado neste dispositivo) — limpa-as se
+// ainda existirem de uma versão anterior desta página.
+try {
+  localStorage.removeItem('firemap_cfg_ghrepo');
+  localStorage.removeItem('firemap_cfg_ghtoken');
+  localStorage.removeItem('firemap_cfg_ghtrigger');
+} catch {}
 
 // Se esta página estiver a correr a partir de um servidor (GitHub Pages,
 // ou qualquer servidor http/https) e nenhum URL do MTG tiver sido definido
@@ -2976,13 +2899,7 @@ if (!mtgUrl && location.protocol.startsWith('http')) {
   saveCred('mtg-url');
   $('mtg-status').textContent = 'estado: detetado automaticamente (mesma pasta do servidor)';
 }
-
-try {
-  ghTriggerEnabled = localStorage.getItem('firemap_cfg_ghtrigger') === '1' && !!ghRepo && !!ghToken;
-} catch { ghTriggerEnabled = false; }
-$('gh-trigger-toggle').checked = ghTriggerEnabled;
 if (mtgUrl) $('show-mtg').checked = true;
-if (ghRepo && ghToken) $('gh-trigger-status').textContent = 'estado: credenciais carregadas deste browser';
 if (mtgUrl && !$('mtg-status').textContent.includes('detetado')) $('mtg-status').textContent = 'estado: configurado (guardado neste browser)';
 updateSourceSummaries();
 if (mapKey || mtgUrl) refreshData();
