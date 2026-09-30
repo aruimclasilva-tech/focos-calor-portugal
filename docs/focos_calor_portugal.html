@@ -1924,7 +1924,28 @@ let aircraftTimer = null;
 const aircraftMarkers = {};  // hex -> L.Marker
 const aircraftTrails = {};   // hex -> L.Polyline
 const aircraftTrailPts = {}; // hex -> [[lat,lon], ...]
+const aircraftLastData = {}; // hex -> { ac, source } — última leitura conhecida,
+                              // para poder recalcular o balão (ex.: ao escolher
+                              // um destino) sem esperar pela próxima atualização.
 const AIRCRAFT_TRAIL_MAX = 40;
+
+// Destino escolhido para cada aeronave (hex -> { type: 'h'|'p', key }),
+// guardado neste browser. "h" = índice em HOSPITALS, "p" = id em
+// targetPoints. Guardamos só a referência (não lat/lon) para acompanhar se
+// um ponto for arrastado, e porque a lista de hospitais é fixa.
+const AIRCRAFT_DEST_KEY = 'firemap_cfg_aircraft_destinations';
+let aircraftDestinations = {};
+
+function loadAircraftDestinations() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(AIRCRAFT_DEST_KEY) || 'null');
+    if (raw && typeof raw === 'object') aircraftDestinations = raw;
+  } catch {}
+}
+
+function saveAircraftDestinations() {
+  try { localStorage.setItem(AIRCRAFT_DEST_KEY, JSON.stringify(aircraftDestinations)); } catch {}
+}
 
 function aircraftPlaneGlyphSvg(colorHex) {
   return `<svg viewBox="0 0 24 24" fill="${colorHex}" stroke="#111" stroke-width="0.6">
@@ -2053,11 +2074,78 @@ function aircraftTrackerUrl(source, hex) {
     : `https://globe.adsb.fi/?icao=${hex}`;
 }
 
+// Opções do seletor de destino: hospitais (fixos) + pontos de referência
+// guardados pelo utilizador. O valor selecionado atualmente para esta
+// aeronave (se houver) vem marcado com "selected".
+function aircraftDestOptionsHtml(hexUpper) {
+  const current = aircraftDestinations[hexUpper];
+  const curVal = current ? `${current.type}:${current.key}` : '';
+  const hospOpts = HOSPITALS.map((h, idx) => {
+    const val = `h:${idx}`;
+    return `<option value="${val}"${val === curVal ? ' selected' : ''}>${h.local}</option>`;
+  }).join('');
+  const pointOpts = targetPoints.map(p => {
+    const val = `p:${p.id}`;
+    return `<option value="${val}"${val === curVal ? ' selected' : ''}>${p.label || ('Ponto #' + p.id)}</option>`;
+  }).join('');
+  const pointsGroup = targetPoints.length
+    ? `<optgroup label="Pontos guardados">${pointOpts}</optgroup>` : '';
+  return `
+    <option value=""${curVal ? '' : ' selected'}>— escolher destino —</option>
+    <optgroup label="Hospitais">${hospOpts}</optgroup>
+    ${pointsGroup}
+  `;
+}
+
+// Resolve o destino guardado para uma aeronave nas coordenadas atuais da
+// fonte (hospital fixo, ou ponto de referência — que pode ter sido
+// arrastado entretanto, por isso vai sempre buscar o valor corrente).
+function resolveAircraftDest(hexUpper) {
+  const d = aircraftDestinations[hexUpper];
+  if (!d) return null;
+  if (d.type === 'h') {
+    const h = HOSPITALS[Number(d.key)];
+    return h ? { lat: h.lat, lon: h.lon, label: h.local } : null;
+  }
+  if (d.type === 'p') {
+    const p = targetPoints.find(pt => String(pt.id) === String(d.key));
+    return p ? { lat: p.lat, lon: p.lon, label: p.label || `Ponto #${p.id}` } : null;
+  }
+  return null;
+}
+
+// Tempo restante de voo (e ETA entre parêntesis) até ao destino escolhido —
+// distância em linha reta (não tem em conta relevo/rota real) a dividir
+// pela velocidade atual da aeronave (gs, convertida para km/h). Sem
+// velocidade conhecida (ex. aeronave parada ou sem dado), não há como
+// estimar o tempo.
+function aircraftDestEtaHtml(ac) {
+  const hexUpper = (ac.hex || '').toUpperCase();
+  const dest = resolveAircraftDest(hexUpper);
+  if (!dest) return '';
+  const distKm = haversineKm(ac.lat, ac.lon, dest.lat, dest.lon);
+  const speedKmh = (typeof ac.gs === 'number' && ac.gs > 0) ? ac.gs * 1.852 : null;
+  const etaLine = speedKmh
+    ? (() => {
+        const flightMin = (distKm / speedKmh) * 60;
+        const etaDate = new Date(Date.now() + flightMin * 60000);
+        return `<b>${flightMin.toFixed(0)} min <small style="color:var(--muted);">(ETA ${fmtTime(etaDate)})</small></b>`;
+      })()
+    : `<b>— <small style="color:var(--muted);">(sem velocidade disponível)</small></b>`;
+  return `
+    <div class="popup-row"><span>Destino</span><b>${dest.label}</b></div>
+    <div class="popup-row"><span>Tempo restante</span>${etaLine}</div>
+    <div class="hint" style="margin-top:2px;">${distKm.toFixed(0)} km em linha reta, à velocidade atual ·
+      <a href="#" class="aircraft-dest-clear" data-hex="${hexUpper}">remover destino</a></div>
+  `;
+}
+
 function aircraftPopupHtml(ac, source) {
   const alt = (ac.alt_baro === 'ground') ? 'no solo'
     : (typeof ac.alt_baro === 'number' ? `${Math.round(ac.alt_baro * 0.3048)} m` : '—');
   const gs = typeof ac.gs === 'number' ? `${Math.round(ac.gs * 1.852)} km/h` : '—';
   const hex = (ac.hex || '').toLowerCase();
+  const hexUpper = (ac.hex || '').toUpperCase();
   const icon = isHelicopter(ac) ? '🚁' : '✈';
   const label = `${icon} ${ac.flight ? ac.flight.trim() : (ac.r || ac.hex)}`;
   const title = hex
@@ -2070,8 +2158,46 @@ function aircraftPopupHtml(ac, source) {
     <div class="popup-row"><span>Altitude</span><b>${alt}</b></div>
     <div class="popup-row"><span>Velocidade</span><b>${gs}</b></div>
     <div class="popup-row"><span>Fonte</span><b>${source}</b></div>
+    <div class="panel-subgroup-title" style="margin-top:8px;">Destino e ETA</div>
+    <select class="wx-select aircraft-dest-select" data-hex="${hexUpper}">
+      ${aircraftDestOptionsHtml(hexUpper)}
+    </select>
+    ${aircraftDestEtaHtml(ac)}
   `;
 }
+
+// Atualiza o conteúdo do balão de uma aeronave já aberta (ex.: depois de
+// escolher ou remover um destino), sem esperar pelo próximo ciclo de
+// atualização — usa a última leitura conhecida dessa aeronave.
+function updateAircraftPopup(hexUpper) {
+  const marker = aircraftMarkers[hexUpper];
+  const data = aircraftLastData[hexUpper];
+  if (!marker || !data) return;
+  marker.setPopupContent(aircraftPopupHtml(data.ac, data.source));
+}
+
+document.addEventListener('change', (e) => {
+  if (!e.target.matches('.aircraft-dest-select')) return;
+  const hexUpper = e.target.dataset.hex;
+  const val = e.target.value;
+  if (!val) {
+    delete aircraftDestinations[hexUpper];
+  } else {
+    const [type, key] = val.split(':');
+    aircraftDestinations[hexUpper] = { type, key };
+  }
+  saveAircraftDestinations();
+  updateAircraftPopup(hexUpper);
+});
+
+document.addEventListener('click', (e) => {
+  if (!e.target.matches('.aircraft-dest-clear')) return;
+  e.preventDefault();
+  const hexUpper = e.target.dataset.hex;
+  delete aircraftDestinations[hexUpper];
+  saveAircraftDestinations();
+  updateAircraftPopup(hexUpper);
+});
 
 async function refreshAircraft() {
   if (!aircraftLayerOn) return;
@@ -2091,6 +2217,7 @@ async function refreshAircraft() {
     seenHex.add(hex);
     const latlng = [ac.lat, ac.lon];
     const heading = ac.track != null ? ac.track : (ac.true_heading != null ? ac.true_heading : 0);
+    aircraftLastData[hex] = { ac, source: result.source };
 
     if (!aircraftMarkers[hex]) {
       aircraftMarkers[hex] = L.marker(latlng, { icon: buildAircraftIcon(result.source, ac), zIndexOffset: 800 })
@@ -2125,6 +2252,7 @@ async function refreshAircraft() {
       delete aircraftMarkers[hex];
       if (aircraftTrails[hex]) { map.removeLayer(aircraftTrails[hex]); delete aircraftTrails[hex]; }
       delete aircraftTrailPts[hex];
+      delete aircraftLastData[hex];
     }
   });
 
@@ -2867,6 +2995,7 @@ try {
     aircraftDroneMode = true;
     $('aircraft-drone-mode').checked = true;
   }
+  loadAircraftDestinations();
   if (localStorage.getItem(AIRCRAFT_SHOW_KEY) === '1') {
     $('show-aircraft').checked = true;
     startAircraftTracking();
