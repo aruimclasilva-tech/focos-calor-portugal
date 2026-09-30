@@ -34,11 +34,33 @@ jobs:
       - name: Descarregar posições de aeronaves (ADS-B)
         run: python aircraft_fetch.py --outdir docs
 
-      - name: Sincronizar com o repositório remoto (rede de segurança)
-        run: git pull --rebase origin main || true
+      # Publica com nova(s) tentativa(s) em caso de conflito — este workflow
+      # corre a cada minuto e pode ocasionalmente coincidir com um push do
+      # workflow do MTG (fetch-fires.yml) no mesmo branch. Em vez de falhar
+      # logo à primeira, volta a sincronizar (git pull --rebase) e tenta
+      # outra vez, até a alguma tentativa ter sucesso.
+      - name: Publicar resultado no repositório (com nova tentativa em caso de conflito)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Publicar resultado no repositório
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "Atualiza posições de aeronaves (ADS-B)"
-          file_pattern: docs/portugal_aircraft.json
+          if git diff --quiet -- docs/portugal_aircraft.json; then
+            echo "Sem alterações para publicar."
+            exit 0
+          fi
+
+          git add docs/portugal_aircraft.json
+          git commit -m "Atualiza posições de aeronaves (ADS-B)"
+
+          for i in 1 2 3 4 5 6; do
+            if git push origin main; then
+              echo "Publicado (tentativa $i)."
+              exit 0
+            fi
+            echo "Push falhou (tentativa $i) — provavelmente conflito com outro workflow. A sincronizar e a tentar de novo..."
+            sleep $(( (RANDOM % 5) + 2 ))
+            git pull --rebase origin main
+          done
+
+          echo "Não foi possível publicar depois de várias tentativas." >&2
+          exit 1

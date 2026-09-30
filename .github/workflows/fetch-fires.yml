@@ -39,11 +39,34 @@ jobs:
           LSASAF_USER: ${{ secrets.LSASAF_USER }}
           LSASAF_PASS: ${{ secrets.LSASAF_PASS }}
 
-      - name: Sincronizar com o repositório remoto (rede de segurança)
-        run: git pull --rebase origin main || true
+      # Publica com nova(s) tentativa(s) em caso de conflito. O workflow das
+      # aeronaves (fetch-aircraft.yml) corre a cada minuto e publica no mesmo
+      # branch — por vezes o push deste workflow chega mesmo depois de um
+      # push das aeronaves, e é rejeitado (não é "fast-forward"). Em vez de
+      # falhar logo à primeira, volta a sincronizar (git pull --rebase) e
+      # tenta outra vez, até a alguma tentativa ter sucesso.
+      - name: Publicar resultado no repositório (com nova tentativa em caso de conflito)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Publicar resultado no repositório
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "Atualiza focos de calor MTG"
-          file_pattern: docs/portugal_fires_mtg.json docs/portugal_fires_mtg_history.json
+          if git diff --quiet -- docs/portugal_fires_mtg.json docs/portugal_fires_mtg_history.json; then
+            echo "Sem alterações para publicar."
+            exit 0
+          fi
+
+          git add docs/portugal_fires_mtg.json docs/portugal_fires_mtg_history.json
+          git commit -m "Atualiza focos de calor MTG"
+
+          for i in 1 2 3 4 5 6; do
+            if git push origin main; then
+              echo "Publicado (tentativa $i)."
+              exit 0
+            fi
+            echo "Push falhou (tentativa $i) — provavelmente conflito com outro workflow. A sincronizar e a tentar de novo..."
+            sleep $(( (RANDOM % 5) + 2 ))
+            git pull --rebase origin main
+          done
+
+          echo "Não foi possível publicar depois de várias tentativas." >&2
+          exit 1
