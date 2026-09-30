@@ -398,11 +398,11 @@
      real (track), cor consoante a fonte de dados. */
   .aircraft-marker-icon{background:transparent;border:none;}
   .aircraft-glyph{
-    width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+    width:25px;height:25px;display:flex;align-items:center;justify-content:center;
     transition:transform .3s linear;
     filter:drop-shadow(0 0 3px rgba(0,0,0,.7));
   }
-  .aircraft-glyph svg{width:20px;height:20px;}
+  .aircraft-glyph svg{width:23px;height:23px;}
 
   /* lista individual dos Heli INEM (visibilidade + raio de ação por meio) */
   .heli-inem-row{border:1px solid var(--line);border-radius:8px;padding:7px 9px;margin-top:6px;}
@@ -1969,14 +1969,20 @@ function aircraftPlaneGlyphSvg(colorHex) {
 // cauda — nariz para cima, para a rotação por rumo continuar a fazer
 // sentido.
 function aircraftHeliGlyphSvg(colorHex) {
-  return `<svg viewBox="0 0 24 24" fill="${colorHex}" stroke="#111" stroke-width="0.4" stroke-linejoin="round">
+  return `<svg viewBox="0 0 24 24" fill="${colorHex}" stroke="#111" stroke-width="0.6" stroke-linejoin="round">
+    <g stroke="#111" fill="none" stroke-width="2.8" stroke-linecap="round">
+      <line x1="12" y1="9" x2="4" y2="4"/>
+      <line x1="12" y1="9" x2="20" y2="4"/>
+      <line x1="12" y1="9" x2="4" y2="15"/>
+      <line x1="12" y1="9" x2="20" y2="15"/>
+    </g>
     <g stroke="${colorHex}" fill="none" stroke-width="1.9" stroke-linecap="round">
       <line x1="12" y1="9" x2="4" y2="4"/>
       <line x1="12" y1="9" x2="20" y2="4"/>
       <line x1="12" y1="9" x2="4" y2="15"/>
       <line x1="12" y1="9" x2="20" y2="15"/>
     </g>
-    <circle cx="12" cy="9" r="1.3" stroke="none"/>
+    <circle cx="12" cy="9" r="1.3"/>
     <path d="M12 2c1.5 0 2.7 1.3 2.4 3.3-.2 1.3-.7 2.3-1.3 2.9l-.15 13.4c-.02.5-.33.85-.7.85h-.2-.2c-.37 0-.68-.35-.7-.85L11 8.2c-.6-.6-1.1-1.6-1.3-2.9C9.4 3.3 10.5 2 12 2Z"/>
     <path d="M7.9 18.6c0-.5.4-.85.9-.85h1.9c.2.45.28.85.28 1.35 0 .5-.08.9-.28 1.35H8.8c-.5 0-.9-.35-.9-.85Z"/>
     <path d="M16.1 18.6c0-.5-.4-.85-.9-.85h-1.9c-.2.45-.28.85-.28 1.35 0 .5.08.9.28 1.35h1.9c.5 0 .9-.35.9-.85Z"/>
@@ -1993,9 +1999,9 @@ function buildAircraftIcon(source, ac) {
   return L.divIcon({
     className: 'aircraft-marker-icon',
     html: `<div class="aircraft-glyph">${glyph}</div>`,
-    iconSize: [22, 22],
-    iconAnchor: [11, 11],
-    popupAnchor: [0, -10]
+    iconSize: [25, 25],
+    iconAnchor: [12.5, 12.5],
+    popupAnchor: [0, -11]
   });
 }
 
