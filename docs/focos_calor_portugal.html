@@ -1963,25 +1963,17 @@ function aircraftPlaneGlyphSvg(colorHex) {
   </svg>`;
 }
 
-// Helicóptero — silhueta de perfil (nariz para cima, para a rotação por
-// rumo continuar a fazer sentido): pás do rotor principal a cruzarem-se
-// por cima da cabine, cabine/cauda em gota a afunilar, trem de aterragem
-// (skids) e rotor de cauda — aproximado da referência enviada pelo Rui
-// (silhueta de helicóptero com pás bem visíveis, trem de aterragem e
-// cauda fina).
+// Helicóptero — símbolo "rotor" bem sólido e contrastado (nariz para
+// cima, para a rotação por rumo continuar a fazer sentido), no estilo
+// dos ícones de rastreadores de voo (adsb.fi/tar1090): barra longa do
+// rotor principal, cabine arredondada, estabilizador/skid a meio da
+// cauda e rotor de cauda — mais grosso e geométrico do que uma silhueta
+// desenhada à mão, para se distinguir bem mesmo em tamanho pequeno.
 function aircraftHeliGlyphSvg(colorHex) {
-  return `<svg viewBox="0 0 24 24" fill="none" stroke="${colorHex}" stroke-linecap="round" stroke-linejoin="round">
-    <g stroke-width="1.6">
-      <line x1="3.3" y1="1.6" x2="20.7" y2="7.6"/>
-      <line x1="20.7" y1="1.6" x2="3.3" y2="7.6"/>
-    </g>
-    <circle cx="12" cy="4.6" r="1" fill="${colorHex}" stroke="none"/>
-    <path d="M12 5.6c2.5 0 3.5 2 2.9 4.5-.35 1.6-1.05 2.25-1.5 2.55l-.55 8.85c-.03.55-.35.9-.75.9h-.2-.2c-.4 0-.72-.35-.75-.9l-.55-8.85c-.45-.3-1.15-.95-1.5-2.55-.6-2.5.4-4.5 2.9-4.5Z"
-          fill="${colorHex}" stroke="#111" stroke-width="0.4"/>
-    <line x1="6.7" y1="11.6" x2="17.3" y2="11.6" stroke-width="1.1"/>
-    <line x1="7.3" y1="11.6" x2="7.3" y2="13.3" stroke-width="1"/>
-    <line x1="16.7" y1="11.6" x2="16.7" y2="13.3" stroke-width="1"/>
-    <line x1="10.3" y1="21.2" x2="13.7" y2="21.2" stroke-width="1.4"/>
+  return `<svg viewBox="0 0 24 24" fill="${colorHex}" stroke="#111" stroke-width="0.5" stroke-linejoin="round">
+    <rect x="1.5" y="4.3" width="21" height="1.6" rx="0.8"/>
+    <path d="M12 3.4c1.9 0 2.7 1.1 2.4 2.8-.2 1-.6 1.4-1 1.6l-.4 4.6h1.6c.35 0 .6.3.55.65l-.15 1.1c-.05.35-.35.6-.7.6h-1.42l-.34 5.6c-.03.5-.35.8-.75.8h-.2-.2c-.4 0-.72-.3-.75-.8l-.34-5.6H9.05c-.35 0-.65-.25-.7-.6l-.15-1.1c-.05-.35.2-.65.55-.65h1.6l-.4-4.6c-.4-.2-.8-.6-1-1.6-.3-1.7.5-2.8 2.4-2.8Z"/>
+    <rect x="8.7" y="20.6" width="6.6" height="1.4" rx="0.7"/>
   </svg>`;
 }
 
