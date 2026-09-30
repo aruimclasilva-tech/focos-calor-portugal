@@ -2213,10 +2213,11 @@ document.addEventListener('input', (e) => {
   if (!listEl) return;
   const matches = aircraftDestFilter(e.target.value);
   listEl.innerHTML = aircraftDestListHtml(matches, hexUpper);
-  const marker = aircraftMarkers[hexUpper];
-  if (marker && marker.isPopupOpen && marker.isPopupOpen() && marker.getPopup().update) {
-    marker.getPopup().update();
-  }
+  // NOTA: não chamar popup.update() aqui — o Leaflet reaplicaria o HTML
+  // guardado internamente (de quando o balão foi aberto) por cima desta
+  // lista, apagando-a e recriando o campo de texto (perde-se o foco e o
+  // que já tinha sido escrito). A lista é "position:absolute", por isso
+  // não precisa que o balão seja redimensionado para aparecer por cima.
 });
 
 document.addEventListener('click', (e) => {
