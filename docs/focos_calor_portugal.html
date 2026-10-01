@@ -2012,6 +2012,7 @@ $('save-mtg-url').addEventListener('click', () => {
   $('mtg-status').textContent = mtgUrl ? 'estado: configurado, a tentar ler…' : 'estado: desligado';
   if (mtgUrl) {
     $('show-mtg').checked = true; // ativa automaticamente a visibilidade ao configurar
+    try { localStorage.setItem('firemap_cfg_show_mtg', '1'); } catch {}
     updateSourceSummaries();
   }
   refreshData();
@@ -2875,8 +2876,14 @@ $('save-aircraft-watchlist').addEventListener('click', () => {
   $('aircraft-watchlist-hint').style.display = aircraftWatchlist.length ? 'none' : '';
   if (aircraftLayerOn) refreshAircraft();
 });
-$('show-firms').addEventListener('change', () => { renderAll(); updateSourceSummaries(); });
-$('show-mtg').addEventListener('change', () => { renderAll(); updateSourceSummaries(); });
+$('show-firms').addEventListener('change', (e) => {
+  try { localStorage.setItem('firemap_cfg_show_firms', e.target.checked ? '1' : '0'); } catch {}
+  renderAll(); updateSourceSummaries();
+});
+$('show-mtg').addEventListener('change', (e) => {
+  try { localStorage.setItem('firemap_cfg_show_mtg', e.target.checked ? '1' : '0'); } catch {}
+  renderAll(); updateSourceSummaries();
+});
 $('show-heli').addEventListener('change', (e) => {
   if (e.target.checked) heliLayer.addTo(map);
   else map.removeLayer(heliLayer);
@@ -3542,7 +3549,15 @@ function updateHistorySizeInfo() {
 }
 
 // --- Arranque: carrega credenciais guardadas neste browser (se existirem) ---
+let mtgShowPref = null;
 try {
+  // Visibilidade de FIRMS/EUMETSAT: mantém o que ficou selecionado da
+  // última vez que a página foi fechada, em vez de reiniciar sempre com
+  // os dois ativos.
+  if (localStorage.getItem('firemap_cfg_show_firms') === '0') {
+    $('show-firms').checked = false;
+  }
+  mtgShowPref = localStorage.getItem('firemap_cfg_show_mtg');
   if (localStorage.getItem('firemap_cfg_show_heli') === '1') {
     $('show-heli').checked = true;
     heliLayer.addTo(map);
@@ -3632,7 +3647,7 @@ if (!mtgUrl && location.protocol.startsWith('http')) {
   saveCred('mtg-url');
   $('mtg-status').textContent = 'estado: detetado automaticamente (mesma pasta do servidor)';
 }
-if (mtgUrl) $('show-mtg').checked = true;
+if (mtgUrl) $('show-mtg').checked = (mtgShowPref === null) ? true : (mtgShowPref === '1');
 if (mtgUrl && !$('mtg-status').textContent.includes('detetado')) $('mtg-status').textContent = 'estado: configurado (guardado neste browser)';
 updateSourceSummaries();
 if (mapKey || mtgUrl) refreshData();
