@@ -2250,8 +2250,20 @@ function aircraftHeliGlyphSvg(colorHex) {
   return `<img class="${cls}" src="./icons/heli-topdown.png" alt="">`;
 }
 
+// A categoria ADS-B "A7" (rotorcraft) nem sempre vem preenchida — sobretudo
+// em aeronaves militares, que muitas vezes não a transmitem (foi o caso
+// reportado: um UH-60 Black Hawk a aparecer com ícone de avião). Por isso
+// usa-se também "desc", que segue a norma ICAO Doc 8643 para a descrição
+// do tipo: 1º caracter = categoria da aeronave ("H" = helicóptero, "L" =
+// avião terrestre, ...) — é o "Type Desc." que se vê, por exemplo, no
+// globe.adsb.fi (ex.: "H2T" para esse Black Hawk). É um sinal mais fiável
+// do que a categoria ADS-B porque vem de uma base de dados do tipo da
+// aeronave, não de algo que a própria aeronave tenha de transmitir.
 function isHelicopter(ac) {
-  return ac && ac.category === 'A7';
+  if (!ac) return false;
+  if (ac.category === 'A7') return true;
+  if (typeof ac.desc === 'string' && ac.desc.charAt(0).toUpperCase() === 'H') return true;
+  return false;
 }
 
 function buildAircraftIcon(source, ac) {
@@ -2311,7 +2323,7 @@ const AIRCRAFT_LOW_ALT_FT = 8000;
 const AIRCRAFT_LOW_SPEED_KT = 220;
 
 function aircraftLooksLikeFirefighting(ac) {
-  if (ac.category === 'A7') return true; // qualquer helicóptero
+  if (isHelicopter(ac)) return true; // qualquer helicóptero
   const alt = ac.alt_baro;
   if (typeof alt !== 'number') return false; // 'ground' ou sem dado — ignora
   const gs = typeof ac.gs === 'number' ? ac.gs : 0;
