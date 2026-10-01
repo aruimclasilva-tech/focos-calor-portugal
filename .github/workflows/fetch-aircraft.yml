@@ -44,13 +44,17 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          if git diff --quiet -- docs/portugal_aircraft.json; then
+          # "git diff --quiet" só vê ficheiros já controlados pelo git — na
+          # primeira vez que aircraft_trails.json for criado ainda está por
+          # adicionar, por isso usa-se "git status --porcelain" (apanha
+          # também novos ficheiros) em vez de "git diff".
+          if [ -z "$(git status --porcelain -- docs/portugal_aircraft.json docs/aircraft_trails.json)" ]; then
             echo "Sem alterações para publicar."
             exit 0
           fi
 
-          git add docs/portugal_aircraft.json
-          git commit -m "Atualiza posições de aeronaves (ADS-B)"
+          git add docs/portugal_aircraft.json docs/aircraft_trails.json
+          git commit -m "Atualiza posições de aeronaves (ADS-B) e trajetos Heli INEM"
 
           for i in 1 2 3 4 5 6; do
             if git push origin main; then

@@ -406,7 +406,16 @@
 
   /* aeronaves rastreadas por ADS-B — triângulo/seta rodado para o rumo
      real (track), cor consoante a fonte de dados. */
-  .aircraft-marker-icon{background:transparent;border:none;}
+  .aircraft-marker-icon{background:transparent;border:none;overflow:visible;}
+  /* etiqueta sempre visível (não roda com o rumo) com o nome da base Heli
+     INEM a que a aeronave está atualmente atribuída. */
+  .aircraft-inem-label{
+    position:absolute;left:50%;top:100%;transform:translateX(-50%);
+    margin-top:2px;padding:1px 5px;border-radius:4px;white-space:nowrap;
+    background:rgba(10,14,20,.88);border:1px solid var(--amber);
+    color:var(--amber);font-size:9.5px;font-weight:700;line-height:1.35;
+    pointer-events:none;
+  }
   .aircraft-glyph{
     width:100%;height:100%;display:flex;align-items:center;justify-content:center;
     transition:transform .3s linear;
@@ -579,6 +588,13 @@
             <label class="switch big"><input type="checkbox" id="show-heli-inem"><span class="slider"></span></label>
           </div>
           <div id="heli-inem-sublist" style="display:none;"></div>
+          <div class="source-item" id="source-inem-trails">
+            <div class="source-info">
+              <div class="source-name">Trajeto Heli INEM <span class="source-sub">(últimas 6h, guardado na plataforma)</span></div>
+              <div class="source-meta" id="inem-trails-summary">desligado</div>
+            </div>
+            <label class="switch big"><input type="checkbox" id="show-inem-trails"><span class="slider"></span></label>
+          </div>
           <div class="source-item" id="source-heli">
             <div class="source-info">
               <div class="source-name">Primários <span class="source-sub">(locais de aterragem)</span></div>
@@ -1064,11 +1080,101 @@ renderHeliPrimarios();
 // vivo do meio).
 // ---------------------------------------------------------------
 const INEM_HELIS = [
-  { nome: 'Heli Norte', local: 'Macedo de Cavaleiros', modelo: 'H145', velocidade: 241, tempoInicio: '0:05:00', lat: 41.539071, lon: -6.959911 },
-  { nome: 'Heli Centro', local: 'Viseu', modelo: 'H145', velocidade: 241, tempoInicio: '0:05:00', lat: 40.72785485, lon: -7.889402708 },
-  { nome: 'Heli Sul', local: 'Évora', modelo: 'H145', velocidade: 241, tempoInicio: '0:05:00', lat: 38.53123082, lon: -7.888340203 },
-  { nome: 'Heli Algarve', local: 'Loulé', modelo: 'H145', velocidade: 241, tempoInicio: '0:05:00', lat: 37.138955, lon: -8.022851 }
+  { nome: 'Heli Norte', local: 'Macedo de Cavaleiros', modelo: 'H145', velocidade: 241, tempoInicio: '0:05:00', lat: 41.539071, lon: -6.959911, matricula: '9H-GMA' },
+  { nome: 'Heli Centro', local: 'Viseu', modelo: 'H145', velocidade: 241, tempoInicio: '0:05:00', lat: 40.72785485, lon: -7.889402708, matricula: '9H-MIA' },
+  { nome: 'Heli Sul', local: 'Évora', modelo: 'H145', velocidade: 241, tempoInicio: '0:05:00', lat: 38.53123082, lon: -7.888340203, matricula: '9H-GMF' },
+  { nome: 'Heli Algarve', local: 'Loulé', modelo: 'H145', velocidade: 241, tempoInicio: '0:05:00', lat: 37.138955, lon: -8.022851, matricula: '9H-GME' }
 ];
+
+// Grupo de matrículas conhecidas de Heli INEM (podem ser atribuídas a
+// qualquer uma das bases acima). A atribuição "de origem" é a que consta
+// em INEM_HELIS; pode haver mais aeronaves no grupo do que bases (reserva/
+// manutenção) — por agora só as 4 confirmadas, mas a lista está preparada
+// para crescer.
+const INEM_HELI_GROUP = ['9H-GMA', '9H-MIA', '9H-GMF', '9H-GME'];
+
+// Normaliza uma matrícula para comparação (maiúsculas, sem hífen/espaços).
+function normInemMatricula(m) {
+  return (m || '').toUpperCase().replace(/[\s-]/g, '');
+}
+
+// ---------------------------------------------------------------
+// Troca de aeronave por base — "ao vivo" / local a este dispositivo.
+// Como o site é estático (sem backend a aceitar escritas), uma troca feita
+// aqui fica guardada neste browser (localStorage) e aplica-se de imediato
+// a quem está a ver a página nesse momento — mesmo sem acesso ao GitHub.
+// Para tornar a troca definitiva para todos (editar INEM_HELIS na origem),
+// é preciso pedir essa alteração separadamente.
+// ---------------------------------------------------------------
+const INEM_BASE_OVERRIDE_KEY = 'firemap_cfg_inem_base_override';
+let inemBaseOverride = {}; // { idx: 'MATRICULA' }
+
+function loadInemBaseOverride() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(INEM_BASE_OVERRIDE_KEY) || 'null');
+    if (raw && typeof raw === 'object') inemBaseOverride = raw;
+  } catch {}
+}
+
+function saveInemBaseOverride() {
+  try { localStorage.setItem(INEM_BASE_OVERRIDE_KEY, JSON.stringify(inemBaseOverride)); } catch {}
+}
+
+loadInemBaseOverride(); // antes de renderHeliInem(), para os balões já nascerem com a troca local aplicada
+
+// Matrícula atualmente atribuída a uma base (override local, se existir,
+// senão a atribuição de origem em INEM_HELIS).
+function inemBaseMatricula(idx) {
+  const h = INEM_HELIS[idx];
+  return inemBaseOverride[idx] || (h ? h.matricula : null);
+}
+
+function inemBaseIsOverridden(idx) {
+  return !!inemBaseOverride[idx] && normInemMatricula(inemBaseOverride[idx]) !== normInemMatricula(INEM_HELIS[idx] && INEM_HELIS[idx].matricula);
+}
+
+// Em que base (índice) está atualmente uma matrícula, se estiver nalguma.
+function inemBaseIndexForMatricula(matricula) {
+  const norm = normInemMatricula(matricula);
+  if (!norm) return -1;
+  for (let idx = 0; idx < INEM_HELIS.length; idx++) {
+    if (normInemMatricula(inemBaseMatricula(idx)) === norm) return idx;
+  }
+  return -1;
+}
+
+// Nome a mostrar sempre visível junto ao ícone no mapa — só o local
+// (Norte/Centro/Sul/Algarve), sem a palavra "Heli".
+function inemBaseShortName(idx) {
+  const h = INEM_HELIS[idx];
+  return h ? h.nome.replace(/^Heli\s+/i, '') : '';
+}
+
+// Dada uma matrícula de aeronave vista no ADS-B, devolve o nome curto da
+// base a que está atualmente atribuída (ou null se não for do grupo INEM).
+function inemBaseLabelForRegistration(reg) {
+  const idx = inemBaseIndexForMatricula(reg);
+  return idx >= 0 ? inemBaseShortName(idx) : null;
+}
+
+// Troca a aeronave atribuída a uma base. Se essa matrícula já estiver
+// noutra base, as duas trocam entre si (para nunca ficarem duas bases com
+// a mesma aeronave "atribuída" em simultâneo).
+function setInemBaseAssignment(idx, matricula) {
+  const prevIdx = inemBaseIndexForMatricula(matricula);
+  const prevMatricula = inemBaseMatricula(idx);
+  if (prevIdx >= 0 && prevIdx !== idx) {
+    inemBaseOverride[prevIdx] = prevMatricula;
+  }
+  inemBaseOverride[idx] = matricula;
+  saveInemBaseOverride();
+  heliInemMarkers[idx] && heliInemMarkers[idx].setPopupContent(heliInemPopupHtml(idx));
+  if (prevIdx >= 0 && prevIdx !== idx && heliInemMarkers[prevIdx]) {
+    heliInemMarkers[prevIdx].setPopupContent(heliInemPopupHtml(prevIdx));
+  }
+  renderHeliInemSublist();
+  refreshAircraftInemLabels();
+}
 
 // Estado por meio: visibilidade individual (checkbox "on" de cada Heli)
 // e quais os anéis de raio de ação ativos para esse meio.
@@ -1076,7 +1182,35 @@ const heliInemMarkers = [];       // L.Marker[], paralelo a INEM_HELIS
 let heliInemVisible = INEM_HELIS.map(() => true);
 const heliRangeCircles = {};      // { "idxMin": L.Circle }, ex. "0_20"
 
-function buildHeliInemMarker(h) {
+// Balão de uma base Heli INEM — mostra a aeronave atualmente atribuída e,
+// por baixo, um seletor para a trocar por outra do grupo conhecido (troca
+// imediata, guardada neste browser — ver setInemBaseAssignment).
+function heliInemPopupHtml(idx) {
+  const h = INEM_HELIS[idx];
+  const current = inemBaseMatricula(idx);
+  const overridden = inemBaseIsOverridden(idx);
+  const options = INEM_HELI_GROUP.map(m => {
+    const atBase = inemBaseIndexForMatricula(m);
+    const busyNote = (atBase >= 0 && atBase !== idx) ? ` (atualmente em ${inemBaseShortName(atBase)})` : '';
+    const sel = normInemMatricula(m) === normInemMatricula(current) ? 'selected' : '';
+    return `<option value="${m}" ${sel}>${m}${busyNote}</option>`;
+  }).join('');
+  return `
+    <div class="popup-title">🚁 ${h.nome}</div>
+    <div class="popup-row"><span>Local</span><b>${h.local}</b></div>
+    <div class="popup-row"><span>Matrícula</span><b>${current || '—'}${overridden ? ' <small style="color:var(--amber);">(troca local)</small>' : ''}</b></div>
+    <div class="popup-row"><span>Modelo</span><b>${h.modelo}</b></div>
+    <div class="popup-row"><span>Velocidade</span><b>${h.velocidade} Km/h</b></div>
+    <div class="popup-row"><span>Tempo de ativação</span><b>${h.tempoInicio}</b></div>
+    <div class="popup-row"><span>Coordenadas</span><b>${h.lat.toFixed(5)}, ${h.lon.toFixed(5)}</b></div>
+    <div class="panel-subgroup-title" style="margin-top:8px;">Trocar aeronave desta base</div>
+    <select class="wx-select heli-inem-swap" data-idx="${idx}">${options}</select>
+    <div class="hint" style="margin-top:2px;">Troca imediata, só neste dispositivo. Pede a alteração definitiva
+      para ficar igual para todos.</div>
+  `;
+}
+
+function buildHeliInemMarker(h, idx) {
   const marker = L.marker([h.lat, h.lon], {
     icon: L.divIcon({
       className: 'heli-marker-icon',
@@ -1086,23 +1220,22 @@ function buildHeliInemMarker(h) {
       popupAnchor: [0, -14]
     })
   });
-  marker.bindPopup(`
-    <div class="popup-title">🚁 ${h.nome}</div>
-    <div class="popup-row"><span>Local</span><b>${h.local}</b></div>
-    <div class="popup-row"><span>Modelo</span><b>${h.modelo}</b></div>
-    <div class="popup-row"><span>Velocidade</span><b>${h.velocidade} Km/h</b></div>
-    <div class="popup-row"><span>Tempo de ativação</span><b>${h.tempoInicio}</b></div>
-    <div class="popup-row"><span>Coordenadas</span><b>${h.lat.toFixed(5)}, ${h.lon.toFixed(5)}</b></div>
-  `);
+  marker.bindPopup(heliInemPopupHtml(idx));
   return marker;
 }
 
 function renderHeliInem() {
   INEM_HELIS.forEach((h, idx) => {
-    heliInemMarkers[idx] = buildHeliInemMarker(h);
+    heliInemMarkers[idx] = buildHeliInemMarker(h, idx);
   });
 }
 renderHeliInem();
+
+// Delegação: trocar a aeronave de uma base a partir do seletor no balão.
+document.addEventListener('change', (e) => {
+  if (!e.target.matches('.heli-inem-swap')) return;
+  setInemBaseAssignment(Number(e.target.dataset.idx), e.target.value);
+});
 
 // ---------------------------------------------------------------
 // Raio de ação (Heli INEM) — círculo de alcance por tempo de voo,
@@ -1188,7 +1321,7 @@ function heliInemSublistHtml() {
     <div class="heli-inem-row" data-idx="${idx}">
       <div class="heli-inem-row-head">
         <input type="checkbox" class="heli-inem-toggle" data-idx="${idx}" ${heliInemVisible[idx] ? 'checked' : ''}>
-        <span class="heli-inem-name">${h.nome} <small>(${h.local})</small></span>
+        <span class="heli-inem-name">${h.nome} <small>(${h.local}) · ${inemBaseMatricula(idx) || '—'}${inemBaseIsOverridden(idx) ? ' ⇄' : ''}</small></span>
       </div>
       <div class="heli-inem-ranges">
         ${HELI_RANGE_MINUTES.map(min => `
@@ -1982,6 +2115,84 @@ $('geoloc-toggle-btn').addEventListener('click', () => {
 // de CORS). Atualiza-se com a mesma cadência do fetch do MTG (~10-15 min)
 // — não é rastreio segundo-a-segundo.
 const AIRCRAFT_JSON_URL = './portugal_aircraft.json';
+
+// ---------------------------------------------------------------
+// Trajeto (6h) das aeronaves do grupo Heli INEM — ao contrário do rasto
+// curto já desenhado em runtime (aircraftTrails, só desta sessão do
+// browser), este histórico vive na plataforma: o aircraft_fetch.py grava
+// a posição de cada matrícula do INEM_HELI_GROUP a cada ciclo, mantendo só
+// as últimas ~6h, num ficheiro publicado à parte (aircraft_trails.json).
+// Qualquer pessoa a abrir a página vê o mesmo histórico, independentemente
+// do dispositivo/browser.
+// ---------------------------------------------------------------
+const AIRCRAFT_TRAILS_URL = './aircraft_trails.json';
+const AIRCRAFT_TRAILS_POLL_MS = 120000;
+let inemTrailsOn = false;
+let inemTrailsTimer = null;
+const inemTrailLayers = {}; // matrícula -> L.Polyline
+
+async function fetchInemTrails() {
+  const res = await fetch(`${AIRCRAFT_TRAILS_URL}?t=${Date.now()}`);
+  if (!res.ok) throw new Error('aircraft_trails.json HTTP ' + res.status);
+  return res.json(); // { "9H-GMA": [{t,lat,lon}, ...], ... }
+}
+
+function clearInemTrailLayers() {
+  Object.values(inemTrailLayers).forEach(layer => map.removeLayer(layer));
+  Object.keys(inemTrailLayers).forEach(k => delete inemTrailLayers[k]);
+}
+
+async function refreshInemTrails() {
+  if (!inemTrailsOn) return;
+  let data;
+  try {
+    data = await fetchInemTrails();
+  } catch (e) {
+    $('inem-trails-summary').textContent = `sem dados (${e.message})`;
+    return;
+  }
+  const regs = Object.keys(data || {});
+  let totalPts = 0;
+  regs.forEach(reg => {
+    const pts = (data[reg] || []).filter(p => typeof p.lat === 'number' && typeof p.lon === 'number');
+    totalPts += pts.length;
+    const latlngs = pts.map(p => [p.lat, p.lon]);
+    const baseIdx = inemBaseIndexForMatricula(reg);
+    const label = baseIdx >= 0 ? inemBaseShortName(baseIdx) : reg;
+    if (!latlngs.length) {
+      if (inemTrailLayers[reg]) { map.removeLayer(inemTrailLayers[reg]); delete inemTrailLayers[reg]; }
+      return;
+    }
+    if (!inemTrailLayers[reg]) {
+      inemTrailLayers[reg] = L.polyline(latlngs, { color: '#5bc0eb', weight: 2.5, opacity: .75 })
+        .bindTooltip(`${label} (${reg}) — últimas 6h`, { sticky: true })
+        .addTo(map);
+    } else {
+      inemTrailLayers[reg].setLatLngs(latlngs);
+    }
+  });
+  // remove trajetos de matrículas que já não constam do ficheiro
+  Object.keys(inemTrailLayers).forEach(reg => {
+    if (!regs.includes(reg)) { map.removeLayer(inemTrailLayers[reg]); delete inemTrailLayers[reg]; }
+  });
+  $('inem-trails-summary').textContent = regs.length
+    ? `${regs.length} aeronave(s) · ${totalPts} posições (6h)`
+    : 'sem posições guardadas ainda';
+}
+
+function startInemTrails() {
+  inemTrailsOn = true;
+  refreshInemTrails();
+  if (inemTrailsTimer) clearInterval(inemTrailsTimer);
+  inemTrailsTimer = setInterval(refreshInemTrails, AIRCRAFT_TRAILS_POLL_MS);
+}
+
+function stopInemTrails() {
+  inemTrailsOn = false;
+  if (inemTrailsTimer) { clearInterval(inemTrailsTimer); inemTrailsTimer = null; }
+  clearInemTrailLayers();
+  $('inem-trails-summary').textContent = 'desligado';
+}
 const AIRCRAFT_WATCHLIST_KEY = 'firemap_cfg_aircraft_watchlist';
 const AIRCRAFT_SHOW_KEY = 'firemap_cfg_show_aircraft';
 const AIRCRAFT_OPEN_MODE_KEY = 'firemap_cfg_aircraft_open_mode';
@@ -2048,12 +2259,35 @@ function buildAircraftIcon(source, ac) {
   // A imagem do helicóptero não é quadrada (é um pouco mais alta que
   // larga) — usa-se o tamanho correspondente para não distorcer.
   const size = heli ? [22, 26] : [25, 25];
+  // Se a matrícula desta aeronave corresponder a uma base Heli INEM
+  // (atribuição de origem ou troca local), mostra sempre o nome da base
+  // (só o local — "Norte"/"Centro"/"Sul"/"Algarve") junto ao ícone, fora
+  // do elemento que roda com o rumo (para o texto nunca ficar de lado).
+  const baseLabel = heli ? inemBaseLabelForRegistration(ac.r) : null;
+  const labelHtml = baseLabel ? `<div class="aircraft-inem-label">${escapeHtml(baseLabel)}</div>` : '';
   return L.divIcon({
-    className: 'aircraft-marker-icon',
-    html: `<div class="aircraft-glyph">${glyph}</div>`,
+    className: 'aircraft-marker-icon' + (baseLabel ? ' has-inem-label' : ''),
+    html: `<div class="aircraft-glyph">${glyph}</div>${labelHtml}`,
     iconSize: size,
     iconAnchor: [size[0] / 2, size[1] / 2],
     popupAnchor: [0, -(size[1] / 2) + 1]
+  });
+}
+
+// Reconstrói o ícone de todas as aeronaves já no mapa (sem esperar pela
+// próxima atualização) — chamado depois de trocar a aeronave de uma base
+// Heli INEM, para a etiqueta sempre visível acompanhar de imediato.
+function refreshAircraftInemLabels() {
+  Object.keys(aircraftMarkers).forEach(hex => {
+    const data = aircraftLastData[hex];
+    if (!data) return;
+    aircraftMarkers[hex].setIcon(buildAircraftIcon(data.source, data.ac));
+    const el = aircraftMarkers[hex].getElement();
+    if (el) {
+      const glyph = el.querySelector('.aircraft-glyph');
+      const heading = data.ac.track != null ? data.ac.track : (data.ac.true_heading != null ? data.ac.true_heading : 0);
+      if (glyph) glyph.style.transform = `rotate(${heading}deg)`;
+    }
   });
 }
 
@@ -2430,6 +2664,10 @@ $('show-heli').addEventListener('change', (e) => {
 });
 $('show-heli-inem').addEventListener('change', (e) => {
   setHeliInemMaster(e.target.checked);
+});
+$('show-inem-trails').addEventListener('change', (e) => {
+  if (e.target.checked) startInemTrails(); else stopInemTrails();
+  try { localStorage.setItem('firemap_cfg_show_inem_trails', e.target.checked ? '1' : '0'); } catch {}
 });
 $('target-place-btn').addEventListener('click', () => {
   setPlacingTarget(!placingTarget);
@@ -3061,6 +3299,10 @@ try {
   if (localStorage.getItem('firemap_cfg_show_heli_inem') === '1') {
     $('show-heli-inem').checked = true;
     setHeliInemMaster(true);
+  }
+  if (localStorage.getItem('firemap_cfg_show_inem_trails') === '1') {
+    $('show-inem-trails').checked = true;
+    startInemTrails();
   }
   const savedTarget = JSON.parse(localStorage.getItem(TARGET_POINT_KEY) || 'null');
   if (Array.isArray(savedTarget)) {

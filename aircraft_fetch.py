@@ -63,6 +63,77 @@ def trim(ac):
     return {k: ac.get(k) for k in KEEP_FIELDS if ac.get(k) is not None}
 
 
+# ---------------------------------------------------------------------------
+# Trajeto persistido (6h) das aeronaves do grupo Heli INEM
+# ---------------------------------------------------------------------------
+# Mantido em sincronia manualmente com INEM_HELI_GROUP em
+# focos_calor_portugal.html — ao confirmar uma nova matrícula, adicionar
+# aqui também. Ao contrário do rasto desenhado em runtime no browser (que
+# só dura enquanto a página estiver aberta), este histórico é gravado pelo
+# workflow a cada ciclo e publicado num ficheiro à parte, para ficar
+# disponível na plataforma para qualquer pessoa que abra a página,
+# independentemente do dispositivo/browser.
+TRACKED_REGISTRATIONS = ["9H-GMA", "9H-MIA", "9H-GMF", "9H-GME"]
+
+TRAIL_RETENTION_HOURS = 6
+# Salvaguarda contra um ficheiro a crescer sem limite caso a cadência real
+# venha a ser mais curta do que se espera (ex. 1/min durante 6h = 360).
+TRAIL_MAX_POINTS_PER_AIRCRAFT = 500
+
+
+def _norm_reg(r):
+    return (r or "").upper().replace(" ", "").replace("-", "")
+
+
+TRACKED_NORM = {_norm_reg(r) for r in TRACKED_REGISTRATIONS}
+
+
+def update_trails(outdir, aircraft, generated_at):
+    """Acrescenta a posição atual de cada aeronave rastreada ao histórico
+    persistido, e remove o que já tem mais de TRAIL_RETENTION_HOURS. Não é
+    fatal para o fetch principal se isto falhar (ver chamada em main())."""
+    path = os.path.join(outdir, "aircraft_trails.json")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            trails = json.load(f)
+        if not isinstance(trails, dict):
+            trails = {}
+    except Exception:
+        trails = {}
+
+    cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=TRAIL_RETENTION_HOURS)
+
+    for ac in aircraft:
+        reg = ac.get("r")
+        if not reg or _norm_reg(reg) not in TRACKED_NORM:
+            continue
+        lat, lon = ac.get("lat"), ac.get("lon")
+        if lat is None or lon is None:
+            continue
+        key = reg.upper()
+        trails.setdefault(key, []).append({"t": generated_at, "lat": lat, "lon": lon})
+
+    for key in list(trails.keys()):
+        pruned = []
+        for p in trails[key]:
+            try:
+                t = dt.datetime.fromisoformat(p["t"])
+            except Exception:
+                continue
+            if t >= cutoff:
+                pruned.append(p)
+        pruned = pruned[-TRAIL_MAX_POINTS_PER_AIRCRAFT:]
+        if pruned:
+            trails[key] = pruned
+        else:
+            del trails[key]
+
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(trails, f, ensure_ascii=False)
+
+    return path
+
+
 def fetch_adsbfi():
     url = f"https://opendata.adsb.fi/api/v3/lat/{CENTER_LAT}/lon/{CENTER_LON}/dist/{RADIUS_NM}"
     resp = requests.get(url, headers=BROWSER_HEADERS, timeout=20)
@@ -111,6 +182,11 @@ def main():
 
     if source:
         print(f"OK — {len(out['aircraft'])} aeronaves via {source} -> {out_path}")
+        try:
+            trails_path = update_trails(args.outdir, out["aircraft"], out["generated_at"])
+            print(f"Trajetos Heli INEM atualizados -> {trails_path}")
+        except Exception as exc:
+            print(f"Aviso: falha ao atualizar trajetos Heli INEM: {exc}", file=sys.stderr)
     else:
         print(f"FALHOU (adsb.fi e airplanes.live) — {error}", file=sys.stderr)
         # Não é fatal para o workflow: escreve o ficheiro na mesma (lista
