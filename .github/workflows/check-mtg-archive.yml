@@ -1,0 +1,62 @@
+name: Check MTG archive (one-off verification)
+
+# Ferramenta de verificação pontual, não automática — dispara-se só
+# manualmente para confirmar se o servidor LSA SAF ainda tem ficheiros
+# guardados numa data/janela específica (ex.: para avaliar se uma
+# funcionalidade de "carregar histórico antigo para estudo" é viável).
+# Não corre em agendamento nenhum.
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Data a verificar (AAAA-MM-DD)'
+        required: true
+      start_hour:
+        description: 'Hora inicial (0-23)'
+        required: false
+        default: '0'
+      end_hour:
+        description: 'Hora final, exclusiva (1-24)'
+        required: false
+        default: '24'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependências
+        run: pip install requests
+
+      - name: Verificar arquivo LSA SAF para a data pedida
+        run: >
+          python check_mtg_archive.py
+          --date "${{ inputs.date }}"
+          --start-hour "${{ inputs.start_hour }}"
+          --end-hour "${{ inputs.end_hour }}"
+          --outdir docs
+
+      - name: Publicar resultado no repositório
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/mtg_archive_check.json
+          git commit -m "Resultado de verificação pontual do arquivo MTG" || exit 0
+          for i in 1 2 3 4 5 6; do
+            if git push origin main; then
+              echo "Publicado (tentativa $i)."
+              exit 0
+            fi
+            sleep $(( (RANDOM % 5) + 2 ))
+            git fetch origin main
+            git reset --soft origin/main
+            git commit -m "Resultado de verificação pontual do arquivo MTG"
+          done
+          exit 1
