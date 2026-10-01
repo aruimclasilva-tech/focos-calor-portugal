@@ -835,7 +835,7 @@
       <section>
         <h2>Histórico / linha do tempo</h2>
         <div class="cfg-row">
-          <input type="text" id="retention-input" value="24" style="max-width:70px;flex:none;">
+          <input type="text" id="retention-input" value="72" style="max-width:70px;flex:none;">
           <span class="hint" style="margin:0;align-self:center;">horas de retenção</span>
         </div>
         <div class="hint" id="history-size-info" style="margin-top:6px;">0 snapshots guardados</div>
@@ -903,7 +903,7 @@ let historyMode = false;      // true quando o utilizador está a navegar no pas
 let playTimer = null;
 const HISTORY_STORAGE_PREFIX = 'firehist_snap_';
 const HISTORY_INDEX_KEY = 'firehist_index';
-let historyRetentionHours = 24;
+let historyRetentionHours = 72;
 
 // ---------------------------------------------------------------
 // Persistência local de credenciais/configuração (localStorage).
@@ -2903,28 +2903,54 @@ async function fetchMtgLocal() {
 // Importa o histórico partilhado (gerado pelo mtg_fire_fetch.py e guardado no
 // repositório) para o histórico local, para a linha do tempo mostrar dados
 // consistentes em qualquer dispositivo/browser, não só no que fez a captura.
-let lastHistoryImportUrl = null;
+//
+// Em vez de descarregar sempre o histórico inteiro, descarrega-se sempre só
+// o ÍNDICE (leve — lista de instantes + quantas deteções cada um teve) e só
+// se vai buscar o ficheiro de um instante quando: teve deteções (n>0) E
+// ainda não está guardado neste browser. A maioria dos ciclos não tem
+// deteções, por isso a maioria das atualizações não descarrega mais nada
+// além do índice — o custo de rede deixa de crescer com a janela de
+// retenção do servidor (24h/48h/72h...), só cresce com o que de facto
+// aconteceu de novo.
+function mtgHistoryIndexUrl() {
+  if (!mtgUrl) return null;
+  const url = mtgUrl.replace(/portugal_fires_mtg\.json(\?.*)?$/, 'mtg_history/index.json');
+  return url === mtgUrl ? null : url; // não conseguiu derivar o nome, evita loop
+}
+
 async function importServerHistory() {
-  if (!mtgUrl) return;
-  const historyUrl = mtgUrl.replace(/portugal_fires_mtg\.json(\?.*)?$/, 'portugal_fires_mtg_history.json');
-  if (historyUrl === mtgUrl) return; // não conseguiu derivar o nome, evita loop
-  const bust = (historyUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
-  const res = await fetch(historyUrl + bust, { cache: 'no-store' });
+  const idxUrl = mtgHistoryIndexUrl();
+  if (!idxUrl) return;
+  const bust = (idxUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+  const res = await fetch(idxUrl + bust, { cache: 'no-store' });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const snapshots = await res.json();
-  if (!Array.isArray(snapshots)) return;
+  const index = await res.json();
+  if (!Array.isArray(index)) return;
+  const fileBaseUrl = idxUrl.replace(/index\.json(\?.*)?$/, '');
 
   let imported = 0;
-  for (const snap of snapshots) {
-    const ts = Date.parse(snap.source_timestamp_utc);
+  for (const entry of index) {
+    const ts = Date.parse(entry.ts);
     if (isNaN(ts) || historyIndex.includes(ts)) continue; // já existe localmente
-    const compact = (snap.detections || []).map(d => ({
-      lat: d.lat, lon: d.lon, frp: d.frp || 0,
-      confidence: String(d.confidence || 'n').toLowerCase(),
-      satellite: d.satellite || 'MTG-FCI',
-      sourceGroup: 'mtg',
-      dt: snap.source_timestamp_utc
-    }));
+
+    let compact = [];
+    if (entry.n > 0 && entry.f) {
+      try {
+        const fres = await fetch(fileBaseUrl + entry.f + bust, { cache: 'no-store' });
+        if (!fres.ok) continue; // pode ter sido podado no servidor entretanto — tenta no próximo ciclo
+        const snap = await fres.json();
+        compact = (snap.detections || []).map(d => ({
+          lat: d.lat, lon: d.lon, frp: d.frp || 0,
+          confidence: String(d.confidence || 'n').toLowerCase(),
+          satellite: d.satellite || 'MTG-FCI',
+          sourceGroup: 'mtg',
+          dt: entry.ts
+        }));
+      } catch {
+        continue; // falha pontual neste ficheiro — tenta de novo no próximo ciclo
+      }
+    }
+
     try {
       localStorage.setItem(HISTORY_STORAGE_PREFIX + ts, JSON.stringify(compact));
       historyIndex.push(ts);
@@ -2939,7 +2965,7 @@ async function importServerHistory() {
     saveHistoryIndex();
     pruneHistory();
     updateTimelineUI();
-    console.log(`[histórico partilhado] Importados ${imported} snapshots do servidor.`);
+    console.log(`[histórico partilhado] Importados ${imported} instantes do servidor.`);
   }
 }
 

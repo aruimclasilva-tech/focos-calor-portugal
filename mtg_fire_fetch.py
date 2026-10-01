@@ -70,8 +70,8 @@ BASE_URL = "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/"
 BBOX = (36.85, 42.2, -9.65, -6.05)
 
 OUTPUT_PATH = "portugal_fires_mtg.json"
-HISTORY_PATH = "portugal_fires_mtg_history.json"
-HISTORY_RETENTION_HOURS = 24     # quantas horas de snapshots manter no histórico partilhado
+HISTORY_DIR_NAME = "mtg_history"     # pasta com o índice + um ficheiro por instante
+HISTORY_RETENTION_HOURS = 72     # quantas horas de snapshots manter no histórico partilhado
 POLL_INTERVAL_SEC = 600          # 10 minutos, igual à cadência da fonte
 LATENCY_BUFFER_SEC = 5 * 60      # margem extra antes de tentar o próximo ciclo
 REQUEST_TIMEOUT = 60
@@ -216,52 +216,111 @@ def timestamp_from_url(url):
 # HISTÓRICO PARTILHADO (guardado no repositório, visível a partir de
 # qualquer dispositivo que abra a página — complementa o histórico local
 # por browser que a própria página também mantém em localStorage)
+#
+# Em vez de um único ficheiro com todos os snapshots (que tinha de ser
+# reescrito por inteiro a cada ciclo, e descarregado por inteiro pela
+# página a cada atualização, mesmo sem nada de novo), guarda-se:
+#   - mtg_history/index.json — lista leve de todos os instantes da janela
+#     de retenção, com quantas deteções cada um teve. A página descarrega
+#     sempre isto (é pequeno) e compara com o que já tem.
+#   - mtg_history/<timestamp>.json — só criado quando esse instante teve
+#     deteções (a maioria dos ciclos não tem). A página só vai buscar os
+#     ficheiros dos instantes que ainda não conhece.
+# Isto desacopla o custo de rede da janela de retenção: aumentar as horas
+# só aumenta o índice (continua pequeno), não o que é descarregado a cada
+# ciclo.
 # --------------------------------------------------------------------------
 
-def load_history(history_path):
-    if not os.path.exists(history_path):
+def _history_dir(outdir):
+    d = os.path.join(outdir, HISTORY_DIR_NAME)
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def _history_index_path(outdir):
+    return os.path.join(_history_dir(outdir), "index.json")
+
+
+def _ts_to_filename(ts_iso):
+    # "2026-10-01T10:00:00Z" -> "20261001T100000Z.json"
+    safe = re.sub(r"[^0-9A-Za-z]", "", ts_iso)
+    return f"{safe}.json"
+
+
+def load_history_index(outdir):
+    path = _history_index_path(outdir)
+    if not os.path.exists(path):
         return []
     try:
-        with open(history_path, "r", encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         return data if isinstance(data, list) else []
     except (json.JSONDecodeError, OSError) as e:
-        log(f"Aviso: não consegui ler o histórico existente ({e}), a começar de novo.")
+        log(f"Aviso: não consegui ler o índice do histórico ({e}), a começar de novo.")
         return []
 
 
-def prune_history(history, retention_hours):
-    cutoff = dt.datetime.utcnow() - dt.timedelta(hours=retention_hours)
+def append_to_history(outdir, snapshot, retention_hours):
+    hdir = _history_dir(outdir)
+    ts_iso = snapshot["source_timestamp_utc"]
+    detections = snapshot.get("detections") or []
+
+    index = load_history_index(outdir)
+    # remove uma entrada anterior com o mesmo instante, e o seu ficheiro
+    # (evita duplicados se o workflow correr duas vezes para o mesmo ciclo)
     kept = []
-    for snap in history:
-        try:
-            snap_time = dt.datetime.fromisoformat(snap["source_timestamp_utc"].replace("Z", "+00:00")).replace(tzinfo=None)
-        except (KeyError, ValueError):
+    for e in index:
+        if e.get("ts") == ts_iso:
+            if e.get("f"):
+                try:
+                    os.remove(os.path.join(hdir, e["f"]))
+                except OSError:
+                    pass
             continue
-        if snap_time >= cutoff:
-            kept.append(snap)
-    return kept
+        kept.append(e)
+    index = kept
 
+    if detections:
+        fname = _ts_to_filename(ts_iso)
+        with open(os.path.join(hdir, fname), "w", encoding="utf-8") as f:
+            json.dump({"source_timestamp_utc": ts_iso, "detections": detections}, f, ensure_ascii=False)
+        index.append({"ts": ts_iso, "n": len(detections), "f": fname})
+    else:
+        index.append({"ts": ts_iso, "n": 0})
 
-def append_to_history(history_path, snapshot, retention_hours):
-    history = load_history(history_path)
-    # evita duplicar se já existir um snapshot com o mesmo timestamp de origem
-    history = [h for h in history if h.get("source_timestamp_utc") != snapshot["source_timestamp_utc"]]
-    history.append(snapshot)
-    history.sort(key=lambda h: h.get("source_timestamp_utc", ""))
-    history = prune_history(history, retention_hours)
-    os.makedirs(os.path.dirname(history_path) or ".", exist_ok=True)
-    with open(history_path, "w", encoding="utf-8") as f:
-        json.dump(history, f, ensure_ascii=False, indent=0)
-    log(f"Histórico partilhado atualizado: {len(history)} snapshots guardados "
-        f"(retenção: {retention_hours}h) em {history_path}")
+    index.sort(key=lambda e: e.get("ts", ""))
+
+    # poda: remove do índice (e apaga o ficheiro) tudo fora da janela de retenção
+    cutoff = dt.datetime.utcnow() - dt.timedelta(hours=retention_hours)
+    pruned = []
+    for e in index:
+        try:
+            e_time = dt.datetime.fromisoformat(e["ts"].replace("Z", "+00:00")).replace(tzinfo=None)
+        except (KeyError, ValueError):
+            pruned.append(e)  # formato inesperado — mantém por segurança
+            continue
+        if e_time >= cutoff:
+            pruned.append(e)
+        elif e.get("f"):
+            try:
+                os.remove(os.path.join(hdir, e["f"]))
+            except OSError:
+                pass
+    index = pruned
+
+    with open(_history_index_path(outdir), "w", encoding="utf-8") as f:
+        json.dump(index, f, ensure_ascii=False)
+
+    com_deteções = sum(1 for e in index if e.get("n", 0) > 0)
+    log(f"Histórico partilhado atualizado: {len(index)} instantes nas últimas {retention_hours}h "
+        f"({com_deteções} com deteções) em {hdir}")
 
 
 # --------------------------------------------------------------------------
 # CICLO PRINCIPAL
 # --------------------------------------------------------------------------
 
-def run_once(output_path, history_path=None, history_retention_hours=HISTORY_RETENTION_HOURS):
+def run_once(output_path, history_outdir=None, history_retention_hours=HISTORY_RETENTION_HOURS):
     url = find_latest_csv_gz()
     if not url:
         log("Não encontrei nenhum ficheiro ListProduct recente na listagem.")
@@ -290,8 +349,8 @@ def run_once(output_path, history_path=None, history_retention_hours=HISTORY_RET
         json.dump(payload, f, ensure_ascii=False, indent=2)
     log(f"Escrito em {output_path}")
 
-    if history_path:
-        append_to_history(history_path, payload, history_retention_hours)
+    if history_outdir:
+        append_to_history(history_outdir, payload, history_retention_hours)
 
     return True
 
@@ -306,16 +365,16 @@ def main():
     args = parser.parse_args()
 
     output_path = os.path.join(args.outdir, OUTPUT_PATH)
-    history_path = None if args.no_history else os.path.join(args.outdir, HISTORY_PATH)
+    history_outdir = None if args.no_history else args.outdir
 
     if not args.watch:
-        ok = run_once(output_path, history_path, args.history_retention_hours)
+        ok = run_once(output_path, history_outdir, args.history_retention_hours)
         sys.exit(0 if ok else 1)
 
     log("Modo contínuo iniciado (Ctrl+C para parar).")
     while True:
         try:
-            run_once(output_path, history_path, args.history_retention_hours)
+            run_once(output_path, history_outdir, args.history_retention_hours)
         except Exception as e:
             log(f"Erro inesperado: {e}")
         time.sleep(POLL_INTERVAL_SEC)

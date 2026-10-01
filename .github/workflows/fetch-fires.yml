@@ -50,12 +50,16 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          if git diff --quiet -- docs/portugal_fires_mtg.json docs/portugal_fires_mtg_history.json; then
+          # "git diff --quiet" só vê ficheiros já controlados pelo git — o
+          # histórico agora tem ficheiros novos/apagados a cada ciclo
+          # (um por instante com deteções), por isso usa-se
+          # "git status --porcelain" (apanha também novos/removidos).
+          if [ -z "$(git status --porcelain -- docs/portugal_fires_mtg.json docs/mtg_history)" ]; then
             echo "Sem alterações para publicar."
             exit 0
           fi
 
-          git add docs/portugal_fires_mtg.json docs/portugal_fires_mtg_history.json
+          git add docs/portugal_fires_mtg.json docs/mtg_history
           git commit -m "Atualiza focos de calor MTG"
 
           for i in 1 2 3 4 5 6; do
