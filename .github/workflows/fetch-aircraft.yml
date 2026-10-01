@@ -53,17 +53,29 @@ jobs:
             exit 0
           fi
 
+          MSG="Atualiza posições de aeronaves (ADS-B) e trajetos Heli INEM"
           git add docs/portugal_aircraft.json docs/aircraft_trails.json
-          git commit -m "Atualiza posições de aeronaves (ADS-B) e trajetos Heli INEM"
+          git commit -m "$MSG"
 
           for i in 1 2 3 4 5 6; do
             if git push origin main; then
               echo "Publicado (tentativa $i)."
               exit 0
             fi
-            echo "Push falhou (tentativa $i) — provavelmente conflito com outro workflow. A sincronizar e a tentar de novo..."
+            echo "Push falhou (tentativa $i) — provavelmente outra execução publicou entretanto. A sincronizar e a tentar de novo..."
             sleep $(( (RANDOM % 5) + 2 ))
-            git pull --rebase origin main
+            git fetch origin main
+            # Estes ficheiros são sempre uma fotografia atual (reescritos por
+            # inteiro a cada ciclo) — não há nada para reconciliar linha a
+            # linha com o que outra execução tenha publicado entretanto. Em
+            # vez de "pull --rebase" (que pode gerar um conflito de texto
+            # real se duas execuções mudarem as mesmas linhas do mesmo JSON
+            # quase ao mesmo tempo — a causa mais provável das falhas
+            # ocasionais deste workflow), avança-se o commit já preparado
+            # para cima do que está agora em origin/main: a versão mais
+            # recente publica-se sempre, sem possibilidade de conflito.
+            git reset --soft origin/main
+            git commit -m "$MSG"
           done
 
           echo "Não foi possível publicar depois de várias tentativas." >&2
