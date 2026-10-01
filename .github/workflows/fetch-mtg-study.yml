@@ -1,22 +1,19 @@
 name: Fetch MTG study window (manual)
 
-# Prepara um "período de estudo" do MTG — uma janela de data/horas já
+# Prepara um "período de estudo" do MTG — uma janela de data/hora já
 # passada, fora da retenção normal de 72h — para a página poder carregar
 # manualmente na linha do tempo. Só dispara manualmente, nunca sozinho.
+# A janela pode atravessar a meia-noite (início e fim são datas+horas
+# completas, não só horas dentro de um único dia).
 on:
   workflow_dispatch:
     inputs:
-      date:
-        description: 'Data a descarregar (AAAA-MM-DD)'
+      start:
+        description: 'Início (AAAA-MM-DDTHH:MM, inclusive, hora UTC igual à da fonte)'
         required: true
-      start_hour:
-        description: 'Hora inicial (0-23)'
-        required: false
-        default: '0'
-      end_hour:
-        description: 'Hora final, exclusiva (1-24)'
-        required: false
-        default: '24'
+      end:
+        description: 'Fim (AAAA-MM-DDTHH:MM, exclusivo)'
+        required: true
 
 jobs:
   fetch:
@@ -36,9 +33,8 @@ jobs:
       - name: Descarregar período de estudo MTG
         run: >
           python mtg_history_fetch.py
-          --date "${{ inputs.date }}"
-          --start-hour "${{ inputs.start_hour }}"
-          --end-hour "${{ inputs.end_hour }}"
+          --start "${{ inputs.start }}"
+          --end "${{ inputs.end }}"
           --outdir docs
         env:
           LSASAF_USER: ${{ secrets.LSASAF_USER }}
@@ -54,7 +50,7 @@ jobs:
             exit 0
           fi
 
-          MSG="Publica período de estudo MTG (${{ inputs.date }} ${{ inputs.start_hour }}h-${{ inputs.end_hour }}h)"
+          MSG="Publica período de estudo MTG (${{ inputs.start }} a ${{ inputs.end }})"
           git add docs/mtg_study
           git commit -m "$MSG"
 

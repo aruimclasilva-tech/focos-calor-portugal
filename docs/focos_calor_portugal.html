@@ -3253,15 +3253,28 @@ async function refreshMtgStudyList() {
     box.innerHTML = '';
     const fileBaseUrl = idxUrl.replace(/index\.json(\?.*)?$/, '');
     list.slice().reverse().forEach(entry => {
-      const hoursLabel = (typeof entry.start_hour === 'number' && typeof entry.end_hour === 'number')
-        ? `${String(entry.start_hour).padStart(2, '0')}h–${String(entry.end_hour).padStart(2, '0')}h`
-        : '';
+      // Formato atual: "start"/"end" (ISO, UTC) — pode atravessar a meia-
+      // noite. Formato antigo (entradas já publicadas antes desta versão):
+      // "date" + "start_hour"/"end_hour", dentro de um único dia.
+      let mainLabel, subLabel;
+      if (entry.start && entry.end) {
+        const s = new Date(entry.start), e = new Date(entry.end);
+        const fmt = (d) => d.toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+        mainLabel = `${fmt(s)} → ${fmt(e)} (UTC)`;
+        subLabel = `${entry.total_detections || 0} deteções`;
+      } else {
+        const hoursLabel = (typeof entry.start_hour === 'number' && typeof entry.end_hour === 'number')
+          ? `${String(entry.start_hour).padStart(2, '0')}h–${String(entry.end_hour).padStart(2, '0')}h (UTC)`
+          : '';
+        mainLabel = entry.date || entry.id || '—';
+        subLabel = `${hoursLabel} · ${entry.total_detections || 0} deteções`;
+      }
       const row = document.createElement('div');
       row.className = 'heli-inem-row';
       row.innerHTML = `
         <div class="heli-inem-row-head">
-          <div class="heli-inem-name">${escapeHtml(entry.date || entry.id || '—')}
-            <small>${escapeHtml(hoursLabel)} · ${entry.total_detections || 0} deteções</small>
+          <div class="heli-inem-name">${escapeHtml(mainLabel)}
+            <small>${escapeHtml(subLabel)}</small>
           </div>
         </div>
         <div style="margin-top:6px;">
@@ -3306,7 +3319,7 @@ async function loadStudyWindow(entry, fileBaseUrl) {
       return;
     }
 
-    studyMeta = { id: entry.id, date: data.date, start_hour: data.start_hour, end_hour: data.end_hour };
+    studyMeta = { id: entry.id, start: data.start, end: data.end };
     studyMode = true;
     $('live-btn').textContent = 'Sair do modo estudo ✕';
     if (status) status.textContent = `carregado: ${studyIndex.length} instantes.`;
