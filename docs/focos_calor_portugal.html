@@ -834,11 +834,7 @@
 
       <section>
         <h2>Histórico / linha do tempo</h2>
-        <div class="cfg-row">
-          <input type="text" id="retention-input" value="72" style="max-width:70px;flex:none;">
-          <span class="hint" style="margin:0;align-self:center;">horas de retenção</span>
-        </div>
-        <div class="hint" id="history-size-info" style="margin-top:6px;">0 snapshots guardados</div>
+        <div class="hint" id="history-size-info" style="margin-top:0;">0 snapshots guardados</div>
         <button class="ghost" id="clear-history-btn" style="margin-top:8px;width:100%;">Limpar histórico guardado</button>
         <div class="hint">
           Cada atualização (a cada ~10 min) fica guardada no browser, para
@@ -851,6 +847,12 @@
           <b>partilhado</b> gerado pelo <code>mtg_fire_fetch.py</code> no
           GitHub (guardado no repositório, visível em qualquer dispositivo)
           é importado automaticamente para a linha do tempo.
+        </div>
+        <div class="hint" style="margin-top:8px;">
+          Retenção fixa em 72h, igual à do histórico partilhado no servidor
+          — para não ficar a descarregar e apagar repetidamente instantes
+          antigos que o servidor ainda guarda. Reduz-se automaticamente só
+          se o armazenamento deste browser ficar cheio.
         </div>
       </section>
     </div>
@@ -3284,10 +3286,6 @@ $('settings-close').addEventListener('click', () => {
 });
 document.getElementById('settings-overlay').addEventListener('click', (e) => {
   if (e.target.id === 'settings-overlay') e.currentTarget.classList.remove('open');
-});
-$('retention-input').addEventListener('change', (e) => {
-  const v = parseFloat(e.target.value);
-  if (!isNaN(v) && v > 0) { historyRetentionHours = v; pruneHistory(); updateTimelineUI(); updateHistorySizeInfo(); }
 });
 $('clear-history-btn').addEventListener('click', () => {
   if (confirm('Apagar todo o histórico guardado neste browser? Esta ação não pode ser desfeita.')) {
