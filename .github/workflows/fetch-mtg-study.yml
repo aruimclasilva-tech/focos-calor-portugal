@@ -1,0 +1,74 @@
+name: Fetch MTG study window (manual)
+
+# Prepara um "período de estudo" do MTG — uma janela de data/horas já
+# passada, fora da retenção normal de 72h — para a página poder carregar
+# manualmente na linha do tempo. Só dispara manualmente, nunca sozinho.
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Data a descarregar (AAAA-MM-DD)'
+        required: true
+      start_hour:
+        description: 'Hora inicial (0-23)'
+        required: false
+        default: '0'
+      end_hour:
+        description: 'Hora final, exclusiva (1-24)'
+        required: false
+        default: '24'
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependências
+        run: pip install requests
+
+      - name: Descarregar período de estudo MTG
+        run: >
+          python mtg_history_fetch.py
+          --date "${{ inputs.date }}"
+          --start-hour "${{ inputs.start_hour }}"
+          --end-hour "${{ inputs.end_hour }}"
+          --outdir docs
+        env:
+          LSASAF_USER: ${{ secrets.LSASAF_USER }}
+          LSASAF_PASS: ${{ secrets.LSASAF_PASS }}
+
+      - name: Publicar resultado no repositório (com nova tentativa em caso de conflito)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if [ -z "$(git status --porcelain -- docs/mtg_study)" ]; then
+            echo "Sem alterações para publicar (nenhum ficheiro encontrado para esta janela?)."
+            exit 0
+          fi
+
+          MSG="Publica período de estudo MTG (${{ inputs.date }} ${{ inputs.start_hour }}h-${{ inputs.end_hour }}h)"
+          git add docs/mtg_study
+          git commit -m "$MSG"
+
+          for i in 1 2 3 4 5 6; do
+            if git push origin main; then
+              echo "Publicado (tentativa $i)."
+              exit 0
+            fi
+            echo "Push falhou (tentativa $i) — a sincronizar e a tentar de novo..."
+            sleep $(( (RANDOM % 5) + 2 ))
+            git fetch origin main
+            git reset --soft origin/main
+            git commit -m "$MSG"
+          done
+
+          echo "Não foi possível publicar depois de várias tentativas." >&2
+          exit 1

@@ -891,6 +891,21 @@
           se o armazenamento deste browser ficar cheio.
         </div>
       </section>
+
+      <section id="settings-section-mtg-study">
+        <h2>Histórico para estudo (MTG)</h2>
+        <div class="hint" style="margin-top:0;">
+          Carrega para a linha do tempo um período MTG específico já fora
+          da retenção normal de 72h (ex.: rever um incêndio passado). Estes
+          períodos não são automáticos — têm de ser preparados antecipadamente
+          do lado do GitHub a pedido; esta lista mostra só os que já estão
+          disponíveis.
+        </div>
+        <div id="mtg-study-list" style="margin-top:8px;">
+          <div class="hint">a verificar períodos disponíveis…</div>
+        </div>
+        <div class="hint" id="mtg-study-status" style="margin-top:6px;"></div>
+      </section>
     </div>
   </div>
 
@@ -3035,6 +3050,7 @@ function saveSnapshot(ts, data) {
 }
 
 function loadSnapshot(ts) {
+  if (studyMode) return studySnapshotData[ts] || [];
   try {
     const raw = localStorage.getItem(HISTORY_STORAGE_PREFIX + ts);
     if (!raw) return [];
@@ -3194,6 +3210,121 @@ async function importServerHistory() {
     updateTimelineUI();
     console.log(`[histórico partilhado] Importados ${imported} instantes do servidor.`);
   }
+}
+
+// ---------------------------------------------------------------
+// "Modo estudo" — carrega para a linha do tempo um período MTG antigo,
+// já fora da retenção normal de 72h, preparado antecipadamente do lado
+// do GitHub (ver check_mtg_archive.py / mtg_history_fetch.py). Ao
+// contrário do histórico normal (localStorage + pruneHistory, que corta
+// tudo fora das 72h), os dados de estudo ficam só em memória, nunca
+// passam pelo pruneHistory() e desaparecem ao sair do modo ou fechar a
+// página — não é para ficar uma cópia permanente, só para consulta.
+// ---------------------------------------------------------------
+let studyMode = false;
+let studyIndex = [];          // timestamps (ms), ordenados, da janela atualmente carregada
+let studyMeta = null;         // { id, date, start_hour, end_hour }
+const studySnapshotData = {}; // ms -> deteções já no formato de exibição (dt = Date)
+
+function activeHistoryIndex() { return studyMode ? studyIndex : historyIndex; }
+
+function mtgStudyIndexUrl() {
+  if (!mtgUrl) return null;
+  const url = mtgUrl.replace(/portugal_fires_mtg\.json(\?.*)?$/, 'mtg_study/index.json');
+  return url === mtgUrl ? null : url;
+}
+
+async function refreshMtgStudyList() {
+  const box = $('mtg-study-list');
+  if (!box) return;
+  const idxUrl = mtgStudyIndexUrl();
+  if (!idxUrl) {
+    box.innerHTML = '<div class="hint">configura primeiro a fonte EUMETSAT MTG.</div>';
+    return;
+  }
+  try {
+    const res = await fetch(`${idxUrl}?t=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const list = await res.json();
+    if (!Array.isArray(list) || list.length === 0) {
+      box.innerHTML = '<div class="hint">nenhum período de estudo preparado ainda.</div>';
+      return;
+    }
+    box.innerHTML = '';
+    const fileBaseUrl = idxUrl.replace(/index\.json(\?.*)?$/, '');
+    list.slice().reverse().forEach(entry => {
+      const hoursLabel = (typeof entry.start_hour === 'number' && typeof entry.end_hour === 'number')
+        ? `${String(entry.start_hour).padStart(2, '0')}h–${String(entry.end_hour).padStart(2, '0')}h`
+        : '';
+      const row = document.createElement('div');
+      row.className = 'heli-inem-row';
+      row.innerHTML = `
+        <div class="heli-inem-row-head">
+          <div class="heli-inem-name">${escapeHtml(entry.date || entry.id || '—')}
+            <small>${escapeHtml(hoursLabel)} · ${entry.total_detections || 0} deteções</small>
+          </div>
+        </div>
+        <div style="margin-top:6px;">
+          <button class="ghost study-load-btn" style="width:100%;">Carregar para a linha do tempo</button>
+        </div>
+      `;
+      row.querySelector('.study-load-btn').addEventListener('click', () => loadStudyWindow(entry, fileBaseUrl));
+      box.appendChild(row);
+    });
+  } catch (e) {
+    box.innerHTML = `<div class="hint">não consegui obter a lista (${escapeHtml(e.message)}).</div>`;
+  }
+}
+
+async function loadStudyWindow(entry, fileBaseUrl) {
+  const status = $('mtg-study-status');
+  if (status) status.textContent = 'a carregar período de estudo…';
+  try {
+    const res = await fetch(`${fileBaseUrl}${entry.file}?t=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const snapshots = Array.isArray(data.snapshots) ? data.snapshots : [];
+
+    Object.keys(studySnapshotData).forEach(k => delete studySnapshotData[k]);
+    studyIndex = [];
+    snapshots.forEach(s => {
+      const tsMs = Date.parse(s.ts);
+      if (isNaN(tsMs)) return;
+      studySnapshotData[tsMs] = (s.detections || []).map(d => ({
+        lat: d.lat, lon: d.lon, frp: d.frp || 0,
+        confidence: String(d.confidence || 'n').toLowerCase(),
+        satellite: d.satellite || 'MTG-FCI',
+        sourceGroup: 'mtg',
+        dt: new Date(s.ts)
+      }));
+      studyIndex.push(tsMs);
+    });
+    studyIndex.sort((a, b) => a - b);
+
+    if (studyIndex.length === 0) {
+      if (status) status.textContent = 'este período não tem instantes para mostrar.';
+      return;
+    }
+
+    studyMeta = { id: entry.id, date: data.date, start_hour: data.start_hour, end_hour: data.end_hour };
+    studyMode = true;
+    $('live-btn').textContent = 'Sair do modo estudo ✕';
+    if (status) status.textContent = `carregado: ${studyIndex.length} instantes.`;
+    $('settings-overlay').classList.remove('open');
+    updateTimelineUI();
+    goToHistoryPos(0);
+  } catch (e) {
+    if (status) status.textContent = `não consegui carregar este período (${e.message}).`;
+  }
+}
+
+function exitStudyMode() {
+  studyMode = false;
+  studyIndex = [];
+  studyMeta = null;
+  Object.keys(studySnapshotData).forEach(k => delete studySnapshotData[k]);
+  $('live-btn').textContent = 'Voltar ao vivo ▶';
+  exitHistoryMode();
 }
 
 async function refreshData() {
@@ -3380,7 +3511,7 @@ document.querySelectorAll('.panel-group-header').forEach(h => {
 
 function updateTimelineUI() {
   const slider = $('tl-slider');
-  const n = historyIndex.length;
+  const n = activeHistoryIndex().length;
   slider.max = Math.max(0, n - 1);
   if (!historyMode) {
     slider.value = Math.max(0, n - 1); // segue sempre o mais recente enquanto ao vivo
@@ -3390,36 +3521,41 @@ function updateTimelineUI() {
 }
 
 function updateTimelineLabel() {
-  const n = historyIndex.length;
+  const idx = activeHistoryIndex();
+  const n = idx.length;
   if (n === 0) { $('tl-label').textContent = 'sem histórico ainda'; return; }
   const pos = Number($('tl-slider').value);
-  const ts = historyIndex[pos];
+  const ts = idx[pos];
   const isLatest = pos === n - 1;
   const label = new Date(ts).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-  $('tl-label').textContent = `${label}${isLatest ? ' · ao vivo' : ''} (${pos + 1}/${n})`;
+  const suffix = studyMode ? ' · estudo' : (isLatest ? ' · ao vivo' : '');
+  $('tl-label').textContent = `${label}${suffix} (${pos + 1}/${n})`;
 }
 
 function goToHistoryPos(pos) {
-  const n = historyIndex.length;
+  const idx = activeHistoryIndex();
+  const n = idx.length;
   if (n === 0) return;
   pos = Math.max(0, Math.min(n - 1, pos));
   $('tl-slider').value = pos;
   const isLatest = pos === n - 1;
 
-  if (isLatest) {
+  if (isLatest && !studyMode) {
     exitHistoryMode();
     return;
   }
 
   historyMode = true;
-  const ts = historyIndex[pos];
+  const ts = idx[pos];
   displayDetections = loadSnapshot(ts);
   $('history-banner').style.display = 'flex';
-  $('history-banner-time').textContent = new Date(ts).toLocaleString('pt-PT');
+  $('history-banner-time').textContent = studyMode
+    ? `${new Date(ts).toLocaleString('pt-PT')} · MODO ESTUDO`
+    : new Date(ts).toLocaleString('pt-PT');
   renderAll();
   updateSourceSummaries();
   updateTimelineLabel();
-  setStatus('stale', 'a ver histórico (dados não são atualizados enquanto navegas no tempo)');
+  setStatus('stale', studyMode ? 'modo estudo (histórico antigo — não é atualizado)' : 'a ver histórico (dados não são atualizados enquanto navegas no tempo)');
 }
 
 function exitHistoryMode() {
@@ -3446,13 +3582,16 @@ $('tl-slider').addEventListener('input', (e) => {
 $('tl-first').addEventListener('click', () => { stopPlayback(); goToHistoryPos(0); });
 $('tl-prev').addEventListener('click', () => { stopPlayback(); goToHistoryPos(Number($('tl-slider').value) - 1); });
 $('tl-next').addEventListener('click', () => { stopPlayback(); goToHistoryPos(Number($('tl-slider').value) + 1); });
-$('tl-last').addEventListener('click', () => { stopPlayback(); goToHistoryPos(historyIndex.length - 1); });
-$('live-btn').addEventListener('click', () => { stopPlayback(); exitHistoryMode(); });
+$('tl-last').addEventListener('click', () => { stopPlayback(); goToHistoryPos(activeHistoryIndex().length - 1); });
+$('live-btn').addEventListener('click', () => {
+  stopPlayback();
+  if (studyMode) exitStudyMode(); else exitHistoryMode();
+});
 $('tl-play').addEventListener('click', () => {
   if (playTimer) { stopPlayback(); return; }
   $('tl-play').textContent = '⏸';
   playTimer = setInterval(() => {
-    const n = historyIndex.length;
+    const n = activeHistoryIndex().length;
     const pos = Number($('tl-slider').value);
     if (pos >= n - 1) { stopPlayback(); return; }
     goToHistoryPos(pos + 1);
@@ -3522,6 +3661,7 @@ function updateSourceSummaries() {
 
 $('settings-btn').addEventListener('click', () => {
   document.getElementById('settings-overlay').classList.add('open');
+  refreshMtgStudyList();
 });
 $('settings-close').addEventListener('click', () => {
   document.getElementById('settings-overlay').classList.remove('open');
