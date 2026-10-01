@@ -2252,17 +2252,32 @@ function aircraftHeliGlyphSvg(colorHex) {
 
 // A categoria ADS-B "A7" (rotorcraft) nem sempre vem preenchida — sobretudo
 // em aeronaves militares, que muitas vezes não a transmitem (foi o caso
-// reportado: um UH-60 Black Hawk a aparecer com ícone de avião). Por isso
-// usa-se também "desc", que segue a norma ICAO Doc 8643 para a descrição
-// do tipo: 1º caracter = categoria da aeronave ("H" = helicóptero, "L" =
-// avião terrestre, ...) — é o "Type Desc." que se vê, por exemplo, no
-// globe.adsb.fi (ex.: "H2T" para esse Black Hawk). É um sinal mais fiável
-// do que a categoria ADS-B porque vem de uma base de dados do tipo da
-// aeronave, não de algo que a própria aeronave tenha de transmitir.
+// reportado: um UH-60 Black Hawk, "t":"H60", sem "category", a aparecer
+// com ícone de avião apesar do adsb.fi já o mostrar como helicóptero).
+// Por isso usa-se também o designador de tipo ICAO ("t", o mesmo que já
+// aparece no balão em "Tipo") contra uma lista dos tipos de helicóptero
+// mais comuns no espaço aéreo português (militares, INEM, bombeiros).
+// Comparação exata ao designador — NÃO por prefixo/texto do nome do
+// fabricante em "desc" (ex. "HAWKER BEECHCRAFT..." também começa por H,
+// mas um Hawker 750/850 é um jato, não um helicóptero).
+const HELICOPTER_TYPE_CODES = new Set([
+  // militares (PT/NATO)
+  'H60', 'UH60', 'HH60', 'MH60', 'SH60', 'S70', 'H64', 'AH64',
+  'H47', 'CH47', 'H53', 'CH53', 'MH53', 'UH1', 'H1', 'H92', 'S92',
+  'EH10', 'AW10', 'LYNX',
+  // civis / INEM / proteção civil / bombeiros
+  'EC20', 'EC25', 'EC30', 'EC35', 'EC45', 'EC55',
+  'H145', 'H135', 'H130', 'H160', 'H125', 'H120',
+  'AS32', 'AS50', 'AS55', 'AS65',
+  'A109', 'A119', 'A129', 'A139', 'A169', 'A189',
+  'B06', 'B222', 'B230', 'B407', 'B412', 'B429', 'B430', 'B525',
+  'R22', 'R44', 'R66', 'G2CA', 'K32', 'S64', 'CH54', 'MD50', 'MD60',
+]);
+
 function isHelicopter(ac) {
   if (!ac) return false;
   if (ac.category === 'A7') return true;
-  if (typeof ac.desc === 'string' && ac.desc.charAt(0).toUpperCase() === 'H') return true;
+  if (ac.t && HELICOPTER_TYPE_CODES.has(String(ac.t).toUpperCase())) return true;
   return false;
 }
 
