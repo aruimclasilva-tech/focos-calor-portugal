@@ -628,12 +628,26 @@
             </div>
             <label class="switch big"><input type="checkbox" id="show-inem-trails"><span class="slider"></span></label>
           </div>
+          <div class="source-item" id="source-inem-notify">
+            <div class="source-info">
+              <div class="source-name">Notificar início de voo <span class="source-sub">(Heli INEM)</span></div>
+              <div class="source-meta" id="inem-notify-summary">desligado</div>
+            </div>
+            <label class="switch big"><input type="checkbox" id="show-inem-notify"><span class="slider"></span></label>
+          </div>
           <div class="source-item" id="source-heli">
             <div class="source-info">
               <div class="source-name">Primários <span class="source-sub">(locais de aterragem)</span></div>
             </div>
             <label class="switch big"><input type="checkbox" id="show-heli"><span class="slider"></span></label>
           </div>
+          </div>
+          <div class="hint" style="margin-top:6px;">
+            "Notificar início de voo" só funciona com a camada "Heli INEM"
+            ligada (é o que mantém a verificação periódica a correr), e só
+            enquanto tiveres esta página aberta num separador do browser
+            neste dispositivo — pede-te permissão de notificações da
+            primeira vez que ligares.
           </div>
         </div>
       </div>
@@ -2323,6 +2337,49 @@ function isRegistrationLiveOnMap(matricula) {
   return Object.values(aircraftLastData).some(d => normalizeAircraftIdent(d.ac && d.ac.r) === norm);
 }
 
+// ---------------------------------------------------------------
+// Notificação do browser ao início de voo de um Heli INEM. Deteta-se
+// pela mesma fonte do trajeto de 6h (aircraft_trails.json): se o ponto
+// mais recente dessa matrícula passou de "antigo" para "fresco" (dentro
+// da cadência de ~5 min do aircraft_fetch.py) desde a última verificação,
+// é porque a aeronave começou a reportar posição agora — ou seja,
+// arrancou. Independente do "Rastreio ao vivo" geral estar ligado.
+// ---------------------------------------------------------------
+const INEM_NOTIFY_KEY = 'firemap_cfg_inem_notify';
+const INEM_TAKEOFF_FRESH_MS = 7 * 60 * 1000; // folga sobre a cadência real de ~5 min
+let inemNotificationsOn = false;
+const inemWasFresh = {}; // matrícula -> bool | undefined (undefined = ainda não verificado)
+
+function setInemNotifications(on) {
+  inemNotificationsOn = on;
+  try { localStorage.setItem(INEM_NOTIFY_KEY, on ? '1' : '0'); } catch {}
+  updateInemNotifySummary();
+}
+
+function updateInemNotifySummary() {
+  const el = $('inem-notify-summary');
+  if (!el) return;
+  if (!inemNotificationsOn) { el.textContent = 'desligado'; return; }
+  if (!('Notification' in window)) { el.textContent = 'não suportado neste browser'; return; }
+  if (Notification.permission === 'denied') { el.textContent = 'permissão de notificações negada no browser'; return; }
+  if (Notification.permission !== 'granted') { el.textContent = 'a aguardar permissão…'; return; }
+  el.textContent = 'ativo';
+}
+
+function notifyInemTakeoff(matricula, baseIdx) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const baseName = inemBaseShortName(baseIdx);
+  try {
+    new Notification('Heli INEM iniciou voo', {
+      body: `${baseName} (${matricula}) começou a reportar posição.`,
+      tag: `inem-takeoff-${matricula}`,
+      icon: './icons/icon-192.png'
+    });
+  } catch (e) {
+    console.warn('Não consegui mostrar a notificação:', e);
+  }
+}
+
 function buildInemLastKnownIcon(baseIdx, ageText) {
   const label = `${inemBaseShortName(baseIdx)} · ${ageText}`;
   const html = `
@@ -2351,6 +2408,15 @@ async function refreshInemLastKnown() {
     const pts = (matricula && data[matricula]) || [];
     const last = pts.length ? pts[pts.length - 1] : null;
     const live = matricula && isRegistrationLiveOnMap(matricula);
+
+    if (matricula) {
+      const freshNow = !!(last && last.t && (Date.now() - new Date(last.t).getTime()) < INEM_TAKEOFF_FRESH_MS);
+      const wasFresh = inemWasFresh[matricula];
+      if (freshNow && wasFresh === false && inemNotificationsOn) {
+        notifyInemTakeoff(matricula, idx);
+      }
+      inemWasFresh[matricula] = freshNow;
+    }
 
     if (!last || typeof last.lat !== 'number' || typeof last.lon !== 'number' || live) {
       if (inemLastKnownMarkers[idx]) { map.removeLayer(inemLastKnownMarkers[idx]); delete inemLastKnownMarkers[idx]; }
@@ -2910,6 +2976,24 @@ $('show-heli-inem').addEventListener('change', (e) => {
 $('show-inem-trails').addEventListener('change', (e) => {
   if (e.target.checked) startInemTrails(); else stopInemTrails();
   try { localStorage.setItem('firemap_cfg_show_inem_trails', e.target.checked ? '1' : '0'); } catch {}
+});
+$('show-inem-notify').addEventListener('change', async (e) => {
+  if (!e.target.checked) { setInemNotifications(false); return; }
+  if (!('Notification' in window)) {
+    e.target.checked = false;
+    setInemNotifications(false);
+    return;
+  }
+  let perm = Notification.permission;
+  if (perm === 'default') {
+    perm = await Notification.requestPermission();
+  }
+  if (perm !== 'granted') {
+    e.target.checked = false;
+    setInemNotifications(false);
+    return;
+  }
+  setInemNotifications(true);
 });
 $('target-place-btn').addEventListener('click', () => {
   setPlacingTarget(!placingTarget);
@@ -3731,6 +3815,14 @@ try {
     $('show-inem-trails').checked = true;
     startInemTrails();
   }
+  if (localStorage.getItem(INEM_NOTIFY_KEY) === '1' && 'Notification' in window && Notification.permission === 'granted') {
+    // Só reativa sozinho se a permissão continuar concedida — se tiver
+    // sido negada entretanto no browser, fica desligado e o resumo nas
+    // Definições explica porquê.
+    $('show-inem-notify').checked = true;
+    inemNotificationsOn = true;
+  }
+  updateInemNotifySummary();
   const savedTarget = JSON.parse(localStorage.getItem(TARGET_POINT_KEY) || 'null');
   if (Array.isArray(savedTarget)) {
     // formato atual: lista de pontos
