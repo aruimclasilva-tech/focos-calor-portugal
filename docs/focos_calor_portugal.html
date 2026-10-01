@@ -317,6 +317,31 @@
     pointer-events:none;
   }
   #settings-overlay.open{transform:translateX(0);pointer-events:auto;}
+
+  /* caixa de confirmação própria (substitui o confirm() nativo — ver nota
+     junto ao HTML) — centrada, por cima de tudo, com título em destaque. */
+  #confirm-overlay{
+    position:fixed;inset:0;z-index:4000;
+    background:rgba(0,0,0,.6);
+    display:flex;align-items:center;justify-content:center;padding:16px;
+    opacity:0;pointer-events:none;transition:opacity .15s;
+  }
+  #confirm-overlay.open{opacity:1;pointer-events:auto;}
+  .confirm-box{
+    width:100%;max-width:340px;background:var(--panel);
+    border:1px solid var(--line);border-radius:12px;
+    box-shadow:0 14px 40px rgba(0,0,0,.55);padding:18px;
+  }
+  .confirm-title{
+    font-size:15px;font-weight:700;color:var(--ember-hot);margin-bottom:8px;
+  }
+  .confirm-message{font-size:13px;color:var(--text);line-height:1.5;margin-bottom:18px;}
+  .confirm-actions{display:flex;gap:8px;justify-content:flex-end;}
+  .confirm-actions button{
+    padding:8px 14px;border-radius:7px;font-size:13px;cursor:pointer;border:1px solid var(--line);
+  }
+  .confirm-ok{background:var(--ember-hot);border-color:var(--ember-hot);color:#fff;font-weight:600;}
+  .confirm-ok:hover{filter:brightness(1.1);}
   #settings-panel{
     width:100%;height:100%;background:var(--panel);
     border-left:1px solid var(--line);overflow-y:auto;padding-bottom:24px;
@@ -865,6 +890,22 @@
     <span>Fontes: NASA LANCE/FIRMS (VIIRS) · opcional: EUMETSAT/LSA SAF MTG FRP-Pixel (LSA-509, ~10 min, local)</span>
     <span id="tx-count">0 pedidos nesta sessão</span>
   </footer>
+
+  <!-- Caixa de confirmação própria, para ações destrutivas (apagar pontos,
+       histórico, credenciais). O confirm() nativo do browser não permite
+       personalizar o título (mostra sempre o domínio, ex. "...github.io
+       diz"), por isso esta caixa substitui-o sempre que é preciso um
+       título como "Atenção!!". -->
+  <div id="confirm-overlay">
+    <div class="confirm-box">
+      <div class="confirm-title" id="confirm-title">⚠️ Atenção!!</div>
+      <div class="confirm-message" id="confirm-message"></div>
+      <div class="confirm-actions">
+        <button class="ghost" id="confirm-cancel-btn">Cancelar</button>
+        <button id="confirm-ok-btn" class="confirm-ok">OK</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1596,13 +1637,13 @@ function renameTargetPoint(id) {
 // Apagar um ponto de referência pede confirmação DUPLA (duas perguntas
 // seguidas) — tanto a apagar a partir do balão no mapa como a partir da
 // lista no painel "+" — para evitar apagar por engano.
-function confirmDeleteTargetPoint(id) {
+async function confirmDeleteTargetPoint(id) {
   id = Number(id);
   const point = targetPoints.find(p => p.id === id);
   if (!point) return;
   const label = point.label || 'Ponto sem nome';
-  if (!confirm(`Apagar o ponto "${label}"?`)) return;
-  if (!confirm('Tens a certeza? Esta ação não pode ser desfeita.')) return;
+  if (!await showConfirm(`Apagar o ponto "${label}"?`)) return;
+  if (!await showConfirm('Tens a certeza? Esta ação não pode ser desfeita.')) return;
   const marker = targetMarkers[id];
   if (marker && marker.isPopupOpen && marker.isPopupOpen()) marker.closePopup();
   removeTargetPoint(id);
@@ -1729,6 +1770,35 @@ async function searchAddress(query) {
 
 // --- UI refs ---
 const $ = (id) => document.getElementById(id);
+
+// Caixa de confirmação própria, para ações destrutivas — substitui o
+// confirm() nativo do browser, cujo título não pode ser personalizado
+// (mostra sempre o domínio, ex. "...github.io diz"). showConfirm() devolve
+// uma Promise<boolean>, por isso quem a chama tem de ser "async" e usar
+// "await" (tal como se usaria o confirm() nativo, mas sem bloquear a
+// thread).
+let confirmResolve = null;
+
+function showConfirm(message, opts = {}) {
+  $('confirm-title').textContent = opts.title || '⚠️ Atenção!!';
+  $('confirm-message').textContent = message;
+  $('confirm-ok-btn').textContent = opts.okLabel || 'OK';
+  $('confirm-cancel-btn').textContent = opts.cancelLabel || 'Cancelar';
+  $('confirm-overlay').classList.add('open');
+  return new Promise(resolve => { confirmResolve = resolve; });
+}
+
+function closeConfirm(result) {
+  $('confirm-overlay').classList.remove('open');
+  if (confirmResolve) { confirmResolve(result); confirmResolve = null; }
+}
+
+$('confirm-ok-btn').addEventListener('click', () => closeConfirm(true));
+$('confirm-cancel-btn').addEventListener('click', () => closeConfirm(false));
+$('confirm-overlay').addEventListener('click', (e) => {
+  if (e.target.id === 'confirm-overlay') closeConfirm(false);
+});
+
 const connDot = $('conn-dot'), connText = $('conn-text');
 const lastUpdateFirmsEl = $('last-update-firms'), lastUpdateMtgEl = $('last-update-mtg'), nextUpdateEl = $('next-update');
 const statTotal = $('stat-total'), statRecent = $('stat-recent');
@@ -2704,8 +2774,8 @@ $('show-inem-trails').addEventListener('change', (e) => {
 $('target-place-btn').addEventListener('click', () => {
   setPlacingTarget(!placingTarget);
 });
-$('target-clear-btn').addEventListener('click', () => {
-  if (targetPoints.length && !confirm(`Remover os ${targetPoints.length} pontos guardados?`)) return;
+$('target-clear-btn').addEventListener('click', async () => {
+  if (targetPoints.length && !await showConfirm(`Remover os ${targetPoints.length} pontos guardados?`)) return;
   clearAllTargetPoints();
   setPlacingTarget(false);
 });
@@ -3334,14 +3404,14 @@ $('settings-close').addEventListener('click', () => {
 document.getElementById('settings-overlay').addEventListener('click', (e) => {
   if (e.target.id === 'settings-overlay') e.currentTarget.classList.remove('open');
 });
-$('clear-history-btn').addEventListener('click', () => {
-  if (confirm('Apagar todo o histórico guardado neste browser? Esta ação não pode ser desfeita.')) {
+$('clear-history-btn').addEventListener('click', async () => {
+  if (await showConfirm('Apagar todo o histórico guardado neste browser? Esta ação não pode ser desfeita.')) {
     clearHistory();
     updateHistorySizeInfo();
   }
 });
-$('forget-creds-btn').addEventListener('click', () => {
-  if (confirm('Esquecer o MAP_KEY e o URL do MTG guardados neste browser?')) {
+$('forget-creds-btn').addEventListener('click', async () => {
+  if (await showConfirm('Esquecer o MAP_KEY e o URL do MTG guardados neste browser?')) {
     forgetSavedCreds();
     mapKey = ''; mtgUrl = '';
     $('mtg-status').textContent = 'estado: desligado';
