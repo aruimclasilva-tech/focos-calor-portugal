@@ -441,6 +441,14 @@
     color:var(--amber);font-size:9.5px;font-weight:700;line-height:1.35;
     pointer-events:none;
   }
+  /* "última posição conhecida" de um Heli INEM fora da cobertura ADS-B —
+     ícone esmaecido/cinzento para se distinguir claramente de uma posição
+     ao vivo, com etiqueta em tom neutro (em vez de âmbar) e a indicar há
+     quanto tempo foi vista pela última vez. */
+  .inem-last-known-glyph{opacity:.55;filter:grayscale(.35) drop-shadow(0 0 3px rgba(0,0,0,.7));}
+  .inem-last-known-label{
+    background:rgba(10,14,20,.88);border-color:var(--muted);color:var(--muted);
+  }
   .aircraft-glyph{
     width:100%;height:100%;display:flex;align-items:center;justify-content:center;
     transition:transform .3s linear;
@@ -1400,9 +1408,11 @@ function setHeliInemMaster(on) {
     renderHeliInemSublist();
     INEM_HELIS.forEach((h, idx) => applyHeliVisibility(idx));
     if (sublistEl) sublistEl.style.display = '';
+    startInemLastKnownPolling();
   } else {
     INEM_HELIS.forEach((h, idx) => applyHeliVisibility(idx));
     if (sublistEl) sublistEl.style.display = 'none';
+    stopInemLastKnownPolling();
   }
   try { localStorage.setItem('firemap_cfg_show_heli_inem', on ? '1' : '0'); } catch {}
 }
@@ -2266,6 +2276,102 @@ function stopInemTrails() {
   clearInemTrailLayers();
   $('inem-trails-summary').textContent = 'desligado';
 }
+
+// ---------------------------------------------------------------
+// Última posição conhecida de cada Heli INEM — mantém sempre um ícone no
+// mapa na posição mais recente reportada por cada aeronave do grupo,
+// mesmo quando ela não está a aparecer no rastreio ao vivo (pousada, com
+// o transponder desligado, ou fora de alcance do recetor). Usa a mesma
+// fonte do trajeto de 6h (aircraft_trails.json) — não depende do
+// "Rastreio ao vivo" estar ligado. Liga/desliga junto com a camada
+// "Heli INEM" (show-heli-inem), que é precisamente o interruptor de
+// "quero estes meios sempre visíveis no mapa".
+// ---------------------------------------------------------------
+const inemLastKnownMarkers = {}; // idx da base -> L.Marker
+let inemLastKnownTimer = null;
+
+function fmtAgeShort(date) {
+  const diffMin = Math.max(0, Math.round((Date.now() - date.getTime()) / 60000));
+  if (diffMin < 1) return 'agora mesmo';
+  if (diffMin < 60) return `há ${diffMin} min`;
+  const h = Math.floor(diffMin / 60), m = diffMin % 60;
+  return `há ${h}h${m ? m + 'm' : ''}`;
+}
+
+// Já está a aparecer como aeronave ao vivo no mapa (rastreio ligado e a
+// apanhar o sinal) — nesse caso não faz sentido duplicar com um ícone de
+// "última posição conhecida" por cima.
+function isRegistrationLiveOnMap(matricula) {
+  const norm = normalizeAircraftIdent(matricula);
+  if (!norm) return false;
+  return Object.values(aircraftLastData).some(d => normalizeAircraftIdent(d.ac && d.ac.r) === norm);
+}
+
+function buildInemLastKnownIcon(baseIdx, ageText) {
+  const label = `${inemBaseShortName(baseIdx)} · ${ageText}`;
+  const html = `
+    <div class="aircraft-glyph inem-last-known-glyph">${aircraftHeliGlyphSvg('#5bc0eb')}</div>
+    <div class="aircraft-inem-label inem-last-known-label">${escapeHtml(label)}</div>
+  `;
+  return L.divIcon({
+    className: 'aircraft-marker-icon inem-last-known-icon',
+    html,
+    iconSize: [22, 26],
+    iconAnchor: [11, 13],
+    popupAnchor: [0, -12]
+  });
+}
+
+async function refreshInemLastKnown() {
+  if (!heliInemMasterOn) return;
+  let data;
+  try {
+    data = await fetchInemTrails();
+  } catch {
+    return; // sem dados neste ciclo — mantém o que já lá está até ao próximo
+  }
+  for (let idx = 0; idx < INEM_HELIS.length; idx++) {
+    const matricula = inemBaseMatricula(idx);
+    const pts = (matricula && data[matricula]) || [];
+    const last = pts.length ? pts[pts.length - 1] : null;
+    const live = matricula && isRegistrationLiveOnMap(matricula);
+
+    if (!last || typeof last.lat !== 'number' || typeof last.lon !== 'number' || live) {
+      if (inemLastKnownMarkers[idx]) { map.removeLayer(inemLastKnownMarkers[idx]); delete inemLastKnownMarkers[idx]; }
+      continue;
+    }
+
+    const ageText = fmtAgeShort(new Date(last.t));
+    const tooltip = `${matricula} — última posição conhecida ${fmtDateTime(new Date(last.t))} (${ageText})`;
+    const icon = buildInemLastKnownIcon(idx, ageText);
+    if (!inemLastKnownMarkers[idx]) {
+      inemLastKnownMarkers[idx] = L.marker([last.lat, last.lon], { icon, zIndexOffset: 700 })
+        .bindTooltip(tooltip, { sticky: true })
+        .addTo(map);
+    } else {
+      inemLastKnownMarkers[idx].setLatLng([last.lat, last.lon]);
+      inemLastKnownMarkers[idx].setIcon(icon);
+      inemLastKnownMarkers[idx].setTooltipContent(tooltip);
+    }
+  }
+}
+
+function clearInemLastKnownMarkers() {
+  Object.values(inemLastKnownMarkers).forEach(m => map.removeLayer(m));
+  Object.keys(inemLastKnownMarkers).forEach(k => delete inemLastKnownMarkers[k]);
+}
+
+function startInemLastKnownPolling() {
+  refreshInemLastKnown();
+  if (inemLastKnownTimer) clearInterval(inemLastKnownTimer);
+  inemLastKnownTimer = setInterval(refreshInemLastKnown, AIRCRAFT_TRAILS_POLL_MS);
+}
+
+function stopInemLastKnownPolling() {
+  if (inemLastKnownTimer) { clearInterval(inemLastKnownTimer); inemLastKnownTimer = null; }
+  clearInemLastKnownMarkers();
+}
+
 const AIRCRAFT_WATCHLIST_KEY = 'firemap_cfg_aircraft_watchlist';
 const AIRCRAFT_SHOW_KEY = 'firemap_cfg_show_aircraft';
 const AIRCRAFT_OPEN_MODE_KEY = 'firemap_cfg_aircraft_open_mode';
@@ -2469,6 +2575,10 @@ function clearAircraftLayer() {
   Object.keys(aircraftMarkers).forEach(k => delete aircraftMarkers[k]);
   Object.keys(aircraftTrails).forEach(k => delete aircraftTrails[k]);
   Object.keys(aircraftTrailPts).forEach(k => delete aircraftTrailPts[k]);
+  // Limpa também a última leitura conhecida — sem isto, isRegistrationLiveOnMap()
+  // continuaria a achar que uma aeronave INEM está "ao vivo" (e a esconder o
+  // ícone de última posição conhecida) depois de desligar o rastreio.
+  Object.keys(aircraftLastData).forEach(k => delete aircraftLastData[k]);
 }
 
 function aircraftTrackerUrl(source, hex) {
@@ -2697,6 +2807,12 @@ async function refreshAircraft() {
   if (aircraftMilitaryMode) modeParts.push('militares');
   if (aircraftDroneMode) modeParts.push('drones');
   $('aircraft-summary').textContent = `${matched.length} aeronave(s) · ${modeParts.join(' + ')} · fonte: ${result.source} · atualizado ${when}`;
+
+  // Uma aeronave INEM pode ter acabado de aparecer (ou desaparecer) do
+  // rastreio ao vivo — reavalia já os ícones de "última posição
+  // conhecida" para não ficarem duplicados nem desatualizados até ao
+  // próximo ciclo desse polling (até 2 min depois).
+  if (heliInemMasterOn) refreshInemLastKnown();
 }
 
 function startAircraftTracking() {
@@ -2711,6 +2827,10 @@ function stopAircraftTracking() {
   if (aircraftTimer) { clearInterval(aircraftTimer); aircraftTimer = null; }
   clearAircraftLayer();
   $('aircraft-summary').textContent = 'desligado';
+  // Com o rastreio ao vivo desligado, nenhuma aeronave INEM conta como
+  // "ao vivo" — mostra já a última posição conhecida de cada uma (sem
+  // esperar até 2 min pelo próximo ciclo do temporizador).
+  if (heliInemMasterOn) refreshInemLastKnown();
 }
 
 function saveAircraftPrefs() {
