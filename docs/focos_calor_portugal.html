@@ -185,6 +185,16 @@
     border-radius:5px;width:20px;height:20px;line-height:1;cursor:pointer;font-size:11px;
   }
   .target-point-remove:hover{border-color:var(--ember-hot);color:var(--ember-hot);}
+  .icon-action-btn{
+    flex:none;background:transparent;border:1px solid var(--line);color:var(--muted);
+    border-radius:5px;width:22px;height:22px;line-height:1;cursor:pointer;font-size:12px;
+    display:inline-flex;align-items:center;justify-content:center;
+  }
+  .icon-action-btn:hover{border-color:var(--amber);color:var(--amber);}
+  .icon-action-btn.danger:hover{border-color:var(--ember-hot);color:var(--ember-hot);}
+  .popup-title-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px;}
+  .popup-title-row .popup-title{margin-bottom:0;flex:1;min-width:0;}
+  .popup-title-actions{display:flex;gap:4px;flex:none;}
 
   /* setas para mudar a hora da previsão meteorológica, canto inferior
      direito do mapa — só aparece quando algum campo/vento está ligado */
@@ -1390,7 +1400,13 @@ function etaBlockHtml(point) {
 
 function targetPointPopupHtml(point) {
   return `
-    <div class="popup-title">📍 ${point.label || 'Ponto de referência'}</div>
+    <div class="popup-title-row">
+      <div class="popup-title">📍 ${escapeHtml(point.label || 'Ponto de referência')}</div>
+      <div class="popup-title-actions">
+        <button class="icon-action-btn target-point-edit" data-id="${point.id}" title="Editar nome">✎</button>
+        <button class="icon-action-btn danger target-point-delete" data-id="${point.id}" title="Apagar ponto">🗑</button>
+      </div>
+    </div>
     <div class="popup-row"><span>Coordenadas</span><b>${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}</b></div>
     ${etaBlockHtml(point)}
   `;
@@ -1404,14 +1420,57 @@ function renderTargetPointsList() {
   listEl.innerHTML = targetPoints.map(p => `
     <div class="target-point-card" data-id="${p.id}">
       <div class="target-point-head">
-        <span class="target-point-label">${p.label || 'Ponto sem nome'}</span>
-        <button class="target-point-remove" data-id="${p.id}" title="Remover este ponto">✕</button>
+        <span class="target-point-label">${escapeHtml(p.label || 'Ponto sem nome')}</span>
+        <div class="popup-title-actions">
+          <button class="icon-action-btn target-point-edit" data-id="${p.id}" title="Editar nome">✎</button>
+          <button class="icon-action-btn danger target-point-delete" data-id="${p.id}" title="Apagar ponto">🗑</button>
+        </div>
       </div>
       <div class="target-point-coords">${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}</div>
       <div class="hint" style="margin-top:3px;">Clica no ponto no mapa para ver os tempos estimados.</div>
     </div>
   `).join('');
 }
+
+// Editar o nome de um ponto de referência — pedido diretamente (prompt),
+// tanto a partir do balão no mapa como da lista no painel "+".
+function renameTargetPoint(id) {
+  id = Number(id);
+  const point = targetPoints.find(p => p.id === id);
+  if (!point) return;
+  const next = prompt('Novo nome para este ponto:', point.label || '');
+  if (next === null) return; // cancelado
+  point.label = next.trim() || null;
+  saveTargetPoints();
+  renderTargetPointsList();
+  const marker = targetMarkers[id];
+  if (marker) {
+    marker.setPopupContent(targetPointPopupHtml(point));
+    marker.setTooltipContent(point.label || `${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}`);
+  }
+}
+
+// Apagar um ponto de referência pede confirmação DUPLA (duas perguntas
+// seguidas) — tanto a apagar a partir do balão no mapa como a partir da
+// lista no painel "+" — para evitar apagar por engano.
+function confirmDeleteTargetPoint(id) {
+  id = Number(id);
+  const point = targetPoints.find(p => p.id === id);
+  if (!point) return;
+  const label = point.label || 'Ponto sem nome';
+  if (!confirm(`Apagar o ponto "${label}"?`)) return;
+  if (!confirm('Tens a certeza? Esta ação não pode ser desfeita.')) return;
+  const marker = targetMarkers[id];
+  if (marker && marker.isPopupOpen && marker.isPopupOpen()) marker.closePopup();
+  removeTargetPoint(id);
+}
+
+document.addEventListener('click', (e) => {
+  const editBtn = e.target.closest('.target-point-edit');
+  if (editBtn) { renameTargetPoint(editBtn.dataset.id); return; }
+  const delBtn = e.target.closest('.target-point-delete');
+  if (delBtn) { confirmDeleteTargetPoint(delBtn.dataset.id); return; }
+});
 
 function saveTargetPoints() {
   try {
@@ -2393,10 +2452,8 @@ $('target-search-btn').addEventListener('click', () => {
 $('target-search-input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') { e.preventDefault(); searchAddress(e.target.value); }
 });
-document.getElementById('target-points-list').addEventListener('click', (e) => {
-  const btn = e.target.closest('.target-point-remove');
-  if (btn) removeTargetPoint(btn.dataset.id);
-});
+// (edição/remoção da lista de pontos: ver listener delegado por
+// .target-point-edit / .target-point-delete, junto de renderTargetPointsList)
 
 function setStatus(state, text) {
   connDot.className = 'dot' + (state === 'ok' ? '' : state === 'stale' ? ' stale' : ' err');
