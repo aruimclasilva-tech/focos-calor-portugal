@@ -771,18 +771,21 @@
 
       <section id="settings-section-mtg">
         <h2>EUMETSAT MTG (via GitHub Actions)</h2>
-        <div class="cfg-row">
-          <input type="text" id="mtg-url" placeholder="https://raw.githubusercontent.com/user/repo/main/docs/portugal_fires_mtg.json">
-          <button class="ghost" id="save-mtg-url">Usar</button>
+        <div class="hint" id="mtg-status" style="margin-top:0;">estado: desligado</div>
+        <a href="#" id="mtg-manual-toggle" class="hint" style="display:block;margin-top:6px;color:var(--amber);text-decoration:underline;cursor:pointer;">Editar URL manualmente…</a>
+        <div id="mtg-manual-config" style="display:none;">
+          <div class="cfg-row" style="margin-top:6px;">
+            <input type="text" id="mtg-url" placeholder="https://raw.githubusercontent.com/user/repo/main/docs/portugal_fires_mtg.json">
+            <button class="ghost" id="save-mtg-url">Usar</button>
+          </div>
+          <div class="hint">
+            Se abrires esta página através do GitHub Pages (não por duplo-clique),
+            o URL é preenchido automaticamente assumindo que o JSON está na mesma
+            pasta. Só precisas de preencher isto manualmente se estiveres a correr
+            localmente ou a apontar para um repositório diferente. Fica guardado
+            neste browser.
+          </div>
         </div>
-        <div class="hint">
-          Se abrires esta página através do GitHub Pages (não por duplo-clique),
-          o URL é preenchido automaticamente assumindo que o JSON está na mesma
-          pasta. Só precisas de preencher isto manualmente se estiveres a correr
-          localmente ou a apontar para um repositório diferente. Fica guardado
-          neste browser.
-        </div>
-        <div class="hint" id="mtg-status" style="margin-top:6px;">estado: desligado</div>
       </section>
 
       <section id="settings-section-aircraft">
@@ -3263,8 +3266,25 @@ $('tl-play').addEventListener('click', () => {
 
 // Abre a gaveta de Definições já no sítio certo (a secção da fonte em
 // causa), e põe o foco no campo a preencher.
+function showMtgManualConfig() {
+  const box = $('mtg-manual-config');
+  const toggle = $('mtg-manual-toggle');
+  if (box) box.style.display = '';
+  if (toggle) toggle.style.display = 'none';
+}
+
+$('mtg-manual-toggle').addEventListener('click', (e) => {
+  e.preventDefault();
+  showMtgManualConfig();
+  $('mtg-url').focus();
+});
+
 function openSettingsSection(sectionId, focusInputId) {
   document.getElementById('settings-overlay').classList.add('open');
+  // O URL do MTG normalmente está escondido (preenchido sozinho) — se for
+  // esse o campo a focar, mostra a configuração manual primeiro, senão
+  // o campo não aparece para se poder escrever nele.
+  if (focusInputId === 'mtg-url') showMtgManualConfig();
   requestAnimationFrame(() => {
     const sec = document.getElementById(sectionId);
     if (sec) sec.scrollIntoView({ block: 'start' });
