@@ -1634,16 +1634,14 @@ function renameTargetPoint(id) {
   }
 }
 
-// Apagar um ponto de referência pede confirmação DUPLA (duas perguntas
-// seguidas) — tanto a apagar a partir do balão no mapa como a partir da
-// lista no painel "+" — para evitar apagar por engano.
+// Apagar um ponto de referência pede confirmação — tanto a apagar a partir
+// do balão no mapa como a partir da lista no painel "+".
 async function confirmDeleteTargetPoint(id) {
   id = Number(id);
   const point = targetPoints.find(p => p.id === id);
   if (!point) return;
   const label = point.label || 'Ponto sem nome';
-  if (!await showConfirm(`Apagar o ponto "${label}"?`)) return;
-  if (!await showConfirm('Tens a certeza? Esta ação não pode ser desfeita.')) return;
+  if (!await showConfirm(`Apagar o ponto "${label}"? Esta ação não pode ser desfeita.`)) return;
   const marker = targetMarkers[id];
   if (marker && marker.isPopupOpen && marker.isPopupOpen()) marker.closePopup();
   removeTargetPoint(id);
