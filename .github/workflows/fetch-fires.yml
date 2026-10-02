@@ -59,6 +59,14 @@ jobs:
             exit 0
           fi
 
+          # Guarda à parte o que foi gerado agora (incluindo os ficheiros
+          # novos/apagados por instante em docs/mtg_history), para poder
+          # reaplicá-lo tal e qual a cada tentativa, depois de alinhar tudo
+          # o resto com o origin/main mais recente (ver nota abaixo).
+          rm -rf /tmp/mtg-out && mkdir -p /tmp/mtg-out/mtg_history
+          cp docs/portugal_fires_mtg.json /tmp/mtg-out/
+          cp -r docs/mtg_history/. /tmp/mtg-out/mtg_history/
+
           MSG="Atualiza focos de calor MTG"
           git add docs/portugal_fires_mtg.json docs/mtg_history
           git commit -m "$MSG"
@@ -71,16 +79,22 @@ jobs:
             echo "Push falhou (tentativa $i) — provavelmente outra execução publicou entretanto. A sincronizar e a tentar de novo..."
             sleep $(( (RANDOM % 5) + 2 ))
             git fetch origin main
-            # Estes ficheiros são sempre uma fotografia atual (reescritos por
-            # inteiro a cada ciclo) — não há nada para reconciliar linha a
-            # linha com o que outra execução tenha publicado entretanto. Em
-            # vez de "pull --rebase" (que pode gerar um conflito de texto
-            # real se duas execuções mudarem as mesmas linhas do mesmo JSON
-            # quase ao mesmo tempo — a causa mais provável das falhas
-            # ocasionais deste workflow), avança-se o commit já preparado
-            # para cima do que está agora em origin/main: a versão mais
-            # recente publica-se sempre, sem possibilidade de conflito.
+            # IMPORTANTE: "git reset --soft origin/main" sozinho move o
+            # HEAD mas deixa o índice tal como estava no checkout inicial
+            # do job — ou seja, para QUALQUER ficheiro que outra pessoa
+            # tenha entretanto alterado e publicado em origin/main nesse
+            # intervalo (ex.: a própria página HTML, editada manualmente),
+            # o commit seguinte reintroduzia a versão antiga desse ficheiro
+            # por cima da nova, revertendo-a silenciosamente. Por isso
+            # alinha-se primeiro TUDO com o novo origin/main
+            # (checkout -- .) e só depois se voltam a aplicar por cima,
+            # deliberadamente, só os ficheiros que este workflow gera.
             git reset --soft origin/main
+            git checkout origin/main -- .
+            rm -rf docs/mtg_history
+            cp /tmp/mtg-out/portugal_fires_mtg.json docs/portugal_fires_mtg.json
+            cp -r /tmp/mtg-out/mtg_history docs/mtg_history
+            git add docs/portugal_fires_mtg.json docs/mtg_history
             git commit -m "$MSG"
           done
 
