@@ -447,7 +447,7 @@
      ícone esmaecido/cinzento para se distinguir claramente de uma posição
      ao vivo, com etiqueta em tom neutro (em vez de âmbar) e a indicar há
      quanto tempo foi vista pela última vez. */
-  .inem-last-known-glyph{opacity:.55;filter:grayscale(.35) drop-shadow(0 0 3px rgba(0,0,0,.7));}
+  .inem-last-known-glyph{opacity:.5;filter:grayscale(.8) brightness(.9) drop-shadow(0 0 3px rgba(0,0,0,.7));}
   .inem-last-known-label{
     background:rgba(10,14,20,.88);border-color:var(--muted);color:var(--muted);
   }
@@ -466,8 +466,10 @@
      sempre a mesma cor independentemente da fonte dos dados (adsb.fi/
      airplanes.live) e tanto em voo como parada/no solo. Aproximação por
      filtro CSS sobre a imagem já existente (que é amarelo/laranja na
-     base), não um preenchimento plano exato ao hex. */
-  .aircraft-heli-inem{filter:hue-rotate(28deg) saturate(1.9) brightness(1.08);}
+     base), não um preenchimento plano exato ao hex — afinada para a
+     amostra de RAL1016 enviada pelo Rui (menos esverdeada que a
+     primeira tentativa). */
+  .aircraft-heli-inem{filter:hue-rotate(9deg) saturate(.5) brightness(1.1);}
 
   /* lista individual dos Heli INEM (visibilidade + raio de ação por meio) */
   .heli-inem-row{border:1px solid var(--line);border-radius:8px;padding:7px 9px;margin-top:6px;}
@@ -2594,7 +2596,7 @@ function isHelicopter(ac) {
   return false;
 }
 
-const INEM_YELLOW_HEX = '#EDFF21'; // amarelo INEM, RAL 1016 (aproximado)
+const INEM_YELLOW_HEX = '#E7E26C'; // amarelo INEM, RAL 1016 (aproximado por amostra enviada pelo Rui)
 
 function buildAircraftIcon(source, ac) {
   const color = source === 'airplanes.live' ? '#e2a23c' : '#5bc0eb';
