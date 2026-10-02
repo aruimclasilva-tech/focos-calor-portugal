@@ -149,6 +149,44 @@ def update_trails(outdir, aircraft, generated_at):
     return path
 
 
+# ---------------------------------------------------------------------------
+# Última posição conhecida (nunca podada) de cada aeronave do grupo
+# ---------------------------------------------------------------------------
+# O trajeto acima guarda só as últimas TRAIL_RETENTION_HOURS (6h) — é o que
+# desenha a linha do rasto recente. Mas quando uma aeronave para de
+# reportar durante mais de 6h (pousada, transponder desligado, fora de
+# alcance), esse corte apagava também a ÚLTIMA posição conhecida, fazendo
+# o ícone correspondente desaparecer do mapa por completo — o que não é o
+# pretendido: o Heli deve continuar sempre visível no último sítio onde
+# foi visto, com a indicação de quando ("Last seen"), por muito tempo que
+# tenha passado. Por isso guarda-se à parte, num ficheiro que nunca é
+# podado por idade — só é substituído quando há uma leitura mais recente.
+def update_last_seen(outdir, aircraft, generated_at):
+    path = os.path.join(outdir, "aircraft_last_seen.json")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            last_seen = json.load(f)
+        if not isinstance(last_seen, dict):
+            last_seen = {}
+    except Exception:
+        last_seen = {}
+
+    for ac in aircraft:
+        canonical = _match_tracked(ac)
+        if not canonical:
+            continue
+        lat, lon = ac.get("lat"), ac.get("lon")
+        if lat is None or lon is None:
+            continue
+        key = canonical.upper()
+        last_seen[key] = {"t": generated_at, "lat": lat, "lon": lon}
+
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(last_seen, f, ensure_ascii=False)
+
+    return path
+
+
 def fetch_adsbfi():
     url = f"https://opendata.adsb.fi/api/v3/lat/{CENTER_LAT}/lon/{CENTER_LON}/dist/{RADIUS_NM}"
     resp = requests.get(url, headers=BROWSER_HEADERS, timeout=20)
@@ -202,6 +240,11 @@ def main():
             print(f"Trajetos Heli INEM atualizados -> {trails_path}")
         except Exception as exc:
             print(f"Aviso: falha ao atualizar trajetos Heli INEM: {exc}", file=sys.stderr)
+        try:
+            last_seen_path = update_last_seen(args.outdir, out["aircraft"], out["generated_at"])
+            print(f"Última posição conhecida atualizada -> {last_seen_path}")
+        except Exception as exc:
+            print(f"Aviso: falha ao atualizar última posição conhecida: {exc}", file=sys.stderr)
     else:
         print(f"FALHOU (adsb.fi e airplanes.live) — {error}", file=sys.stderr)
         # Não é fatal para o workflow: escreve o ficheiro na mesma (lista

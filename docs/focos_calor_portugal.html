@@ -2261,6 +2261,7 @@ const AIRCRAFT_JSON_URL = './portugal_aircraft.json';
 // do dispositivo/browser.
 // ---------------------------------------------------------------
 const AIRCRAFT_TRAILS_URL = './aircraft_trails.json';
+const AIRCRAFT_LAST_SEEN_URL = './aircraft_last_seen.json';
 const AIRCRAFT_TRAILS_POLL_MS = 120000;
 let inemTrailsOn = false;
 let inemTrailsTimer = null;
@@ -2269,7 +2270,17 @@ const inemTrailLayers = {}; // matrícula -> L.Polyline
 async function fetchInemTrails() {
   const res = await fetch(`${AIRCRAFT_TRAILS_URL}?t=${Date.now()}`);
   if (!res.ok) throw new Error('aircraft_trails.json HTTP ' + res.status);
-  return res.json(); // { "9H-GMA": [{t,lat,lon}, ...], ... }
+  return res.json(); // { "9H-GMA": [{t,lat,lon}, ...], ... } — só as últimas ~6h
+}
+
+// Última posição conhecida de cada aeronave rastreada, NUNCA podada por
+// idade (ao contrário de aircraft_trails.json, que só guarda ~6h) — é o
+// que mantém o ícone "Last seen" visível no mapa por muito tempo que a
+// aeronave passe sem reportar posição.
+async function fetchInemLastSeen() {
+  const res = await fetch(`${AIRCRAFT_LAST_SEEN_URL}?t=${Date.now()}`);
+  if (!res.ok) throw new Error('aircraft_last_seen.json HTTP ' + res.status);
+  return res.json(); // { "9H-GMA": {t,lat,lon}, ... }
 }
 
 function clearInemTrailLayers() {
@@ -2407,8 +2418,17 @@ function notifyInemTakeoff(matricula, baseIdx) {
   }
 }
 
-function buildInemLastKnownIcon(baseIdx, ageText) {
-  const label = `${inemBaseShortName(baseIdx)} · ${ageText}`;
+// Data/hora sempre completa (dia/mês + hora), nunca abreviada para "hoje"
+// — ao contrário de fmtDateTime(), aqui a data interessa sempre ver,
+// mesmo que seja o próprio dia, porque é exatamente a informação pedida
+// ("Last seen" com hora e data a seguir).
+function fmtLastSeen(d) {
+  if (!d || isNaN(d.getTime())) return '—';
+  return d.toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+function buildInemLastKnownIcon(baseIdx, lastSeenText) {
+  const label = `${inemBaseShortName(baseIdx)} · Last seen ${lastSeenText}`;
   const html = `
     <div class="aircraft-glyph inem-last-known-glyph">${aircraftHeliGlyphSvg(null, true)}</div>
     <div class="aircraft-inem-label inem-last-known-label">${escapeHtml(label)}</div>
@@ -2426,14 +2446,13 @@ async function refreshInemLastKnown() {
   if (!heliInemMasterOn) return;
   let data;
   try {
-    data = await fetchInemTrails();
+    data = await fetchInemLastSeen();
   } catch {
     return; // sem dados neste ciclo — mantém o que já lá está até ao próximo
   }
   for (let idx = 0; idx < INEM_HELIS.length; idx++) {
     const matricula = inemBaseMatricula(idx);
-    const pts = (matricula && data[matricula]) || [];
-    const last = pts.length ? pts[pts.length - 1] : null;
+    const last = (matricula && data[matricula]) || null;
     const live = matricula && isRegistrationLiveOnMap(matricula);
 
     if (matricula) {
@@ -2450,9 +2469,13 @@ async function refreshInemLastKnown() {
       continue;
     }
 
+    // Esta posição nunca é podada por idade (ver aircraft_last_seen.json em
+    // aircraft_fetch.py) — o ícone fica visível no mapa indefinidamente,
+    // por muito tempo que a aeronave passe sem reportar.
+    const lastSeenText = fmtLastSeen(new Date(last.t));
     const ageText = fmtAgeShort(new Date(last.t));
-    const tooltip = `${matricula} — última posição conhecida ${fmtDateTime(new Date(last.t))} (${ageText})`;
-    const icon = buildInemLastKnownIcon(idx, ageText);
+    const tooltip = `${matricula} — Last seen ${lastSeenText} (${ageText})`;
+    const icon = buildInemLastKnownIcon(idx, lastSeenText);
     if (!inemLastKnownMarkers[idx]) {
       inemLastKnownMarkers[idx] = L.marker([last.lat, last.lon], { icon, zIndexOffset: 700 })
         .bindTooltip(tooltip, { sticky: true })
