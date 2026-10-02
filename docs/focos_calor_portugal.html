@@ -445,12 +445,9 @@
   }
   /* "última posição conhecida" de um Heli INEM fora da cobertura ADS-B —
      ícone esmaecido/cinzento para se distinguir claramente de uma posição
-     ao vivo, com etiqueta em tom neutro (em vez de âmbar) e a indicar há
-     quanto tempo foi vista pela última vez. */
+     ao vivo, sem etiqueta fixa por baixo (a informação "Last seen" só
+     aparece num balão ao clicar no ícone). */
   .inem-last-known-glyph{opacity:.5;filter:grayscale(.8) brightness(.9) drop-shadow(0 0 3px rgba(0,0,0,.7));}
-  .inem-last-known-label{
-    background:rgba(10,14,20,.88);border-color:var(--muted);color:var(--muted);
-  }
   .aircraft-glyph{
     width:100%;height:100%;display:flex;align-items:center;justify-content:center;
     transition:transform .3s linear;
@@ -2429,12 +2426,12 @@ function fmtLastSeen(d) {
   return d.toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
-function buildInemLastKnownIcon(baseIdx, lastSeenText) {
-  const label = `${inemBaseShortName(baseIdx)} · Last seen ${lastSeenText}`;
-  const html = `
-    <div class="aircraft-glyph inem-last-known-glyph">${aircraftHeliGlyphSvg(null, true)}</div>
-    <div class="aircraft-inem-label inem-last-known-label">${escapeHtml(label)}</div>
-  `;
+// Sem etiqueta permanente por baixo do ícone (ao contrário da aeronave ao
+// vivo) — fora de cobertura, a aeronave fica só com o ícone esbatido; a
+// informação "Last seen" só aparece ao clicar (balão), para não poluir o
+// mapa com texto fixo sobre algo que já não está a acontecer agora.
+function buildInemLastKnownIcon(baseIdx) {
+  const html = `<div class="aircraft-glyph inem-last-known-glyph">${aircraftHeliGlyphSvg(null, true)}</div>`;
   return L.divIcon({
     className: 'aircraft-marker-icon inem-last-known-icon',
     html,
@@ -2442,6 +2439,15 @@ function buildInemLastKnownIcon(baseIdx, lastSeenText) {
     iconAnchor: [11, 13],
     popupAnchor: [0, -12]
   });
+}
+
+function heliInemLastKnownPopupHtml(baseIdx, matricula, lastSeenText, ageText) {
+  return `
+    <div class="popup-title">🚁 ${escapeHtml(inemBaseShortName(baseIdx))}</div>
+    <div class="popup-row"><span>Matrícula</span><b>${escapeHtml(matricula || '—')}</b></div>
+    <div class="popup-row"><span>Last seen</span><b>${escapeHtml(lastSeenText)}</b></div>
+    <div class="popup-row"><span>Há</span><b>${escapeHtml(ageText)}</b></div>
+  `;
 }
 
 async function refreshInemLastKnown() {
@@ -2473,19 +2479,21 @@ async function refreshInemLastKnown() {
 
     // Esta posição nunca é podada por idade (ver aircraft_last_seen.json em
     // aircraft_fetch.py) — o ícone fica visível no mapa indefinidamente,
-    // por muito tempo que a aeronave passe sem reportar.
+    // por muito tempo que a aeronave passe sem reportar. A informação
+    // "Last seen" não fica em etiqueta/tooltip permanente — só aparece
+    // num balão ao clicar no ícone.
     const lastSeenText = fmtLastSeen(new Date(last.t));
     const ageText = fmtAgeShort(new Date(last.t));
-    const tooltip = `${matricula} — Last seen ${lastSeenText} (${ageText})`;
-    const icon = buildInemLastKnownIcon(idx, lastSeenText);
+    const popupHtml = heliInemLastKnownPopupHtml(idx, matricula, lastSeenText, ageText);
+    const icon = buildInemLastKnownIcon(idx);
     if (!inemLastKnownMarkers[idx]) {
       inemLastKnownMarkers[idx] = L.marker([last.lat, last.lon], { icon, zIndexOffset: 700 })
-        .bindTooltip(tooltip, { sticky: true })
+        .bindPopup(popupHtml)
         .addTo(map);
     } else {
       inemLastKnownMarkers[idx].setLatLng([last.lat, last.lon]);
       inemLastKnownMarkers[idx].setIcon(icon);
-      inemLastKnownMarkers[idx].setTooltipContent(tooltip);
+      inemLastKnownMarkers[idx].setPopupContent(popupHtml);
     }
   }
 }
