@@ -403,7 +403,9 @@
     width:28px;height:28px;border-radius:50%;
     background:#ffd100;border:2px solid #1a1a1a;
     display:flex;align-items:center;justify-content:center;
-    font-size:15px;line-height:1;box-shadow:0 0 6px rgba(255,209,0,.7);
+    font-size:9.5px;font-weight:800;letter-spacing:-0.3px;line-height:1;
+    color:#1a1a1a;font-family:var(--mono);
+    box-shadow:0 0 6px rgba(255,209,0,.7);
   }
   .target-pin{
     position:relative;width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);
@@ -460,6 +462,12 @@
      para a fonte airplanes.live; para adsb.fi roda-se a cor para azul,
      para manter a mesma distinção de cor por fonte que o avião usa. */
   .aircraft-heli-blue{filter:hue-rotate(165deg) saturate(1.7) brightness(1.08);}
+  /* aeronave atribuída a uma base Heli INEM — amarelo INEM (RAL 1016),
+     sempre a mesma cor independentemente da fonte dos dados (adsb.fi/
+     airplanes.live) e tanto em voo como parada/no solo. Aproximação por
+     filtro CSS sobre a imagem já existente (que é amarelo/laranja na
+     base), não um preenchimento plano exato ao hex. */
+  .aircraft-heli-inem{filter:hue-rotate(28deg) saturate(1.9) brightness(1.08);}
 
   /* lista individual dos Heli INEM (visibilidade + raio de ação por meio) */
   .heli-inem-row{border:1px solid var(--line);border-radius:8px;padding:7px 9px;margin-top:6px;}
@@ -1279,7 +1287,7 @@ function heliInemPopupHtml(idx) {
     return `<option value="${m}" ${sel}>${m}${busyNote}</option>`;
   }).join('');
   return `
-    <div class="popup-title">🚁 ${h.nome}</div>
+    <div class="popup-title">🚁 Base Heli INEM ${inemBaseShortName(idx)}</div>
     <div class="popup-row"><span>Local</span><b>${h.local}</b></div>
     <div class="popup-row"><span>Matrícula</span><b>${current || '—'}${overridden ? ' <small style="color:var(--amber);">(troca local)</small>' : ''}</b></div>
     <div class="popup-row"><span>Modelo</span><b>${h.modelo}</b></div>
@@ -1297,7 +1305,7 @@ function buildHeliInemMarker(h, idx) {
   const marker = L.marker([h.lat, h.lon], {
     icon: L.divIcon({
       className: 'heli-marker-icon',
-      html: `<div class="inem-pin">🚁</div>`,
+      html: `<div class="inem-pin">BHI</div>`,
       iconSize: [28, 28],
       iconAnchor: [14, 14],
       popupAnchor: [0, -14]
@@ -2383,7 +2391,7 @@ function notifyInemTakeoff(matricula, baseIdx) {
 function buildInemLastKnownIcon(baseIdx, ageText) {
   const label = `${inemBaseShortName(baseIdx)} · ${ageText}`;
   const html = `
-    <div class="aircraft-glyph inem-last-known-glyph">${aircraftHeliGlyphSvg('#5bc0eb')}</div>
+    <div class="aircraft-glyph inem-last-known-glyph">${aircraftHeliGlyphSvg(null, true)}</div>
     <div class="aircraft-inem-label inem-last-known-label">${escapeHtml(label)}</div>
   `;
   return L.divIcon({
@@ -2503,9 +2511,13 @@ function aircraftPlaneGlyphSvg(colorHex) {
 // X, cabine com janela, cauda com estabilizador), já recortada sem fundo
 // branco. Para distinguir a fonte dos dados (adsb.fi vs airplanes.live),
 // aplica-se um filtro de cor por CSS: o amarelo/laranja original fica tal
-// e qual para airplanes.live, e é rodado para azul para o adsb.fi.
-function aircraftHeliGlyphSvg(colorHex) {
-  const cls = colorHex === '#e2a23c' ? 'aircraft-heli-img' : 'aircraft-heli-img aircraft-heli-blue';
+// e qual para airplanes.live, e é rodado para azul para o adsb.fi — exceto
+// para uma aeronave atribuída a uma base Heli INEM, que usa sempre o
+// amarelo INEM (RAL 1016), independentemente da fonte dos dados.
+function aircraftHeliGlyphSvg(colorHex, isInem) {
+  let cls = 'aircraft-heli-img';
+  if (isInem) cls += ' aircraft-heli-inem';
+  else if (colorHex !== '#e2a23c') cls += ' aircraft-heli-blue';
   return `<img class="${cls}" src="./icons/heli-topdown.png" alt="">`;
 }
 
@@ -2540,18 +2552,23 @@ function isHelicopter(ac) {
   return false;
 }
 
+const INEM_YELLOW_HEX = '#EDFF21'; // amarelo INEM, RAL 1016 (aproximado)
+
 function buildAircraftIcon(source, ac) {
   const color = source === 'airplanes.live' ? '#e2a23c' : '#5bc0eb';
   const heli = isHelicopter(ac);
-  const glyph = heli ? aircraftHeliGlyphSvg(color) : aircraftPlaneGlyphSvg(color);
+  // Se a matrícula desta aeronave corresponder a uma base Heli INEM
+  // (atribuição de origem ou troca local), usa sempre o amarelo INEM —
+  // tanto em voo como parada no solo — em vez da cor normal por fonte
+  // de dados, e mostra sempre o nome da base ("Norte"/"Centro"/"Sul"/
+  // "Algarve") junto ao ícone, fora do elemento que roda com o rumo
+  // (para o texto nunca ficar de lado).
+  const baseLabel = heli ? inemBaseLabelForRegistration(ac.r) : null;
+  const isInem = !!baseLabel;
+  const glyph = heli ? aircraftHeliGlyphSvg(color, isInem) : aircraftPlaneGlyphSvg(isInem ? INEM_YELLOW_HEX : color);
   // A imagem do helicóptero não é quadrada (é um pouco mais alta que
   // larga) — usa-se o tamanho correspondente para não distorcer.
   const size = heli ? [22, 26] : [25, 25];
-  // Se a matrícula desta aeronave corresponder a uma base Heli INEM
-  // (atribuição de origem ou troca local), mostra sempre o nome da base
-  // (só o local — "Norte"/"Centro"/"Sul"/"Algarve") junto ao ícone, fora
-  // do elemento que roda com o rumo (para o texto nunca ficar de lado).
-  const baseLabel = heli ? inemBaseLabelForRegistration(ac.r) : null;
   const labelHtml = baseLabel ? `<div class="aircraft-inem-label">${escapeHtml(baseLabel)}</div>` : '';
   return L.divIcon({
     className: 'aircraft-marker-icon' + (baseLabel ? ' has-inem-label' : ''),
