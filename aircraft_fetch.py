@@ -85,7 +85,22 @@ def _norm_reg(r):
     return (r or "").upper().replace(" ", "").replace("-", "")
 
 
-TRACKED_NORM = {_norm_reg(r) for r in TRACKED_REGISTRATIONS}
+def _match_tracked(ac):
+    """Devolve a matrícula "canónica" (de TRACKED_REGISTRATIONS, com
+    hífen) se esta aeronave corresponder a uma base Heli INEM — confirma
+    pela matrícula ADS-B ("r") e, se essa não bater certo, também pelo
+    indicativo/callsign ("flight"). Cobre um caso já visto na prática: a
+    base de dados de matrículas/tipos da fonte ADS-B pode estar errada
+    para um hex em concreto (devolve outra matrícula/tipo qualquer), mas o
+    indicativo que a própria aeronave transmite — convenção comum: a
+    matrícula sem o hífen — continua correto e identifica-a na mesma."""
+    reg_norm = _norm_reg(ac.get("r"))
+    flight_norm = _norm_reg(ac.get("flight"))
+    for tracked in TRACKED_REGISTRATIONS:
+        tn = _norm_reg(tracked)
+        if tn == reg_norm or (flight_norm and tn == flight_norm):
+            return tracked
+    return None
 
 
 def update_trails(outdir, aircraft, generated_at):
@@ -104,13 +119,13 @@ def update_trails(outdir, aircraft, generated_at):
     cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=TRAIL_RETENTION_HOURS)
 
     for ac in aircraft:
-        reg = ac.get("r")
-        if not reg or _norm_reg(reg) not in TRACKED_NORM:
+        canonical = _match_tracked(ac)
+        if not canonical:
             continue
         lat, lon = ac.get("lat"), ac.get("lon")
         if lat is None or lon is None:
             continue
-        key = reg.upper()
+        key = canonical.upper()
         trails.setdefault(key, []).append({"t": generated_at, "lat": lat, "lon": lon})
 
     for key in list(trails.keys()):

@@ -1248,6 +1248,20 @@ function inemBaseLabelForRegistration(reg) {
   return idx >= 0 ? inemBaseShortName(idx) : null;
 }
 
+// Igual, mas a partir do registo ADS-B completo da aeronave — confirma
+// pela matrícula ("r") e, se essa não corresponder, também pelo
+// indicativo/callsign ("flight"). Isto cobre o caso (já visto na prática)
+// em que a base de dados de matrículas da fonte ADS-B está errada para o
+// hex em causa (ex. devolve uma matrícula/tipo de outra aeronave), mas o
+// indicativo que a própria aeronave transmite — convenção comum: a
+// matrícula sem o hífen — continua correto e bate certo com o grupo INEM.
+function inemBaseLabelForAircraft(ac) {
+  if (!ac) return null;
+  const byReg = inemBaseLabelForRegistration(ac.r);
+  if (byReg) return byReg;
+  return inemBaseLabelForRegistration(ac.flight);
+}
+
 // Troca a aeronave atribuída a uma base. Se essa matrícula já estiver
 // noutra base, as duas trocam entre si (para nunca ficarem duas bases com
 // a mesma aeronave "atribuída" em simultâneo).
@@ -2338,11 +2352,16 @@ function fmtAgeShort(date) {
 
 // Já está a aparecer como aeronave ao vivo no mapa (rastreio ligado e a
 // apanhar o sinal) — nesse caso não faz sentido duplicar com um ícone de
-// "última posição conhecida" por cima.
+// "última posição conhecida" por cima. Confirma pela matrícula ("r") e,
+// se essa não bater certo, também pelo indicativo/callsign ("flight") —
+// mesma razão de inemBaseLabelForAircraft: a base de dados de matrículas
+// da fonte ADS-B pode estar errada para um hex em concreto.
 function isRegistrationLiveOnMap(matricula) {
   const norm = normalizeAircraftIdent(matricula);
   if (!norm) return false;
-  return Object.values(aircraftLastData).some(d => normalizeAircraftIdent(d.ac && d.ac.r) === norm);
+  return Object.values(aircraftLastData).some(d =>
+    normalizeAircraftIdent(d.ac && d.ac.r) === norm || normalizeAircraftIdent(d.ac && d.ac.flight) === norm
+  );
 }
 
 // ---------------------------------------------------------------
@@ -2563,7 +2582,7 @@ function buildAircraftIcon(source, ac) {
   // de dados, e mostra sempre o nome da base ("Norte"/"Centro"/"Sul"/
   // "Algarve") junto ao ícone, fora do elemento que roda com o rumo
   // (para o texto nunca ficar de lado).
-  const baseLabel = heli ? inemBaseLabelForRegistration(ac.r) : null;
+  const baseLabel = heli ? inemBaseLabelForAircraft(ac) : null;
   const isInem = !!baseLabel;
   const glyph = heli ? aircraftHeliGlyphSvg(color, isInem) : aircraftPlaneGlyphSvg(isInem ? INEM_YELLOW_HEX : color);
   // A imagem do helicóptero não é quadrada (é um pouco mais alta que
