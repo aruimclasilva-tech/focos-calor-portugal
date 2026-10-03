@@ -26,7 +26,13 @@ PATTERN = re.compile(r"LSA-509[\w\-]*ListProduct[\w\-]*_(\d{12})\.csv\.gz")
 
 
 def list_dir(url):
-    r = requests.get(url, timeout=60)
+    try:
+        r = requests.get(url, timeout=60)
+    except requests.RequestException as e:
+        # Falha de rede (não um 4xx/5xx) — devolve como "não encontrado"
+        # em vez de deixar a exceção propagar e abortar o script a meio
+        # de um percurso com muitos pedidos (ver discover_earliest).
+        return 0, f"(pedido falhou: {e})"
     return r.status_code, (r.text if r.status_code == 200 else "")
 
 
@@ -55,48 +61,56 @@ def discover_earliest(outdir):
         "steps": [],
     }
 
-    status, years = list_subdirs(BASE_URL)
-    result["steps"].append({"url": BASE_URL, "http_status": status, "entries": years})
-    if status != 200 or not years:
-        result["earliest_date"] = None
-        result["error"] = "não consegui listar o diretório base (ou está vazio)"
-        return result
+    # Tudo dentro de um try — para uma falha a meio do percurso (muitos
+    # pedidos encadeados: anos -> meses -> dias) deixar pelo menos os
+    # passos já percorridos no resultado, em vez de perder tudo.
+    try:
+        status, years = list_subdirs(BASE_URL)
+        result["steps"].append({"url": BASE_URL, "http_status": status, "entries": years})
+        if status != 200 or not years:
+            result["earliest_date"] = None
+            result["error"] = "não consegui listar o diretório base (ou está vazio)"
+            return result
 
-    # Tenta cada ano a partir do mais antigo — se um ano não tiver meses
-    # (pasta vazia/placeholder), avança para o seguinte.
-    for year in years:
-        year_url = urljoin(BASE_URL, f"{year}/")
-        status, months = list_subdirs(year_url)
-        result["steps"].append({"url": year_url, "http_status": status, "entries": months})
-        if status != 200 or not months:
-            continue
-
-        for month in months:
-            month_url = urljoin(year_url, f"{month}/")
-            status, days = list_subdirs(month_url)
-            result["steps"].append({"url": month_url, "http_status": status, "entries": days})
-            if status != 200 or not days:
+        # Tenta cada ano a partir do mais antigo — se um ano não tiver
+        # meses (pasta vazia/placeholder), avança para o seguinte.
+        for year in years:
+            year_url = urljoin(BASE_URL, f"{year}/")
+            status, months = list_subdirs(year_url)
+            result["steps"].append({"url": year_url, "http_status": status, "entries": months})
+            if status != 200 or not months:
                 continue
 
-            for day in days:
-                day_url = urljoin(month_url, f"{day}/")
-                status, html = list_dir(day_url)
-                if status != 200:
+            for month in months:
+                month_url = urljoin(year_url, f"{month}/")
+                status, days = list_subdirs(month_url)
+                result["steps"].append({"url": month_url, "http_status": status, "entries": days})
+                if status != 200 or not days:
                     continue
-                matches = sorted(set(PATTERN.finditer(html)), key=lambda m: m.group(1))
-                if matches:
-                    result["earliest_date"] = f"{year}-{month}-{day}"
-                    result["earliest_directory_url"] = day_url
-                    result["earliest_day_total_files"] = len(matches)
-                    result["earliest_file"] = matches[0].group(0)
-                    result["earliest_timestamp"] = matches[0].group(1)
-                    return result
-            # este mês não tinha nenhum dia com ficheiros — tenta o mês seguinte
-        # este ano não tinha nenhum mês com dias com ficheiros — tenta o ano seguinte
 
-    result["earliest_date"] = None
-    result["error"] = "percorri todos os anos/meses/dias listados e nenhum tinha ficheiros LSA-509"
-    return result
+                for day in days:
+                    day_url = urljoin(month_url, f"{day}/")
+                    status, html = list_dir(day_url)
+                    if status != 200:
+                        continue
+                    matches = sorted(set(PATTERN.finditer(html)), key=lambda m: m.group(1))
+                    if matches:
+                        result["earliest_date"] = f"{year}-{month}-{day}"
+                        result["earliest_directory_url"] = day_url
+                        result["earliest_day_total_files"] = len(matches)
+                        result["earliest_file"] = matches[0].group(0)
+                        result["earliest_timestamp"] = matches[0].group(1)
+                        return result
+                # este mês não tinha dias com ficheiros — tenta o mês seguinte
+            # este ano não tinha meses com dias com ficheiros — tenta o ano seguinte
+
+        result["earliest_date"] = None
+        result["error"] = "percorri todos os anos/meses/dias listados e nenhum tinha ficheiros LSA-509"
+        return result
+    except Exception as e:
+        result["earliest_date"] = None
+        result["error"] = f"exceção não tratada a meio do percurso: {type(e).__name__}: {e}"
+        return result
 
 
 def main():
@@ -110,13 +124,28 @@ def main():
     args = ap.parse_args()
 
     if args.discover_earliest:
-        result = discover_earliest(args.outdir)
+        try:
+            result = discover_earliest(args.outdir)
+        except Exception as e:
+            # Nunca deixar uma exceção a meio do percurso (muitos pedidos
+            # encadeados) abortar sem escrever nada — fica pelo menos o
+            # erro e os passos já percorridos até à falha.
+            result = {
+                "checked_at": dt.datetime.utcnow().isoformat() + "Z",
+                "mode": "discover_earliest",
+                "base_url": BASE_URL,
+                "earliest_date": None,
+                "error": f"exceção não tratada: {type(e).__name__}: {e}",
+            }
         os.makedirs(args.outdir, exist_ok=True)
         out_path = os.path.join(args.outdir, "mtg_archive_check.json")
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
         print(json.dumps(result, ensure_ascii=False, indent=2))
-        sys.exit(0 if result.get("earliest_date") else 1)
+        # Sai sempre com sucesso — o resultado (incluindo "error", se a
+        # procura não encontrou nada) é o que interessa consultar depois;
+        # sair com erro aqui só impedia o passo seguinte de o publicar.
+        sys.exit(0)
 
     if not args.date:
         print("ERRO: --date é obrigatório (ou usa --discover-earliest).", file=sys.stderr)
