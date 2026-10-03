@@ -1,14 +1,15 @@
 {
-  "checked_at": "2026-10-03T08:52:42.792540Z",
+  "checked_at": "2026-10-03T08:53:46.708472Z",
   "mode": "discover_earliest",
   "base_url": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/",
   "steps": [
     {
       "url": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/",
       "http_status": 200,
-      "entries": []
+      "entries": [],
+      "html_sample": "<!DOCTYPE html><html class=\"no-js\" lang=\"en\"><head><meta charset=\"utf-8\"><meta http-equiv=\"x-ua-compatible\" content=\"ie=edge\"><title>index - powered by LSA SAF)</title><meta name=\"description\" content=\"index - powered by LSASAF\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><link rel=\"shortcut icon\" href=\"/_h5ai/public/images/favicon/favicon-16-32.ico\"><link rel=\"apple-touch-icon-precomposed\" type=\"image/png\" href=\"/_h5ai/public/images/favicon/favicon-152.png\"><link rel=\"stylesheet\" href=\"/_h5ai/public/css/styles.css\"><script src=\"/_h5ai/public/js/scripts.js\" data-module=\"index\"></script><link rel=\"stylesheet\" href=\"//fonts.googleapis.com/css?family=Ubuntu:300,400,700%7CUbuntu+Mono:400,700\" class=\"x-head\"><style class=\"x-head\">#root,input,select{font-family:\"Ubuntu\",\"Roboto\",\"Helvetica\",\"Arial\",\"sans-serif\"!important}pre,code{font-family:\"Ubuntu Mono\",\"Monaco\",\"Lucida Sans Typewriter\",\"monospace\"!important}</style><!-- Matomo -->\n<script>\n  var _paq = window._paq = window._paq || [];\n  /* tracker methods like \"setCustomDimension\" should be called before \"trackPageView\" */\n  _paq.push(['trackPageView']);\n  _paq.push(['enableLinkTracking']);\n  (function() {\n    var u=\"//matomolsasaf.ipma.pt/\";\n    _paq.push(['setTrackerUrl', u+'matomo.php']);\n    _paq.push(['setSiteId', '1']);\n    // we now only track clicks on images\n    _paq.push(['setDownloadExtensions', \"nc\"]);\n    _paq.push(['trackPageView'])\n    var d=document, g=d.createElement('script'), s=d.getEle"
     }
   ],
   "earliest_date": null,
-  "error": "não consegui listar o diretório base (ou está vazio)"
+  "error": "não consegui listar o diretório base (ou está vazio) — ver html_sample no passo acima"
 }
