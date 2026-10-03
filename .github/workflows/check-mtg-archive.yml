@@ -9,8 +9,8 @@ on:
   workflow_dispatch:
     inputs:
       date:
-        description: 'Data a verificar (AAAA-MM-DD)'
-        required: true
+        description: 'Data a verificar (AAAA-MM-DD) — ignorado se discover_earliest=true'
+        required: false
       start_hour:
         description: 'Hora inicial (0-23)'
         required: false
@@ -19,6 +19,10 @@ on:
         description: 'Hora final, exclusiva (1-24)'
         required: false
         default: '24'
+      discover_earliest:
+        description: 'Em vez de verificar "date", descobre a data mais antiga disponível no arquivo (true/false)'
+        required: false
+        default: 'false'
 
 jobs:
   check:
@@ -35,13 +39,11 @@ jobs:
       - name: Instalar dependências
         run: pip install requests
 
-      - name: Verificar arquivo LSA SAF para a data pedida
+      - name: Verificar arquivo LSA SAF
         run: >
           python check_mtg_archive.py
-          --date "${{ inputs.date }}"
-          --start-hour "${{ inputs.start_hour }}"
-          --end-hour "${{ inputs.end_hour }}"
           --outdir docs
+          ${{ inputs.discover_earliest == 'true' && '--discover-earliest' || format('--date "{0}" --start-hour "{1}" --end-hour "{2}"', inputs.date, inputs.start_hour, inputs.end_hour) }}
 
       - name: Publicar resultado no repositório
         run: |
