@@ -455,15 +455,14 @@
   }
   .aircraft-glyph svg{width:23px;height:23px;}
   .aircraft-glyph img{width:100%;height:100%;object-fit:contain;display:block;}
-  /* a imagem do helicóptero vem em amarelo/laranja — já serve tal e qual
-     para a fonte airplanes.live; para adsb.fi roda-se a cor para azul,
-     para manter a mesma distinção de cor por fonte que o avião usa. */
+  /* cor por categoria da aeronave (não por fonte dos dados) — a imagem do
+     helicóptero vem em amarelo/laranja na base, rodada por filtro CSS.
+     Aproximação por filtro, não um preenchimento plano exato ao hex. */
   .aircraft-heli-blue{filter:hue-rotate(165deg) saturate(1.7) brightness(1.08);}
+  /* militar — verde tropa (aproximado). */
+  .aircraft-heli-military{filter:hue-rotate(32deg) saturate(.7) brightness(.7);}
   /* aeronave atribuída a uma base Heli INEM — amarelo INEM (RAL 1016),
-     sempre a mesma cor independentemente da fonte dos dados (adsb.fi/
-     airplanes.live) e tanto em voo como parada/no solo. Aproximação por
-     filtro CSS sobre a imagem já existente (que é amarelo/laranja na
-     base), não um preenchimento plano exato ao hex — afinada para a
+     sempre a mesma cor tanto em voo como parada/no solo. Afinada para a
      amostra de RAL1016 enviada pelo Rui (menos esverdeada que a
      primeira tentativa). */
   .aircraft-heli-inem{filter:hue-rotate(9deg) saturate(.5) brightness(1.1);}
@@ -2309,7 +2308,9 @@ async function refreshInemTrails() {
       return;
     }
     if (!inemTrailLayers[reg]) {
-      inemTrailLayers[reg] = L.polyline(latlngs, { color: '#5bc0eb', weight: 2.5, opacity: .75 })
+      // Mesma cor do ícone Heli INEM (amarelo RAL 1016) — este trajeto é
+      // sempre de uma aeronave do grupo INEM, nunca de outra categoria.
+      inemTrailLayers[reg] = L.polyline(latlngs, { color: INEM_YELLOW_HEX, weight: 2.5, opacity: .75 })
         .bindTooltip(`${label} (${reg}) — últimas 6h`, { sticky: true })
         .addTo(map);
     } else {
@@ -2431,7 +2432,7 @@ function fmtLastSeen(d) {
 // informação "Last seen" só aparece ao clicar (balão), para não poluir o
 // mapa com texto fixo sobre algo que já não está a acontecer agora.
 function buildInemLastKnownIcon(baseIdx) {
-  const html = `<div class="aircraft-glyph inem-last-known-glyph">${aircraftHeliGlyphSvg(null, true)}</div>`;
+  const html = `<div class="aircraft-glyph inem-last-known-glyph">${aircraftHeliGlyphSvg('aircraft-heli-inem')}</div>`;
   return L.divIcon({
     className: 'aircraft-marker-icon inem-last-known-icon',
     html,
@@ -2561,16 +2562,12 @@ function aircraftPlaneGlyphSvg(colorHex) {
 
 // Helicóptero — imagem fornecida pelo Rui (silhueta vista de cima, pás em
 // X, cabine com janela, cauda com estabilizador), já recortada sem fundo
-// branco. Para distinguir a fonte dos dados (adsb.fi vs airplanes.live),
-// aplica-se um filtro de cor por CSS: o amarelo/laranja original fica tal
-// e qual para airplanes.live, e é rodado para azul para o adsb.fi — exceto
-// para uma aeronave atribuída a uma base Heli INEM, que usa sempre o
-// amarelo INEM (RAL 1016), independentemente da fonte dos dados.
-function aircraftHeliGlyphSvg(colorHex, isInem) {
-  let cls = 'aircraft-heli-img';
-  if (isInem) cls += ' aircraft-heli-inem';
-  else if (colorHex !== '#e2a23c') cls += ' aircraft-heli-blue';
-  return `<img class="${cls}" src="./icons/heli-topdown.png" alt="">`;
+// branco. A cor é sempre por categoria da aeronave (independente da fonte
+// dos dados, adsb.fi ou airplanes.live): amarelo INEM (RAL 1016) para uma
+// base Heli INEM, verde tropa para militares, azul para as restantes —
+// aplicada por filtro CSS sobre a imagem (que é amarelo/laranja na base).
+function aircraftHeliGlyphSvg(heliClass) {
+  return `<img class="aircraft-heli-img ${heliClass}" src="./icons/heli-topdown.png" alt="">`;
 }
 
 // A categoria ADS-B "A7" (rotorcraft) nem sempre vem preenchida — sobretudo
@@ -2605,19 +2602,32 @@ function isHelicopter(ac) {
 }
 
 const INEM_YELLOW_HEX = '#E7E26C'; // amarelo INEM, RAL 1016 (aproximado por amostra enviada pelo Rui)
+const MILITARY_GREEN_HEX = '#6B8E23'; // verde tropa (aproximado)
+const AIRCRAFT_BLUE_HEX = '#5bc0eb'; // cor por omissão (não militar, não INEM)
+
+// Cor por categoria — sempre a mesma independentemente da fonte dos dados
+// (adsb.fi/airplanes.live): amarelo INEM > verde tropa (militar) > azul
+// (restantes). A mesma categoria/cor é usada depois no trajeto desenhado
+// em runtime (ver refreshAircraft) e no trajeto persistido dos Heli INEM
+// (ver refreshInemTrails), para o trajeto condizer sempre com o ícone.
+function aircraftCategoryStyle(ac, isInem) {
+  if (isInem) return { colorHex: INEM_YELLOW_HEX, heliClass: 'aircraft-heli-inem' };
+  if (aircraftIsMilitary(ac)) return { colorHex: MILITARY_GREEN_HEX, heliClass: 'aircraft-heli-military' };
+  return { colorHex: AIRCRAFT_BLUE_HEX, heliClass: 'aircraft-heli-blue' };
+}
 
 function buildAircraftIcon(source, ac) {
-  const color = source === 'airplanes.live' ? '#e2a23c' : '#5bc0eb';
   const heli = isHelicopter(ac);
   // Se a matrícula desta aeronave corresponder a uma base Heli INEM
   // (atribuição de origem ou troca local), usa sempre o amarelo INEM —
-  // tanto em voo como parada no solo — em vez da cor normal por fonte
-  // de dados, e mostra sempre o nome da base ("Norte"/"Centro"/"Sul"/
+  // tanto em voo como parada no solo — em vez da cor normal por
+  // categoria, e mostra sempre o nome da base ("Norte"/"Centro"/"Sul"/
   // "Algarve") junto ao ícone, fora do elemento que roda com o rumo
   // (para o texto nunca ficar de lado).
   const baseLabel = heli ? inemBaseLabelForAircraft(ac) : null;
   const isInem = !!baseLabel;
-  const glyph = heli ? aircraftHeliGlyphSvg(color, isInem) : aircraftPlaneGlyphSvg(isInem ? INEM_YELLOW_HEX : color);
+  const { colorHex, heliClass } = aircraftCategoryStyle(ac, isInem);
+  const glyph = heli ? aircraftHeliGlyphSvg(heliClass) : aircraftPlaneGlyphSvg(colorHex);
   // A imagem do helicóptero não é quadrada (é um pouco mais alta que
   // larga) — usa-se o tamanho correspondente para não distorcer.
   const size = heli ? [22, 26] : [25, 25];
@@ -2934,7 +2944,12 @@ async function refreshAircraft() {
     aircraftTrailPts[hex].push(latlng);
     if (aircraftTrailPts[hex].length > AIRCRAFT_TRAIL_MAX) aircraftTrailPts[hex].shift();
     if (!aircraftTrails[hex]) {
-      aircraftTrails[hex] = L.polyline(aircraftTrailPts[hex], { color: '#f1c40f', weight: 2, opacity: .7, dashArray: '2,4' }).addTo(map);
+      // Mesma cor do ícone (categoria da aeronave): amarelo INEM, verde
+      // tropa (militar) ou azul — em vez de uma única cor fixa para todas.
+      const heliTrail = isHelicopter(ac);
+      const baseLabelTrail = heliTrail ? inemBaseLabelForAircraft(ac) : null;
+      const trailColor = aircraftCategoryStyle(ac, !!baseLabelTrail).colorHex;
+      aircraftTrails[hex] = L.polyline(aircraftTrailPts[hex], { color: trailColor, weight: 2, opacity: .7, dashArray: '2,4' }).addTo(map);
     } else {
       aircraftTrails[hex].setLatLngs(aircraftTrailPts[hex]);
     }
