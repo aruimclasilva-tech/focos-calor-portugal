@@ -42,15 +42,27 @@ def list_dir(url):
 DIR_ENTRY_PATTERN = re.compile(r'href="(\d{2,4})/"')
 
 
+def _html_sample_for_diagnosis(html):
+    """Amostra do HTML centrada à volta da primeira pasta de ano visível
+    (ex. "2023/", "2025/"), em vez do início da página (que neste servidor
+    é só <head>/CSS sem nenhuma pasta listada) — para perceber o formato
+    real da listagem quando a expressão regular não apanha nada."""
+    m = re.search(r"20\d\d/", html)
+    if m:
+        start = max(0, m.start() - 300)
+        return html[start:start + 2500]
+    return html[:2500]
+
+
 def list_subdirs(url):
     status, html = list_dir(url)
     if status != 200:
-        return status, [], html[:0]
+        return status, [], ""
     names = sorted(set(DIR_ENTRY_PATTERN.findall(html)))
     # Se não apanhou nada, pode ser que o formato da listagem não seja o
     # esperado — devolve uma amostra do HTML para diagnóstico em vez de só
     # "sem entradas".
-    sample = html[:1500] if not names else ""
+    sample = _html_sample_for_diagnosis(html) if not names else ""
     return status, names, sample
 
 
