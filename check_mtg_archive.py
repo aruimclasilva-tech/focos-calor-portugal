@@ -36,10 +36,12 @@ def list_dir(url):
     return r.status_code, (r.text if r.status_code == 200 else "")
 
 
-# Entradas de diretório num Apache/nginx "autoindex" — nomes de
-# pasta terminados em "/", em href="...". Serve tanto para os níveis
+# Entradas de diretório — este servidor usa h5ai, que escreve o href como
+# caminho ABSOLUTO (ex. href="/PRODUCTS/MTG/MTFRPPixel/NATIVE/2025/"), não
+# relativo — por isso captura-se só o último segmento numérico antes do
+# "/" final, ignorando o resto do caminho. Serve tanto para os níveis
 # AAAA/ e MM/ como DD/ (a estrutura é sempre BASE_URL/AAAA/MM/DD/).
-DIR_ENTRY_PATTERN = re.compile(r'href="(\d{2,4})/"')
+DIR_ENTRY_PATTERN = re.compile(r'href="[^"]*?/(\d{2,4})/"')
 
 
 def _html_sample_for_diagnosis(html):
