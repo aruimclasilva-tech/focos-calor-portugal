@@ -1,15 +1,78 @@
 {
-  "checked_at": "2026-10-03T08:55:01.699232Z",
+  "checked_at": "2026-10-03T08:56:07.892965Z",
   "mode": "discover_earliest",
   "base_url": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/",
   "steps": [
     {
       "url": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/",
       "http_status": 200,
-      "entries": [],
-      "html_sample": "/folder-parent.png\" alt=\"folder-parent\"/></td><td class=\"fb-n\"><a href=\"..\">Parent Directory</a></td><td class=\"fb-d\"></td><td class=\"fb-s\"></td></tr><tr><td class=\"fb-i\"><img src=\"/_h5ai/public/images/fallback/folder.png\" alt=\"folder\"/></td><td class=\"fb-n\"><a href=\"/PRODUCTS/MTG/MTFRPPixel/NATIVE/2025/\">2025</a></td><td class=\"fb-d\">2025-12-01 00:18</td><td class=\"fb-s\"></td></tr><tr><td class=\"fb-i\"><img src=\"/_h5ai/public/images/fallback/folder.png\" alt=\"folder\"/></td><td class=\"fb-n\"><a href=\"/PRODUCTS/MTG/MTFRPPixel/NATIVE/2026/\">2026</a></td><td class=\"fb-d\">2026-10-01 00:18</td><td class=\"fb-s\"></td></tr></table></div></body></html>\n\n"
+      "entries": [
+        "2025",
+        "2026"
+      ],
+      "html_sample": ""
+    },
+    {
+      "url": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/2025/",
+      "http_status": 200,
+      "entries": [
+        "01",
+        "02",
+        "03",
+        "04",
+        "05",
+        "06",
+        "07",
+        "08",
+        "09",
+        "10",
+        "11",
+        "12"
+      ],
+      "html_sample": ""
+    },
+    {
+      "url": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/2025/01/",
+      "http_status": 200,
+      "entries": [
+        "01",
+        "02",
+        "03",
+        "04",
+        "05",
+        "06",
+        "07",
+        "08",
+        "09",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "20",
+        "21",
+        "22",
+        "23",
+        "24",
+        "25",
+        "26",
+        "27",
+        "28",
+        "29",
+        "30",
+        "31"
+      ],
+      "html_sample": ""
     }
   ],
-  "earliest_date": null,
-  "error": "não consegui listar o diretório base (ou está vazio) — ver html_sample no passo acima"
+  "earliest_date": "2025-01-01",
+  "earliest_directory_url": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/2025/01/01/",
+  "earliest_day_total_files": 288,
+  "earliest_file": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202501010000.csv.gz",
+  "earliest_timestamp": "202501010000"
 }
