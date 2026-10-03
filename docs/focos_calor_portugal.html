@@ -2744,11 +2744,13 @@ function clearAircraftLayer() {
 
 function aircraftTrackerUrl(source, hex) {
   // Página pública de rastreio ao vivo dessa aeronave, na mesma fonte que
-  // originou os dados — mostra histórico, foto (se existir) e mais detalhe
-  // do que cabe neste balão.
-  return source === 'airplanes.live'
-    ? `https://globe.airplanes.live/?icao=${hex}`
-    : `https://globe.adsb.fi/?icao=${hex}`;
+  // a reportou (pode ser a fonte principal do ciclo, ou outra — ver
+  // "src" em aircraft_fetch.py para o caso de uma Heli INEM recuperada
+  // por verificação cruzada) — mostra histórico, foto (se existir) e mais
+  // detalhe do que cabe neste balão.
+  if (source === 'airplanes.live') return `https://globe.airplanes.live/?icao=${hex}`;
+  if (source === 'adsb.lol') return `https://adsb.lol/?icao=${hex}`;
+  return `https://globe.adsb.fi/?icao=${hex}`;
 }
 
 function escapeHtml(s) {
@@ -2923,16 +2925,22 @@ async function refreshAircraft() {
     seenHex.add(hex);
     const latlng = [ac.lat, ac.lon];
     const heading = ac.track != null ? ac.track : (ac.true_heading != null ? ac.true_heading : 0);
-    aircraftLastData[hex] = { ac, source: result.source };
+    // Fonte real desta aeronave: normalmente a fonte principal do ciclo,
+    // mas uma Heli INEM recuperada por verificação cruzada traz a sua
+    // própria "src" (ver aircraft_fetch.py) — usa-se essa quando existir,
+    // para o link do tracker e o campo "Fonte" apontarem sempre ao sítio
+    // que a reportou de facto.
+    const acSource = ac.src || result.source;
+    aircraftLastData[hex] = { ac, source: acSource };
 
     if (!aircraftMarkers[hex]) {
-      aircraftMarkers[hex] = L.marker(latlng, { icon: buildAircraftIcon(result.source, ac), zIndexOffset: 800 })
-        .bindPopup(aircraftPopupHtml(ac, result.source))
+      aircraftMarkers[hex] = L.marker(latlng, { icon: buildAircraftIcon(acSource, ac), zIndexOffset: 800 })
+        .bindPopup(aircraftPopupHtml(ac, acSource))
         .addTo(map);
     } else {
       aircraftMarkers[hex].setLatLng(latlng);
-      aircraftMarkers[hex].setIcon(buildAircraftIcon(result.source, ac));
-      aircraftMarkers[hex].setPopupContent(aircraftPopupHtml(ac, result.source));
+      aircraftMarkers[hex].setIcon(buildAircraftIcon(acSource, ac));
+      aircraftMarkers[hex].setPopupContent(aircraftPopupHtml(ac, acSource));
     }
     const el = aircraftMarkers[hex].getElement();
     if (el) {
