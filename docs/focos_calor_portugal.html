@@ -1490,6 +1490,14 @@ function setHeliInemMaster(on) {
     INEM_HELIS.forEach((h, idx) => applyHeliVisibility(idx));
     if (sublistEl) sublistEl.style.display = 'none';
     stopInemLastKnownPolling();
+    // Esconder as bases Heli INEM esconde também os trajetos — não faz
+    // sentido ver o trajeto de um meio que se escolheu não mostrar.
+    if (inemTrailsOn) {
+      stopInemTrails();
+      const trailsCheckbox = $('show-inem-trails');
+      if (trailsCheckbox) trailsCheckbox.checked = false;
+      try { localStorage.setItem('firemap_cfg_show_inem_trails', '0'); } catch {}
+    }
   }
   try { localStorage.setItem('firemap_cfg_show_heli_inem', on ? '1' : '0'); } catch {}
 }
@@ -3108,7 +3116,18 @@ $('show-heli-inem').addEventListener('change', (e) => {
   setHeliInemMaster(e.target.checked);
 });
 $('show-inem-trails').addEventListener('change', (e) => {
-  if (e.target.checked) startInemTrails(); else stopInemTrails();
+  if (e.target.checked) {
+    // Ligar os trajetos também liga as bases e os helis na última posição
+    // conhecida — um trajeto sem o meio visível não faz sentido.
+    if (!heliInemMasterOn) {
+      const masterCheckbox = $('show-heli-inem');
+      if (masterCheckbox) masterCheckbox.checked = true;
+      setHeliInemMaster(true);
+    }
+    startInemTrails();
+  } else {
+    stopInemTrails();
+  }
   try { localStorage.setItem('firemap_cfg_show_inem_trails', e.target.checked ? '1' : '0'); } catch {}
 });
 $('show-inem-notify').addEventListener('change', async (e) => {
@@ -3947,6 +3966,12 @@ try {
   }
   if (localStorage.getItem('firemap_cfg_show_inem_trails') === '1') {
     $('show-inem-trails').checked = true;
+    // Trajetos implicam sempre bases + última posição ligados (ver
+    // cascata em setHeliInemMaster / listener de show-inem-trails).
+    if (!heliInemMasterOn) {
+      $('show-heli-inem').checked = true;
+      setHeliInemMaster(true);
+    }
     startInemTrails();
   }
   if (localStorage.getItem(INEM_NOTIFY_KEY) === '1' && 'Notification' in window && Notification.permission === 'granted') {
