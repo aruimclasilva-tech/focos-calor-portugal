@@ -1,0 +1,1162 @@
+{
+  "checked_at": "2026-10-03T08:22:13.934496Z",
+  "date": "2025-08-13",
+  "directory_url": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/2025/08/13/",
+  "http_status": 200,
+  "directory_exists": true,
+  "files_in_window": [
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130000.csv.gz",
+      "timestamp": "202508130000"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130000.csv.gz",
+      "timestamp": "202508130000"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130010.csv.gz",
+      "timestamp": "202508130010"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130010.csv.gz",
+      "timestamp": "202508130010"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130020.csv.gz",
+      "timestamp": "202508130020"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130020.csv.gz",
+      "timestamp": "202508130020"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130030.csv.gz",
+      "timestamp": "202508130030"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130030.csv.gz",
+      "timestamp": "202508130030"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130040.csv.gz",
+      "timestamp": "202508130040"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130040.csv.gz",
+      "timestamp": "202508130040"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130050.csv.gz",
+      "timestamp": "202508130050"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130050.csv.gz",
+      "timestamp": "202508130050"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130100.csv.gz",
+      "timestamp": "202508130100"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130100.csv.gz",
+      "timestamp": "202508130100"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130110.csv.gz",
+      "timestamp": "202508130110"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130110.csv.gz",
+      "timestamp": "202508130110"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130120.csv.gz",
+      "timestamp": "202508130120"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130120.csv.gz",
+      "timestamp": "202508130120"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130130.csv.gz",
+      "timestamp": "202508130130"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130130.csv.gz",
+      "timestamp": "202508130130"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130140.csv.gz",
+      "timestamp": "202508130140"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130140.csv.gz",
+      "timestamp": "202508130140"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130150.csv.gz",
+      "timestamp": "202508130150"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130150.csv.gz",
+      "timestamp": "202508130150"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130200.csv.gz",
+      "timestamp": "202508130200"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130200.csv.gz",
+      "timestamp": "202508130200"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130210.csv.gz",
+      "timestamp": "202508130210"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130210.csv.gz",
+      "timestamp": "202508130210"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130220.csv.gz",
+      "timestamp": "202508130220"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130220.csv.gz",
+      "timestamp": "202508130220"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130230.csv.gz",
+      "timestamp": "202508130230"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130230.csv.gz",
+      "timestamp": "202508130230"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130240.csv.gz",
+      "timestamp": "202508130240"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130240.csv.gz",
+      "timestamp": "202508130240"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130250.csv.gz",
+      "timestamp": "202508130250"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130250.csv.gz",
+      "timestamp": "202508130250"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130300.csv.gz",
+      "timestamp": "202508130300"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130300.csv.gz",
+      "timestamp": "202508130300"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130310.csv.gz",
+      "timestamp": "202508130310"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130310.csv.gz",
+      "timestamp": "202508130310"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130320.csv.gz",
+      "timestamp": "202508130320"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130320.csv.gz",
+      "timestamp": "202508130320"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130330.csv.gz",
+      "timestamp": "202508130330"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130330.csv.gz",
+      "timestamp": "202508130330"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130340.csv.gz",
+      "timestamp": "202508130340"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130340.csv.gz",
+      "timestamp": "202508130340"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130350.csv.gz",
+      "timestamp": "202508130350"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130350.csv.gz",
+      "timestamp": "202508130350"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130400.csv.gz",
+      "timestamp": "202508130400"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130400.csv.gz",
+      "timestamp": "202508130400"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130410.csv.gz",
+      "timestamp": "202508130410"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130410.csv.gz",
+      "timestamp": "202508130410"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130420.csv.gz",
+      "timestamp": "202508130420"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130420.csv.gz",
+      "timestamp": "202508130420"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130430.csv.gz",
+      "timestamp": "202508130430"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130430.csv.gz",
+      "timestamp": "202508130430"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130440.csv.gz",
+      "timestamp": "202508130440"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130440.csv.gz",
+      "timestamp": "202508130440"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130450.csv.gz",
+      "timestamp": "202508130450"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130450.csv.gz",
+      "timestamp": "202508130450"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130500.csv.gz",
+      "timestamp": "202508130500"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130500.csv.gz",
+      "timestamp": "202508130500"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130510.csv.gz",
+      "timestamp": "202508130510"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130510.csv.gz",
+      "timestamp": "202508130510"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130520.csv.gz",
+      "timestamp": "202508130520"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130520.csv.gz",
+      "timestamp": "202508130520"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130530.csv.gz",
+      "timestamp": "202508130530"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130530.csv.gz",
+      "timestamp": "202508130530"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130540.csv.gz",
+      "timestamp": "202508130540"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130540.csv.gz",
+      "timestamp": "202508130540"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130550.csv.gz",
+      "timestamp": "202508130550"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130550.csv.gz",
+      "timestamp": "202508130550"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130600.csv.gz",
+      "timestamp": "202508130600"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130600.csv.gz",
+      "timestamp": "202508130600"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130610.csv.gz",
+      "timestamp": "202508130610"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130610.csv.gz",
+      "timestamp": "202508130610"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130620.csv.gz",
+      "timestamp": "202508130620"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130620.csv.gz",
+      "timestamp": "202508130620"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130630.csv.gz",
+      "timestamp": "202508130630"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130630.csv.gz",
+      "timestamp": "202508130630"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130640.csv.gz",
+      "timestamp": "202508130640"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130640.csv.gz",
+      "timestamp": "202508130640"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130650.csv.gz",
+      "timestamp": "202508130650"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130650.csv.gz",
+      "timestamp": "202508130650"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130700.csv.gz",
+      "timestamp": "202508130700"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130700.csv.gz",
+      "timestamp": "202508130700"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130710.csv.gz",
+      "timestamp": "202508130710"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130710.csv.gz",
+      "timestamp": "202508130710"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130720.csv.gz",
+      "timestamp": "202508130720"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130720.csv.gz",
+      "timestamp": "202508130720"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130730.csv.gz",
+      "timestamp": "202508130730"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130730.csv.gz",
+      "timestamp": "202508130730"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130740.csv.gz",
+      "timestamp": "202508130740"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130740.csv.gz",
+      "timestamp": "202508130740"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130750.csv.gz",
+      "timestamp": "202508130750"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130750.csv.gz",
+      "timestamp": "202508130750"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130800.csv.gz",
+      "timestamp": "202508130800"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130800.csv.gz",
+      "timestamp": "202508130800"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130810.csv.gz",
+      "timestamp": "202508130810"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130810.csv.gz",
+      "timestamp": "202508130810"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130820.csv.gz",
+      "timestamp": "202508130820"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130820.csv.gz",
+      "timestamp": "202508130820"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130830.csv.gz",
+      "timestamp": "202508130830"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130830.csv.gz",
+      "timestamp": "202508130830"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130840.csv.gz",
+      "timestamp": "202508130840"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130840.csv.gz",
+      "timestamp": "202508130840"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130850.csv.gz",
+      "timestamp": "202508130850"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130850.csv.gz",
+      "timestamp": "202508130850"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130900.csv.gz",
+      "timestamp": "202508130900"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130900.csv.gz",
+      "timestamp": "202508130900"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130910.csv.gz",
+      "timestamp": "202508130910"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130910.csv.gz",
+      "timestamp": "202508130910"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130920.csv.gz",
+      "timestamp": "202508130920"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130920.csv.gz",
+      "timestamp": "202508130920"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130930.csv.gz",
+      "timestamp": "202508130930"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130930.csv.gz",
+      "timestamp": "202508130930"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130940.csv.gz",
+      "timestamp": "202508130940"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130940.csv.gz",
+      "timestamp": "202508130940"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130950.csv.gz",
+      "timestamp": "202508130950"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508130950.csv.gz",
+      "timestamp": "202508130950"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131000.csv.gz",
+      "timestamp": "202508131000"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131000.csv.gz",
+      "timestamp": "202508131000"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131010.csv.gz",
+      "timestamp": "202508131010"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131010.csv.gz",
+      "timestamp": "202508131010"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131020.csv.gz",
+      "timestamp": "202508131020"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131020.csv.gz",
+      "timestamp": "202508131020"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131030.csv.gz",
+      "timestamp": "202508131030"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131030.csv.gz",
+      "timestamp": "202508131030"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131040.csv.gz",
+      "timestamp": "202508131040"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131040.csv.gz",
+      "timestamp": "202508131040"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131050.csv.gz",
+      "timestamp": "202508131050"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131050.csv.gz",
+      "timestamp": "202508131050"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131100.csv.gz",
+      "timestamp": "202508131100"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131100.csv.gz",
+      "timestamp": "202508131100"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131110.csv.gz",
+      "timestamp": "202508131110"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131110.csv.gz",
+      "timestamp": "202508131110"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131120.csv.gz",
+      "timestamp": "202508131120"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131120.csv.gz",
+      "timestamp": "202508131120"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131130.csv.gz",
+      "timestamp": "202508131130"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131130.csv.gz",
+      "timestamp": "202508131130"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131140.csv.gz",
+      "timestamp": "202508131140"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131140.csv.gz",
+      "timestamp": "202508131140"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131150.csv.gz",
+      "timestamp": "202508131150"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131150.csv.gz",
+      "timestamp": "202508131150"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131200.csv.gz",
+      "timestamp": "202508131200"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131200.csv.gz",
+      "timestamp": "202508131200"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131210.csv.gz",
+      "timestamp": "202508131210"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131210.csv.gz",
+      "timestamp": "202508131210"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131220.csv.gz",
+      "timestamp": "202508131220"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131220.csv.gz",
+      "timestamp": "202508131220"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131230.csv.gz",
+      "timestamp": "202508131230"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131230.csv.gz",
+      "timestamp": "202508131230"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131240.csv.gz",
+      "timestamp": "202508131240"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131240.csv.gz",
+      "timestamp": "202508131240"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131250.csv.gz",
+      "timestamp": "202508131250"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131250.csv.gz",
+      "timestamp": "202508131250"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131300.csv.gz",
+      "timestamp": "202508131300"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131300.csv.gz",
+      "timestamp": "202508131300"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131310.csv.gz",
+      "timestamp": "202508131310"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131310.csv.gz",
+      "timestamp": "202508131310"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131320.csv.gz",
+      "timestamp": "202508131320"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131320.csv.gz",
+      "timestamp": "202508131320"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131330.csv.gz",
+      "timestamp": "202508131330"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131330.csv.gz",
+      "timestamp": "202508131330"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131340.csv.gz",
+      "timestamp": "202508131340"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131340.csv.gz",
+      "timestamp": "202508131340"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131350.csv.gz",
+      "timestamp": "202508131350"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131350.csv.gz",
+      "timestamp": "202508131350"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131400.csv.gz",
+      "timestamp": "202508131400"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131400.csv.gz",
+      "timestamp": "202508131400"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131410.csv.gz",
+      "timestamp": "202508131410"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131410.csv.gz",
+      "timestamp": "202508131410"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131420.csv.gz",
+      "timestamp": "202508131420"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131420.csv.gz",
+      "timestamp": "202508131420"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131430.csv.gz",
+      "timestamp": "202508131430"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131430.csv.gz",
+      "timestamp": "202508131430"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131440.csv.gz",
+      "timestamp": "202508131440"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131440.csv.gz",
+      "timestamp": "202508131440"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131450.csv.gz",
+      "timestamp": "202508131450"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131450.csv.gz",
+      "timestamp": "202508131450"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131500.csv.gz",
+      "timestamp": "202508131500"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131500.csv.gz",
+      "timestamp": "202508131500"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131510.csv.gz",
+      "timestamp": "202508131510"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131510.csv.gz",
+      "timestamp": "202508131510"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131520.csv.gz",
+      "timestamp": "202508131520"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131520.csv.gz",
+      "timestamp": "202508131520"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131530.csv.gz",
+      "timestamp": "202508131530"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131530.csv.gz",
+      "timestamp": "202508131530"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131540.csv.gz",
+      "timestamp": "202508131540"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131540.csv.gz",
+      "timestamp": "202508131540"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131550.csv.gz",
+      "timestamp": "202508131550"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131550.csv.gz",
+      "timestamp": "202508131550"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131600.csv.gz",
+      "timestamp": "202508131600"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131600.csv.gz",
+      "timestamp": "202508131600"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131610.csv.gz",
+      "timestamp": "202508131610"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131610.csv.gz",
+      "timestamp": "202508131610"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131620.csv.gz",
+      "timestamp": "202508131620"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131620.csv.gz",
+      "timestamp": "202508131620"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131630.csv.gz",
+      "timestamp": "202508131630"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131630.csv.gz",
+      "timestamp": "202508131630"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131640.csv.gz",
+      "timestamp": "202508131640"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131640.csv.gz",
+      "timestamp": "202508131640"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131650.csv.gz",
+      "timestamp": "202508131650"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131650.csv.gz",
+      "timestamp": "202508131650"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131700.csv.gz",
+      "timestamp": "202508131700"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131700.csv.gz",
+      "timestamp": "202508131700"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131710.csv.gz",
+      "timestamp": "202508131710"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131710.csv.gz",
+      "timestamp": "202508131710"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131720.csv.gz",
+      "timestamp": "202508131720"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131720.csv.gz",
+      "timestamp": "202508131720"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131730.csv.gz",
+      "timestamp": "202508131730"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131730.csv.gz",
+      "timestamp": "202508131730"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131740.csv.gz",
+      "timestamp": "202508131740"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131740.csv.gz",
+      "timestamp": "202508131740"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131750.csv.gz",
+      "timestamp": "202508131750"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131750.csv.gz",
+      "timestamp": "202508131750"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131800.csv.gz",
+      "timestamp": "202508131800"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131800.csv.gz",
+      "timestamp": "202508131800"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131810.csv.gz",
+      "timestamp": "202508131810"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131810.csv.gz",
+      "timestamp": "202508131810"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131820.csv.gz",
+      "timestamp": "202508131820"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131820.csv.gz",
+      "timestamp": "202508131820"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131830.csv.gz",
+      "timestamp": "202508131830"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131830.csv.gz",
+      "timestamp": "202508131830"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131840.csv.gz",
+      "timestamp": "202508131840"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131840.csv.gz",
+      "timestamp": "202508131840"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131850.csv.gz",
+      "timestamp": "202508131850"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131850.csv.gz",
+      "timestamp": "202508131850"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131900.csv.gz",
+      "timestamp": "202508131900"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131900.csv.gz",
+      "timestamp": "202508131900"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131910.csv.gz",
+      "timestamp": "202508131910"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131910.csv.gz",
+      "timestamp": "202508131910"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131920.csv.gz",
+      "timestamp": "202508131920"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131920.csv.gz",
+      "timestamp": "202508131920"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131930.csv.gz",
+      "timestamp": "202508131930"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131930.csv.gz",
+      "timestamp": "202508131930"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131940.csv.gz",
+      "timestamp": "202508131940"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131940.csv.gz",
+      "timestamp": "202508131940"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131950.csv.gz",
+      "timestamp": "202508131950"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508131950.csv.gz",
+      "timestamp": "202508131950"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132000.csv.gz",
+      "timestamp": "202508132000"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132000.csv.gz",
+      "timestamp": "202508132000"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132010.csv.gz",
+      "timestamp": "202508132010"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132010.csv.gz",
+      "timestamp": "202508132010"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132020.csv.gz",
+      "timestamp": "202508132020"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132020.csv.gz",
+      "timestamp": "202508132020"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132030.csv.gz",
+      "timestamp": "202508132030"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132030.csv.gz",
+      "timestamp": "202508132030"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132040.csv.gz",
+      "timestamp": "202508132040"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132040.csv.gz",
+      "timestamp": "202508132040"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132050.csv.gz",
+      "timestamp": "202508132050"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132050.csv.gz",
+      "timestamp": "202508132050"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132100.csv.gz",
+      "timestamp": "202508132100"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132100.csv.gz",
+      "timestamp": "202508132100"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132110.csv.gz",
+      "timestamp": "202508132110"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132110.csv.gz",
+      "timestamp": "202508132110"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132120.csv.gz",
+      "timestamp": "202508132120"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132120.csv.gz",
+      "timestamp": "202508132120"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132130.csv.gz",
+      "timestamp": "202508132130"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132130.csv.gz",
+      "timestamp": "202508132130"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132140.csv.gz",
+      "timestamp": "202508132140"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132140.csv.gz",
+      "timestamp": "202508132140"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132150.csv.gz",
+      "timestamp": "202508132150"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132150.csv.gz",
+      "timestamp": "202508132150"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132200.csv.gz",
+      "timestamp": "202508132200"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132200.csv.gz",
+      "timestamp": "202508132200"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132210.csv.gz",
+      "timestamp": "202508132210"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132210.csv.gz",
+      "timestamp": "202508132210"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132220.csv.gz",
+      "timestamp": "202508132220"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132220.csv.gz",
+      "timestamp": "202508132220"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132230.csv.gz",
+      "timestamp": "202508132230"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132230.csv.gz",
+      "timestamp": "202508132230"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132240.csv.gz",
+      "timestamp": "202508132240"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132240.csv.gz",
+      "timestamp": "202508132240"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132250.csv.gz",
+      "timestamp": "202508132250"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132250.csv.gz",
+      "timestamp": "202508132250"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132300.csv.gz",
+      "timestamp": "202508132300"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132300.csv.gz",
+      "timestamp": "202508132300"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132310.csv.gz",
+      "timestamp": "202508132310"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132310.csv.gz",
+      "timestamp": "202508132310"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132320.csv.gz",
+      "timestamp": "202508132320"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132320.csv.gz",
+      "timestamp": "202508132320"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132330.csv.gz",
+      "timestamp": "202508132330"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132330.csv.gz",
+      "timestamp": "202508132330"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132340.csv.gz",
+      "timestamp": "202508132340"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132340.csv.gz",
+      "timestamp": "202508132340"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132350.csv.gz",
+      "timestamp": "202508132350"
+    },
+    {
+      "filename": "LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202508132350.csv.gz",
+      "timestamp": "202508132350"
+    }
+  ],
+  "total_files_found_in_day": 288
+}
