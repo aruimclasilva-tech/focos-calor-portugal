@@ -13,6 +13,17 @@ A janela é um intervalo [--start, --end) que pode atravessar a meia-noite
 pelo instante exato de cada ficheiro, não só pela hora dentro de um único
 dia.
 
+Opcionalmente, para janelas grandes (muitos dias):
+- --bbox lat_min,lat_max,lon_min,lon_max — restringe as deteções guardadas
+  a uma região (por omissão usa-se Portugal Continental inteiro), para
+  focar um período de estudo numa zona concreta e reduzir o tamanho do
+  ficheiro publicado.
+- --stride-minutes N — em vez de guardar TODOS os ficheiros nativos (a
+  cada 10 min), guarda só um a cada N minutos (ex.: 60 = de hora a hora).
+- --stride-minutes-day1 N — cadência diferente só para o primeiro dia da
+  janela (ex.: janela de 12 dias com o 1º dia de hora a hora e os
+  restantes de 3 em 3h: --stride-minutes 180 --stride-minutes-day1 60).
+
 Reaproveita as funções de download/parsing já existentes em
 mtg_fire_fetch.py (mesma fonte, mesmas credenciais).
 
@@ -60,16 +71,23 @@ def parse_dt(s):
     raise ValueError(f"Data/hora inválida: {s!r} (usa AAAA-MM-DDTHH:MM)")
 
 
-def list_window_files(start_dt, end_dt):
+def list_window_files(start_dt, end_dt, stride_minutes=10, stride_minutes_day1=None):
     """Lista os ficheiros LSA-509 cujo instante cai dentro de
     [start_dt, end_dt), percorrendo cada pasta de dia necessária (a janela
     pode atravessar a meia-noite). A listagem do diretório é pública (não
-    precisa de credenciais) — só o download de cada ficheiro exige."""
+    precisa de credenciais) — só o download de cada ficheiro exige.
+
+    stride_minutes (e, só para o primeiro dia, stride_minutes_day1)
+    permitem reduzir a cadência guardada — só se mantém um instante a cada
+    N minutos (contados desde a meia-noite UTC desse dia), em vez de todos
+    os ficheiros nativos (a cada 10 min)."""
     matches = {}
     day = dt.datetime(start_dt.year, start_dt.month, start_dt.day)
     last_day = dt.datetime(end_dt.year, end_dt.month, end_dt.day)
+    first_day = day
     while day <= last_day:
         day_url = urljoin(base.BASE_URL, f"{day.year:04d}/{day.month:02d}/{day.day:02d}/")
+        stride = stride_minutes_day1 if (day == first_day and stride_minutes_day1) else stride_minutes
         try:
             r = requests.get(day_url, timeout=base.REQUEST_TIMEOUT)
             r.raise_for_status()
@@ -79,14 +97,18 @@ def list_window_files(start_dt, end_dt):
         for m in PATTERN.finditer(r.text):
             ts = m.group(1)
             ts_dt = dt.datetime.strptime(ts, "%Y%m%d%H%M")
-            if start_dt <= ts_dt < end_dt:
-                matches[ts] = day_url + m.group(0)  # dedup por timestamp
+            if not (start_dt <= ts_dt < end_dt):
+                continue
+            minute_of_day = ts_dt.hour * 60 + ts_dt.minute
+            if stride > 10 and minute_of_day % stride != 0:
+                continue
+            matches[ts] = day_url + m.group(0)  # dedup por timestamp
         day += dt.timedelta(days=1)
     return [matches[ts] for ts in sorted(matches.keys())]
 
 
-def run(start_dt, end_dt, outdir):
-    urls = list_window_files(start_dt, end_dt)
+def run(start_dt, end_dt, outdir, bbox=None, stride_minutes=10, stride_minutes_day1=None):
+    urls = list_window_files(start_dt, end_dt, stride_minutes, stride_minutes_day1)
     if not urls:
         base.log(f"Nenhum ficheiro encontrado entre {start_dt} e {end_dt}.")
         return None
@@ -101,7 +123,7 @@ def run(start_dt, end_dt, outdir):
         except requests.HTTPError as e:
             base.log(f"[{i}/{len(urls)}] falhou ({e}) — a saltar este instante.")
             continue
-        detections = base.parse_rows(csv_text, ts)
+        detections = base.parse_rows(csv_text, ts, bbox=bbox)
         total_detections += len(detections)
         snapshots.append({"ts": ts, "detections": detections})
         base.log(f"[{i}/{len(urls)}] {ts} — {len(detections)} deteções")
@@ -151,11 +173,24 @@ def run(start_dt, end_dt, outdir):
     return fname
 
 
+def parse_bbox(s):
+    parts = [p.strip() for p in s.split(",")]
+    if len(parts) != 4:
+        raise ValueError("--bbox precisa de 4 valores: lat_min,lat_max,lon_min,lon_max")
+    return tuple(float(p) for p in parts)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--start", required=True, help="AAAA-MM-DDTHH:MM (início, inclusive)")
     ap.add_argument("--end", required=True, help="AAAA-MM-DDTHH:MM (fim, exclusivo)")
     ap.add_argument("--outdir", default=".")
+    ap.add_argument("--bbox", default=None,
+                     help="lat_min,lat_max,lon_min,lon_max — restringe a uma região (por omissão, Portugal Continental inteiro)")
+    ap.add_argument("--stride-minutes", type=int, default=10,
+                     help="Guarda só 1 instante a cada N minutos (10 = todos os ficheiros nativos)")
+    ap.add_argument("--stride-minutes-day1", type=int, default=None,
+                     help="Cadência diferente (minutos) só para o 1º dia da janela")
     args = ap.parse_args()
 
     start_dt = parse_dt(args.start)
@@ -164,7 +199,10 @@ def main():
         print("ERRO: --end tem de ser depois de --start.", file=sys.stderr)
         sys.exit(2)
 
-    ok = run(start_dt, end_dt, args.outdir)
+    bbox = parse_bbox(args.bbox) if args.bbox else None
+
+    ok = run(start_dt, end_dt, args.outdir, bbox=bbox,
+             stride_minutes=args.stride_minutes, stride_minutes_day1=args.stride_minutes_day1)
     sys.exit(0 if ok else 1)
 
 

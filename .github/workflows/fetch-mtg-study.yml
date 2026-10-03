@@ -14,6 +14,18 @@ on:
       end:
         description: 'Fim (AAAA-MM-DDTHH:MM, exclusivo)'
         required: true
+      bbox:
+        description: 'Opcional: lat_min,lat_max,lon_min,lon_max — restringe a uma região (vazio = Portugal Continental inteiro)'
+        required: false
+        default: ''
+      stride_minutes:
+        description: 'Guarda só 1 instante a cada N minutos (10 = todos os ficheiros nativos, a cadência da fonte)'
+        required: false
+        default: '10'
+      stride_minutes_day1:
+        description: 'Opcional: cadência diferente (minutos) só para o 1º dia da janela (vazio = igual a stride_minutes)'
+        required: false
+        default: ''
 
 jobs:
   fetch:
@@ -36,6 +48,9 @@ jobs:
           --start "${{ inputs.start }}"
           --end "${{ inputs.end }}"
           --outdir docs
+          --stride-minutes "${{ inputs.stride_minutes }}"
+          ${{ inputs.bbox != '' && format('--bbox "{0}"', inputs.bbox) || '' }}
+          ${{ inputs.stride_minutes_day1 != '' && format('--stride-minutes-day1 "{0}"', inputs.stride_minutes_day1) || '' }}
         env:
           LSASAF_USER: ${{ secrets.LSASAF_USER }}
           LSASAF_PASS: ${{ secrets.LSASAF_PASS }}
@@ -50,6 +65,11 @@ jobs:
             exit 0
           fi
 
+          # Guarda à parte o que foi gerado agora, para poder reaplicá-lo tal
+          # e qual a cada tentativa, depois de alinhar tudo o resto com o
+          # origin/main mais recente (ver nota abaixo).
+          rm -rf /tmp/mtg-study-out && cp -r docs/mtg_study /tmp/mtg-study-out
+
           MSG="Publica período de estudo MTG (${{ inputs.start }} a ${{ inputs.end }})"
           git add docs/mtg_study
           git commit -m "$MSG"
@@ -62,7 +82,17 @@ jobs:
             echo "Push falhou (tentativa $i) — a sincronizar e a tentar de novo..."
             sleep $(( (RANDOM % 5) + 2 ))
             git fetch origin main
+            # IMPORTANTE: "git reset --soft origin/main" sozinho deixaria o
+            # índice tal como estava no checkout inicial — reintroduzindo
+            # silenciosamente qualquer ficheiro que outra pessoa tenha
+            # entretanto publicado em main (ex.: a página HTML). Por isso
+            # alinha-se tudo com o novo origin/main e só depois se volta a
+            # aplicar por cima, deliberadamente, só docs/mtg_study.
             git reset --soft origin/main
+            git checkout origin/main -- .
+            rm -rf docs/mtg_study
+            cp -r /tmp/mtg-study-out docs/mtg_study
+            git add docs/mtg_study
             git commit -m "$MSG"
           done
 

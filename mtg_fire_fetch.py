@@ -160,7 +160,10 @@ def guess_columns(fieldnames):
     return mapping
 
 
-def parse_rows(csv_text, timestamp_from_filename):
+def parse_rows(csv_text, timestamp_from_filename, bbox=None):
+    """bbox opcional (lat_min, lat_max, lon_min, lon_max) — por omissão usa
+    o BBOX de Portugal Continental; passar um retângulo mais pequeno serve
+    para um período de estudo focado numa região (mtg_history_fetch.py)."""
     reader = csv.DictReader(io.StringIO(csv_text))
     if not reader.fieldnames:
         log("AVISO: CSV sem cabeçalho reconhecível.")
@@ -176,7 +179,7 @@ def parse_rows(csv_text, timestamp_from_filename):
             f"Edita COLUMN_HINTS no script com os nomes reais acima.")
         return []
 
-    lat_min, lat_max, lon_min, lon_max = BBOX
+    lat_min, lat_max, lon_min, lon_max = bbox or BBOX
     out = []
     for row in reader:
         try:
