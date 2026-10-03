@@ -72,9 +72,15 @@ def within_pt_bbox(ac):
 # "dbFlags" é um bitmask da base de dados da fonte (convenção readsb/tar1090,
 # usada por adsb.fi e airplanes.live): bit 1 = aeronave registada como
 # militar. Serve para o filtro "Militares" no painel.
+# "src" não vem da API — é marcado por este script (ver main() e
+# recheck_inem_on_other_sources) com a fonte REAL de cada aeronave, já
+# que uma Heli INEM recuperada pela verificação cruzada pode vir de uma
+# fonte diferente da principal ("source" global). A página usa isto para
+# o link "abrir tracker" e o campo "Fonte" do balão apontarem sempre
+# para o sítio certo, aeronave a aeronave.
 KEEP_FIELDS = [
     "hex", "flight", "r", "t", "desc", "category",
-    "lat", "lon", "alt_baro", "gs", "track", "true_heading", "dbFlags",
+    "lat", "lon", "alt_baro", "gs", "track", "true_heading", "dbFlags", "src",
 ]
 
 BROWSER_HEADERS = {
@@ -286,6 +292,7 @@ def recheck_inem_on_other_sources(missing_regs, primary_source_name):
         for ac in ac_list:
             canonical = _match_tracked(ac)
             if canonical and canonical in still_missing and ac.get("lat") is not None and ac.get("lon") is not None:
+                ac["src"] = name
                 recovered.append(ac)
                 recovered_from[canonical] = name
                 still_missing.discard(canonical)
@@ -310,6 +317,10 @@ def main():
         except Exception as exc:
             error = f"{name}: {exc}"
             continue
+
+    if source and aircraft:
+        for ac in aircraft:
+            ac["src"] = source
 
     # Verificação específica do grupo Heli INEM: se alguma das matrículas
     # rastreadas não apareceu na fonte principal, vai às outras duas fontes
