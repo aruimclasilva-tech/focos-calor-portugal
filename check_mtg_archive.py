@@ -45,9 +45,13 @@ DIR_ENTRY_PATTERN = re.compile(r'href="(\d{2,4})/"')
 def list_subdirs(url):
     status, html = list_dir(url)
     if status != 200:
-        return status, []
+        return status, [], html[:0]
     names = sorted(set(DIR_ENTRY_PATTERN.findall(html)))
-    return status, names
+    # Se não apanhou nada, pode ser que o formato da listagem não seja o
+    # esperado — devolve uma amostra do HTML para diagnóstico em vez de só
+    # "sem entradas".
+    sample = html[:1500] if not names else ""
+    return status, names, sample
 
 
 def discover_earliest(outdir):
@@ -65,26 +69,26 @@ def discover_earliest(outdir):
     # pedidos encadeados: anos -> meses -> dias) deixar pelo menos os
     # passos já percorridos no resultado, em vez de perder tudo.
     try:
-        status, years = list_subdirs(BASE_URL)
-        result["steps"].append({"url": BASE_URL, "http_status": status, "entries": years})
+        status, years, sample = list_subdirs(BASE_URL)
+        result["steps"].append({"url": BASE_URL, "http_status": status, "entries": years, "html_sample": sample})
         if status != 200 or not years:
             result["earliest_date"] = None
-            result["error"] = "não consegui listar o diretório base (ou está vazio)"
+            result["error"] = "não consegui listar o diretório base (ou está vazio) — ver html_sample no passo acima"
             return result
 
         # Tenta cada ano a partir do mais antigo — se um ano não tiver
         # meses (pasta vazia/placeholder), avança para o seguinte.
         for year in years:
             year_url = urljoin(BASE_URL, f"{year}/")
-            status, months = list_subdirs(year_url)
-            result["steps"].append({"url": year_url, "http_status": status, "entries": months})
+            status, months, sample = list_subdirs(year_url)
+            result["steps"].append({"url": year_url, "http_status": status, "entries": months, "html_sample": sample})
             if status != 200 or not months:
                 continue
 
             for month in months:
                 month_url = urljoin(year_url, f"{month}/")
-                status, days = list_subdirs(month_url)
-                result["steps"].append({"url": month_url, "http_status": status, "entries": days})
+                status, days, sample = list_subdirs(month_url)
+                result["steps"].append({"url": month_url, "http_status": status, "entries": days, "html_sample": sample})
                 if status != 200 or not days:
                     continue
 
