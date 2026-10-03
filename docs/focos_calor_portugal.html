@@ -139,7 +139,7 @@
      acima do botão "🗺" */
   #basemap-switcher{
     position:absolute;left:16px;bottom:60px;z-index:900;
-    display:none;gap:6px;
+    display:none;gap:6px;flex-wrap:wrap;max-width:220px;
     background:rgba(18,26,23,.94);border:1px solid var(--line);border-radius:10px;
     padding:6px;backdrop-filter:blur(4px);
   }
@@ -580,6 +580,7 @@
     <div id="basemap-switcher">
       <button class="ghost tl-btn active" id="basemap-standard" title="Mapa padrão (OpenStreetMap)">Mapa</button>
       <button class="ghost tl-btn" id="basemap-satellite" title="Imagem de satélite">Satélite</button>
+      <button class="ghost tl-btn" id="basemap-satellite-hybrid" title="Imagem de satélite com estradas e nomes por cima">Sat.+Vias</button>
       <button class="ghost tl-btn" id="basemap-terrain" title="Mapa de terreno">Terreno</button>
     </div>
 
@@ -1052,6 +1053,23 @@ const baseLayers = {
     maxZoom: 19,
     attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics'
   }),
+  // "Satélite + Vias": a mesma imagem de satélite com duas camadas de
+  // referência da Esri sobrepostas — estradas/vias e depois limites +
+  // nomes de localidades — para se ver a rede viária sobre a imagem, não
+  // apenas o terreno. É um grupo de 3 tile layers tratado como um só
+  // basemap (adiciona/remove as 3 juntas em setBasemap).
+  satelliteHybrid: L.layerGroup([
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics'
+    }),
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19
+    }),
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19
+    })
+  ]),
   terrain: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
     maxZoom: 17,
     attribution: 'Map data: &copy; OpenStreetMap contributors, SRTM · Map style: &copy; OpenTopoMap (CC-BY-SA)'
@@ -1060,13 +1078,23 @@ const baseLayers = {
 let currentBase = 'standard';
 baseLayers.standard.addTo(map);
 
+// Nem toda chave de baseLayers corresponde diretamente a "basemap-<chave>"
+// (ex.: satelliteHybrid -> basemap-satellite-hybrid), por isso o id do
+// botão de cada basemap fica explícito aqui.
+const BASEMAP_BUTTON_IDS = {
+  standard: 'basemap-standard',
+  satellite: 'basemap-satellite',
+  satelliteHybrid: 'basemap-satellite-hybrid',
+  terrain: 'basemap-terrain'
+};
+
 function setBasemap(name) {
   if (name === currentBase || !baseLayers[name]) return;
   map.removeLayer(baseLayers[currentBase]);
   baseLayers[name].addTo(map);
   currentBase = name;
   document.querySelectorAll('#basemap-switcher button').forEach(b => b.classList.remove('active'));
-  const btn = document.getElementById('basemap-' + name);
+  const btn = document.getElementById(BASEMAP_BUTTON_IDS[name] || ('basemap-' + name));
   if (btn) btn.classList.add('active');
 }
 
@@ -2068,6 +2096,7 @@ $('save-mtg-url').addEventListener('click', () => {
 });
 $('basemap-standard').addEventListener('click', () => setBasemap('standard'));
 $('basemap-satellite').addEventListener('click', () => setBasemap('satellite'));
+$('basemap-satellite-hybrid').addEventListener('click', () => setBasemap('satelliteHybrid'));
 $('basemap-terrain').addEventListener('click', () => setBasemap('terrain'));
 function setSidebarOpen(open) {
   $('sidebar').classList.toggle('open', open);
