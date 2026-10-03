@@ -6,6 +6,13 @@ Descarrega posições ADS-B ao vivo sobre Portugal Continental (adsb.fi, com
 fallback para airplanes.live) e escreve um JSON simples que a página
 focos_calor_portugal.html consegue ler diretamente (docs/portugal_aircraft.json).
 
+Uma terceira fonte, adsb.lol, só é usada à parte — não faz parte deste
+fallback principal — para uma verificação específica do grupo Heli INEM:
+se uma das matrículas rastreadas (TRACKED_REGISTRATIONS) não aparecer na
+fonte principal, vai-se às outras duas fontes confirmar se continua a
+reportar, antes de a dar como tendo deixado de voar (ver
+recheck_inem_on_other_sources).
+
 PORQUÊ ISTO EXISTE EM VEZ DE A PÁGINA IR DIRETAMENTE BUSCAR OS DADOS
 ---------------------------------------------------------------------
 Tentámos primeiro fazer o browser do utilizador chamar a API do adsb.fi (e a
@@ -36,10 +43,30 @@ import datetime as dt
 import requests
 
 # Centro aproximado de Portugal Continental e raio (NM) que cobre todo o
-# território a partir daí, com margem — dentro do limite de 250 NM destas APIs.
+# território a partir daí, com margem — dentro do limite de 250 NM destas
+# APIs. O raio por si só não exclui Espanha com precisão (Portugal é
+# estreito mas alongado — um círculo grande o suficiente para cobrir
+# norte-sul acaba sempre por incluir uma faixa de Espanha a leste); por
+# isso, a seguir ao pedido, filtra-se o resultado pelo retângulo
+# PT_BBOX (o mesmo usado para os focos de calor MTG), que é que
+# garante excluir Madrid etc. com precisão. O raio só precisa de ser
+# grande o suficiente para não cortar nenhum canto do retângulo.
 CENTER_LAT = 39.6
 CENTER_LON = -8.0
-RADIUS_NM = 200
+RADIUS_NM = 195
+
+# Retângulo de Portugal Continental (lat_min, lat_max, lon_min, lon_max) —
+# igual ao BBOX de mtg_fire_fetch.py. Aplicado depois do pedido por raio,
+# para recortar com precisão a parte do círculo que cai em Espanha.
+PT_BBOX = (36.85, 42.2, -9.65, -6.05)
+
+
+def within_pt_bbox(ac):
+    lat, lon = ac.get("lat"), ac.get("lon")
+    if lat is None or lon is None:
+        return False
+    lat_min, lat_max, lon_min, lon_max = PT_BBOX
+    return lat_min <= lat <= lat_max and lon_min <= lon <= lon_max
 
 # Campos que a página realmente usa — mantemos o ficheiro pequeno.
 # "dbFlags" é um bitmask da base de dados da fonte (convenção readsb/tar1090,
@@ -203,6 +230,69 @@ def fetch_airplaneslive():
     return data.get("ac", [])
 
 
+def fetch_adsblol():
+    url = f"https://api.adsb.lol/v2/lat/{CENTER_LAT}/lon/{CENTER_LON}/dist/{RADIUS_NM}"
+    resp = requests.get(url, headers=BROWSER_HEADERS, timeout=20)
+    resp.raise_for_status()
+    data = resp.json()
+    return data.get("ac", [])
+
+
+# Mesmo formato de resposta nas três ("ac"/"aircraft" + os mesmos campos
+# por aeronave), por isso o resultado de qualquer uma pode ser tratado
+# tal e qual pelo resto do script (trim/_match_tracked/etc.).
+ALL_SOURCES = {
+    "adsb.fi": fetch_adsbfi,
+    "airplanes.live": fetch_airplaneslive,
+    "adsb.lol": fetch_adsblol,
+}
+
+
+def find_missing_inem(aircraft):
+    """Devolve as matrículas do grupo Heli INEM que NÃO apareceram na
+    resposta da fonte principal — não é necessariamente "deixou de
+    voar", pode só ser um buraco de cobertura dessa fonte em concreto."""
+    found = {c for c in (_match_tracked(ac) for ac in aircraft) if c}
+    return [r for r in TRACKED_REGISTRATIONS if r not in found]
+
+
+def recheck_inem_on_other_sources(missing_regs, primary_source_name):
+    """Para cada matrícula Heli INEM que faltou na fonte principal, vai
+    às OUTRAS DUAS fontes (de adsb.fi/airplanes.live/adsb.lol) ver se
+    continua a reportar noutro lado, antes de se assumir que deixou
+    mesmo de reportar. Só dispara quando há mesmo uma matrícula em
+    falta — não faz pedidos extra às outras fontes no caso normal (tudo
+    presente na fonte principal).
+
+    Devolve (encontradas, origem) — "encontradas" é a lista dos
+    registos ADS-B brutos para fundir na resposta final (mesmo formato
+    das outras aeronaves), "origem" é {matrícula: nome_da_fonte}."""
+    if not missing_regs:
+        return [], {}
+
+    other_sources = {name: fn for name, fn in ALL_SOURCES.items() if name != primary_source_name}
+    still_missing = set(missing_regs)
+    recovered = []
+    recovered_from = {}
+
+    for name, fn in other_sources.items():
+        if not still_missing:
+            break
+        try:
+            ac_list = fn()
+        except Exception as exc:
+            print(f"  (verificação INEM: {name} indisponível — {exc})", file=sys.stderr)
+            continue
+        for ac in ac_list:
+            canonical = _match_tracked(ac)
+            if canonical and canonical in still_missing and ac.get("lat") is not None and ac.get("lon") is not None:
+                recovered.append(ac)
+                recovered_from[canonical] = name
+                still_missing.discard(canonical)
+
+    return recovered, recovered_from
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--outdir", default=".", help="Pasta onde escrever portugal_aircraft.json")
@@ -221,11 +311,35 @@ def main():
             error = f"{name}: {exc}"
             continue
 
+    # Verificação específica do grupo Heli INEM: se alguma das matrículas
+    # rastreadas não apareceu na fonte principal, vai às outras duas fontes
+    # confirmar se continua a reportar noutro lado antes de se assumir que
+    # deixou mesmo de voar (evita falsos "deixou de reportar" por um
+    # buraco de cobertura de uma só fonte, em vez da aeronave em si).
+    if source and aircraft:
+        missing_inem = find_missing_inem(aircraft)
+        if missing_inem:
+            print(f"Aviso: {len(missing_inem)} aeronave(s) Heli INEM não apareceram em {source} ({missing_inem}) — a verificar nas outras fontes…")
+            recovered, recovered_from = recheck_inem_on_other_sources(missing_inem, source)
+            if recovered:
+                aircraft = aircraft + recovered
+                for reg, src in recovered_from.items():
+                    print(f"  {reg} continua a reportar via {src} (não apareceu em {source})")
+            still_missing = [r for r in missing_inem if r not in recovered_from]
+            if still_missing:
+                print(f"  {still_missing} não encontrada(s) em nenhuma fonte — deixou(aram) mesmo de reportar.")
+
     out = {
         "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
         "source": source,
         "error": None if source else error,
-        "aircraft": [trim(ac) for ac in aircraft if ac.get("lat") is not None and ac.get("lon") is not None],
+        # Recorte a Portugal Continental (ver nota em PT_BBOX) — o raio por
+        # si só inclui sempre uma faixa de Espanha a leste (ex. Madrid),
+        # dada a forma alongada de Portugal.
+        "aircraft": [
+            trim(ac) for ac in aircraft
+            if ac.get("lat") is not None and ac.get("lon") is not None and within_pt_bbox(ac)
+        ],
     }
 
     os.makedirs(args.outdir, exist_ok=True)
