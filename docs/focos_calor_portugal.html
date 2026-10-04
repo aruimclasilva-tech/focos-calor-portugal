@@ -3530,9 +3530,22 @@ async function refreshMtgStudyList() {
       box.appendChild(row);
     });
   } catch (e) {
-    box.innerHTML = `<div class="hint">não consegui obter a lista (${escapeHtml(e.message)}).</div>`;
+    // "Failed to fetch" é normalmente uma falha de rede pontual (rede
+    // instável, firewall/proxy da rede local, etc.) — dá-se logo a opção
+    // de tentar outra vez, sem ter de fechar e reabrir o painel inteiro
+    // de definições (que é o que atualmente despoleta este pedido).
+    box.innerHTML = `<div class="hint">não consegui obter a lista (${escapeHtml(e.message)}). <a href="#" class="mtg-study-retry">Tentar novamente</a></div>`;
   }
 }
+
+document.addEventListener('click', (e) => {
+  if (e.target.matches('.mtg-study-retry')) {
+    e.preventDefault();
+    const box = $('mtg-study-list');
+    if (box) box.innerHTML = '<div class="hint">a verificar períodos disponíveis…</div>';
+    refreshMtgStudyList();
+  }
+});
 
 async function loadStudyWindow(entry, fileBaseUrl) {
   const status = $('mtg-study-status');
