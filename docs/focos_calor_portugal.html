@@ -1042,6 +1042,14 @@ const map = L.map('map', { zoomControl: true }).setView([39.6, -8.2], 7);
 map.createPane('wxPane');
 map.getPane('wxPane').style.zIndex = 250; // tilePane=200, overlayPane=400
 
+// Pane próprio para os focos de calor (FIRMS/MTG) — ficam sempre por cima
+// das aeronaves, das bases Heli INEM e dos respetivos círculos de raio de
+// ação (todos no overlayPane=400 ou markerPane=600, por omissão), já que
+// são a informação mais crítica do mapa e não podem ficar tapados por
+// essas outras camadas.
+map.createPane('firePane');
+map.getPane('firePane').style.zIndex = 620; // acima do markerPane (600), abaixo de tooltips/popups (650/700)
+
 // Mapas base disponíveis: padrão (OSM), satélite (Esri World Imagery) e
 // terreno (OpenTopoMap). Só um fica ativo de cada vez.
 const baseLayers = {
@@ -3703,7 +3711,8 @@ function renderAll() {
         color: color,
         fillColor: color,
         fillOpacity: 0.75,
-        weight: 1.5
+        weight: 1.5,
+        pane: 'firePane'
       });
       marker.bindPopup(`
         <div class="popup-title">Foco de calor detetado</div>
