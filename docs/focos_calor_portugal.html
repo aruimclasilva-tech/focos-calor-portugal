@@ -2292,9 +2292,10 @@ function windFlowFrame() {
     p.x = nx; p.y = ny;
     if (nx < 0 || ny < 0 || nx > size.x || ny > size.y) p.age = p.maxAge + 1;
   }
-  // Traço grosso com contorno escuro por baixo, para se ver bem tanto no
-  // mapa claro (OSM) como no satélite.
-  ctx.lineCap = 'round';
+  // Traço de 2 px com contorno cinzento-escuro por baixo. Pontas "butt"
+  // (retas): com pontas redondas, o contorno de cada novo segmento tapava o
+  // fim do anterior e o segmento mais recente parecia uma "cabeça" clara.
+  ctx.lineCap = 'butt';
   const drawSegs = (segs) => {
     ctx.beginPath();
     for (let k = 0; k < segs.length; k += 4) { ctx.moveTo(segs[k], segs[k + 1]); ctx.lineTo(segs[k + 2], segs[k + 3]); }
@@ -2302,11 +2303,11 @@ function windFlowFrame() {
   };
   const all = [].concat(...buckets);
   if (all.length) {
-    ctx.lineWidth = 5;
-    ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+    ctx.lineWidth = 3.5;
+    ctx.strokeStyle = 'rgba(55,60,62,0.75)';
     drawSegs(all);
   }
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 2;
   buckets.forEach((segs, i) => {
     if (!segs.length) return;
     ctx.strokeStyle = WIND_COLORS[i].color;
