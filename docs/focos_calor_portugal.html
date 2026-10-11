@@ -206,6 +206,15 @@
   }
   #wx-time-control .tl-label{min-width:120px;text-align:center;}
 
+  /* focos de calor no modo agrupado: ponto individual (divIcon igual ao
+     circleMarker) e círculo de grupo com a contagem */
+  .fire-dot{border-radius:50%;box-sizing:border-box;border:1.5px solid;}
+  .fire-dot .fill{width:100%;height:100%;border-radius:50%;opacity:.75;}
+  .fire-cluster{border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font:700 12px/1 system-ui,sans-serif;color:#1a0d00;border:2px solid rgba(0,0,0,.45);
+    box-sizing:border-box;}
+  .fire-cluster.recent{border:3px solid #ff2d1f;box-shadow:0 0 10px #ff2d1f;}
+
   /* escala de cores da animação do vento (painel Meteorologia) */
   .wind-scale{display:flex;gap:2px;margin-top:6px;font-size:10px;}
   .wind-scale span{flex:1;text-align:center;padding:2px 0;border-radius:3px;color:#0b1210;font-weight:700;}
@@ -616,6 +625,13 @@
               <div class="source-meta" id="mtg-summary">fonte não configurada</div>
             </div>
             <label class="switch big"><input type="checkbox" id="show-mtg"><span class="slider"></span></label>
+          </div>
+          <div class="source-item" id="source-fire-cluster">
+            <div class="source-info">
+              <div class="source-name">Agrupar focos <span class="source-sub">(mapa afastado)</span></div>
+              <div class="source-meta">junta focos próximos até ao zoom de concelho · cor = foco mais intenso</div>
+            </div>
+            <label class="switch big"><input type="checkbox" id="cluster-fires" checked><span class="slider"></span></label>
           </div>
           </div>
         </div>
@@ -1133,7 +1149,54 @@ function setBasemap(name) {
   if (btn) btn.classList.add('active');
 }
 
-let markerLayer = L.layerGroup().addTo(map);
+// Focos de calor: dois contentores possíveis. Sem agrupamento, cada foco é
+// um circleMarker num layerGroup (como sempre foi). Com agrupamento, os
+// focos vão para um markerClusterGroup que junta pontos próximos enquanto
+// o mapa está afastado e deixa de agrupar a partir do zoom de concelho.
+// A cor do grupo é a do foco mais intenso (maior FRP) que contém, e o
+// grupo leva um contorno vermelho se tiver alguma deteção com menos de 1h —
+// para um foco forte ou recente nunca ficar "diluído" no grupo.
+const FIRE_CLUSTER_OFF_ZOOM = 11;
+const FIRE_CLUSTER_PREF_KEY = 'firemap_cfg_cluster_fires';
+let fireClusterOn = true;
+try { fireClusterOn = localStorage.getItem(FIRE_CLUSTER_PREF_KEY) !== '0'; } catch {}
+
+const fireFlatLayer = L.layerGroup();
+const fireClusterLayer = L.markerClusterGroup({
+  maxClusterRadius: 45,
+  disableClusteringAtZoom: FIRE_CLUSTER_OFF_ZOOM,
+  showCoverageOnHover: false,
+  spiderfyOnMaxZoom: false,
+  clusterPane: 'firePane',
+  iconCreateFunction: fireClusterIcon
+});
+let markerLayer = (fireClusterOn ? fireClusterLayer : fireFlatLayer).addTo(map);
+
+function fireClusterIcon(cluster) {
+  const kids = cluster.getAllChildMarkers();
+  let top = null, recent = false;
+  kids.forEach(m => {
+    const f = m.options.fireInfo || {};
+    if (!top || (f.frp || 0) > (top.frp || 0)) top = f;
+    if (f.recent) recent = true;
+  });
+  const count = kids.length;
+  const size = count < 10 ? 30 : count < 50 ? 36 : count < 200 ? 42 : 48;
+  const color = (top && top.color) || '#e2a23c';
+  return L.divIcon({
+    className: '',
+    html: `<div class="fire-cluster${recent ? ' recent' : ''}" style="width:${size}px;height:${size}px;background:${color};">${count}</div>`,
+    iconSize: [size, size]
+  });
+}
+
+function setFireClustering(on) {
+  fireClusterOn = on;
+  try { localStorage.setItem(FIRE_CLUSTER_PREF_KEY, on ? '1' : '0'); } catch {}
+  map.removeLayer(markerLayer);
+  markerLayer.clearLayers();
+  markerLayer = (on ? fireClusterLayer : fireFlatLayer).addTo(map);
+}
 
 // ---------------------------------------------------------------
 // Heli Primários — locais de aterragem primários (dados internos DRC,
@@ -3377,6 +3440,11 @@ $('show-firms').addEventListener('change', (e) => {
   try { localStorage.setItem('firemap_cfg_show_firms', e.target.checked ? '1' : '0'); } catch {}
   renderAll(); updateSourceSummaries();
 });
+$('cluster-fires').checked = fireClusterOn;
+$('cluster-fires').addEventListener('change', (e) => {
+  setFireClustering(e.target.checked);
+  renderAll();
+});
 $('show-mtg').addEventListener('change', (e) => {
   try { localStorage.setItem('firemap_cfg_show_mtg', e.target.checked ? '1' : '0'); } catch {}
   renderAll(); updateSourceSummaries();
@@ -3985,14 +4053,33 @@ function renderAll() {
       if (ageMs < 60 * 60 * 1000) recentCount++;
       const color = markerColor(d, ageMs);
 
-      const marker = L.circleMarker([d.lat, d.lon], {
-        radius: 6 + Math.min(6, d.frp / 20),
-        color: color,
-        fillColor: color,
-        fillOpacity: 0.75,
-        weight: 1.5,
-        pane: 'firePane'
-      });
+      const radius = 6 + Math.min(6, d.frp / 20);
+      const fireInfo = { frp: Number(d.frp) || 0, color, recent: ageMs < 60 * 60 * 1000 };
+      let marker;
+      if (fireClusterOn) {
+        // O agrupamento só funciona bem com L.marker, por isso aqui o ponto
+        // é um divIcon com o mesmo aspeto do circleMarker.
+        const dia = Math.round(radius * 2 + 1.5);
+        marker = L.marker([d.lat, d.lon], {
+          pane: 'firePane',
+          fireInfo,
+          icon: L.divIcon({
+            className: '',
+            html: `<div class="fire-dot" style="width:${dia}px;height:${dia}px;border-color:${color};"><div class="fill" style="background:${color};"></div></div>`,
+            iconSize: [dia, dia]
+          })
+        });
+      } else {
+        marker = L.circleMarker([d.lat, d.lon], {
+          radius,
+          color: color,
+          fillColor: color,
+          fillOpacity: 0.75,
+          weight: 1.5,
+          pane: 'firePane',
+          fireInfo
+        });
+      }
       marker.bindPopup(`
         <div class="popup-title">Foco de calor detetado</div>
         <div class="popup-row"><span>Hora (local)</span><b>${d.dt.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })} · ${d.dt.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' })}</b></div>
@@ -4014,8 +4101,14 @@ function renderAll() {
         </div>
       `;
       item.addEventListener('click', () => {
-        map.setView([d.lat, d.lon], 12);
-        marker.openPopup();
+        if (fireClusterOn) {
+          // espera que o grupo se desfaça no novo zoom antes de abrir o popup
+          map.once('moveend', () => setTimeout(() => marker.openPopup(), 50));
+          map.setView([d.lat, d.lon], 12);
+        } else {
+          map.setView([d.lat, d.lon], 12);
+          marker.openPopup();
+        }
       });
       listEl.appendChild(item);
       renderedCount++;
