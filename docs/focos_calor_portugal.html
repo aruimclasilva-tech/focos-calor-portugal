@@ -231,6 +231,11 @@
     .leaflet-control-attribution.expanded{white-space:normal;max-width:90vw;}
   }
 
+  /* câmaras MEO Beachcam */
+  .beachcam-pin{width:22px;height:22px;border-radius:6px;background:#1b6fd1;border:2px solid #fff;
+    display:flex;align-items:center;justify-content:center;font-size:12px;box-sizing:border-box;
+    box-shadow:0 1px 4px rgba(0,0,0,.5);}
+
   /* aviso de dados desatualizados no cabeçalho */
   .stale-warn{color:#f2b33d !important;font-weight:700;}
   .stale-bad{color:#ff5a3d !important;font-weight:700;}
@@ -848,6 +853,15 @@
             Perímetros de área ardida cartografados pelo EFFIS a partir de
             imagem de satélite (incêndios a partir de ~30 ha). Aparecem com
             dias de atraso em relação ao incêndio.
+          </div>
+          <div class="toggle-row" style="margin-top:12px;">
+            <span>Câmaras MEO Beachcam (praias e portos)</span>
+            <label class="switch"><input type="checkbox" id="beachcam-on"><span class="slider"></span></label>
+          </div>
+          <div class="hint" style="margin-top:6px;">
+            Localização das câmaras públicas da MEO Beachcam (costa).
+            Tocar numa câmara abre a imagem em direto no site da MEO — as
+            imagens são da MEO e não são mostradas dentro desta app.
           </div>
         </div>
       </div>
@@ -4732,6 +4746,37 @@ $('effis-on').addEventListener('change', effisRefresh);
 $('effis-period').addEventListener('change', effisRefresh);
 
 // ---------------------------------------------------------------
+// Câmaras MEO Beachcam — só a localização e o link para a página oficial
+// de cada câmara (as imagens são da MEO e abrem no site deles). Lista
+// recolhida em out/2026; as coordenadas são aproximadas (praia/porto).
+// ---------------------------------------------------------------
+const BEACHCAMS = [{"n": "Vila Praia de Âncora", "lat": 41.8137, "lon": -8.865, "u": "livecams/vila-praia-de-ancora"}, {"n": "Afife — Arda", "lat": 41.7735, "lon": -8.871, "u": "livecams/viana-do-castelo-afife-arda"}, {"n": "Viana do Castelo — Cabedelo", "lat": 41.68, "lon": -8.837, "u": "livecams/viana-do-castelo-cabedelo"}, {"n": "Esposende", "lat": 41.535, "lon": -8.788, "u": "livecams/esposende"}, {"n": "Esposende — Foz do Cávado", "lat": 41.524, "lon": -8.79, "u": "livecams/esposende-foz-do-cavado"}, {"n": "Ofir", "lat": 41.513, "lon": -8.788, "u": "livecams/ofir"}, {"n": "Apúlia", "lat": 41.487, "lon": -8.777, "u": "livecams/apulia"}, {"n": "Vila do Conde — Caxinas", "lat": 41.37, "lon": -8.756, "u": "livecams/caxinas-macaco-17"}, {"n": "Leça da Palmeira", "lat": 41.195, "lon": -8.711, "u": "livecams/leca-da-palmeira"}, {"n": "Matosinhos", "lat": 41.177, "lon": -8.69, "u": "livecams/praia-de-matosinhos"}, {"n": "Porto — Praia da Foz", "lat": 41.152, "lon": -8.678, "u": "praias/praia-da-foz"}, {"n": "Gaia — Canide Norte/Sul", "lat": 41.113, "lon": -8.664, "u": "livecams/praia-canide-norte-sul"}, {"n": "Espinho", "lat": 41.007, "lon": -8.648, "u": "livecams/praia-de-espinho"}, {"n": "Espinho — Silvalde", "lat": 40.99, "lon": -8.653, "u": "livecams/espinho-silvalde"}, {"n": "Furadouro", "lat": 40.874, "lon": -8.675, "u": "livecams/furadouro"}, {"n": "Praia da Barra", "lat": 40.642, "lon": -8.748, "u": "livecams/praia-da-barra"}, {"n": "Costa Nova", "lat": 40.615, "lon": -8.755, "u": "livecams/costa-nova"}, {"n": "Vagueira", "lat": 40.56, "lon": -8.77, "u": "livecams/vagueira"}, {"n": "Vagueira — Areão", "lat": 40.525, "lon": -8.78, "u": "livecams/vagueira-areao"}, {"n": "Praia de Mira", "lat": 40.456, "lon": -8.803, "u": "livecams/praia-de-mira"}, {"n": "Murtinheira (Quiaios)", "lat": 40.235, "lon": -8.893, "u": "livecams/murtinheira"}, {"n": "Figueira da Foz — Tamargueira", "lat": 40.16, "lon": -8.87, "u": "livecams/figueira-da-foz-tamargueira"}, {"n": "Figueira da Foz — Cabedelo/Buarcos", "lat": 40.14, "lon": -8.864, "u": "livecams/figueira-da-foz-cabedelo-buarcos"}, {"n": "Figueira da Foz — Cabedelo", "lat": 40.136, "lon": -8.865, "u": "livecams/figueira-da-foz-cabedelo"}, {"n": "Praia do Pedrógão", "lat": 39.918, "lon": -8.953, "u": "livecams/praia-do-pedrogao"}, {"n": "Praia da Vieira", "lat": 39.873, "lon": -8.972, "u": "livecams/praia-da-vieira"}, {"n": "São Pedro de Moel", "lat": 39.758, "lon": -9.032, "u": "livecams/sao-pedro-de-moel"}, {"n": "Paredes da Vitória", "lat": 39.702, "lon": -9.051, "u": "livecams/paredes-da-vitoria"}, {"n": "Pedra do Ouro", "lat": 39.645, "lon": -9.057, "u": "livecams/pedra-do-ouro"}, {"n": "Nazaré — Praia do Norte", "lat": 39.605, "lon": -9.082, "u": "livecams/praia-do-norte"}, {"n": "Nazaré — Forte de S. Miguel Arcanjo", "lat": 39.604, "lon": -9.074, "u": "livecams/nazare-forte-sao-miguel-arcanjo"}, {"n": "Praia da Nazaré", "lat": 39.6, "lon": -9.071, "u": "livecams/praia-da-nazare"}, {"n": "Nazaré — Porto de Abrigo", "lat": 39.585, "lon": -9.072, "u": "livecams/nazare-porto-de-abrigo"}, {"n": "Foz do Arelho", "lat": 39.433, "lon": -9.228, "u": "livecams/foz-do-arelho"}, {"n": "Peniche — Baleal (panorâmica)", "lat": 39.375, "lon": -9.34, "u": "livecams/peniche-baleal-panoramica"}, {"n": "Peniche — Supertubos", "lat": 39.345, "lon": -9.365, "u": "livecams/peniche-supertubos"}, {"n": "Areia Branca", "lat": 39.27, "lon": -9.335, "u": "livecams/areia-branca"}, {"n": "Praia de Santa Rita", "lat": 39.169, "lon": -9.377, "u": "livecams/praia-de-santa-rita"}, {"n": "Santa Cruz", "lat": 39.135, "lon": -9.382, "u": "livecams/santa-cruz"}, {"n": "Ericeira — Praia da Calada", "lat": 38.996, "lon": -9.417, "u": "livecams/ericeira-praia-da-calada"}, {"n": "Ericeira — Ribeira d'Ilhas", "lat": 38.988, "lon": -9.42, "u": "praias/praia-de-ribeira-dilhas"}, {"n": "Ericeira", "lat": 38.964, "lon": -9.419, "u": "livecams/ericeira"}, {"n": "Ericeira — Praia dos Pescadores", "lat": 38.962, "lon": -9.418, "u": "livecams/praia-dos-pescadores"}, {"n": "São Julião", "lat": 38.93, "lon": -9.423, "u": "livecams/sao-juliao"}, {"n": "Praia Grande (Sintra)", "lat": 38.813, "lon": -9.479, "u": "livecams/praia-grande"}, {"n": "Praia Grande Sul (Sintra)", "lat": 38.81, "lon": -9.479, "u": "livecams/praia-grande-sul"}, {"n": "Praia do Guincho", "lat": 38.732, "lon": -9.473, "u": "livecams/praia-do-guincho"}, {"n": "Cascais — Baía", "lat": 38.696, "lon": -9.421, "u": "livecams/praia-do-peixe-baia-de-cascais"}, {"n": "Oeiras — Praia da Torre", "lat": 38.68, "lon": -9.323, "u": "livecams/praia-da-torre"}, {"n": "Carcavelos", "lat": 38.678, "lon": -9.336, "u": "livecams/praia-de-carcavelos"}, {"n": "Costa da Caparica — Praia Nova", "lat": 38.628, "lon": -9.219, "u": "livecams/costa-da-caparica-praia-nova"}, {"n": "Fonte da Telha", "lat": 38.568, "lon": -9.193, "u": "livecams/fonte-da-telha"}, {"n": "Fonte da Telha Sul", "lat": 38.56, "lon": -9.19, "u": "livecams/fonte-da-telha-sul"}, {"n": "Praia das Bicas", "lat": 38.475, "lon": -9.195, "u": "livecams/praia-das-bicas"}, {"n": "Praia do Meco", "lat": 38.465, "lon": -9.188, "u": "livecams/praia-do-meco"}, {"n": "Sesimbra", "lat": 38.443, "lon": -9.102, "u": "livecams/praia-sesimbra"}, {"n": "Comporta", "lat": 38.38, "lon": -8.8, "u": "livecams/comporta"}, {"n": "São Torpes", "lat": 37.933, "lon": -8.88, "u": "praias/praia-de-sao-torpes"}, {"n": "Porto Covo", "lat": 37.853, "lon": -8.793, "u": "praias/praia-de-porto-covo"}, {"n": "V.N. Milfontes — Franquia", "lat": 37.725, "lon": -8.78, "u": "livecams/vila-nova-de-milfontes-franquia"}, {"n": "V.N. Milfontes — Farol", "lat": 37.72, "lon": -8.799, "u": "livecams/vila-nova-de-milfontes-farol"}, {"n": "V.N. Milfontes — Furnas Mar", "lat": 37.719, "lon": -8.788, "u": "livecams/vila-nova-de-milfontes-furnas-mar"}, {"n": "Zambujeira do Mar", "lat": 37.524, "lon": -8.787, "u": "livecams/zambujeira-do-mar"}, {"n": "Odeceixe", "lat": 37.44, "lon": -8.798, "u": "praias/praia-de-odeceixe-algarve"}, {"n": "Praia da Amoreira (Aljezur)", "lat": 37.354, "lon": -8.845, "u": "livecams/praia-da-amoreira"}, {"n": "Arrifana", "lat": 37.293, "lon": -8.866, "u": "livecams/arrifana"}, {"n": "Carrapateira", "lat": 37.196, "lon": -8.903, "u": "praias/algarve/praia-da-carrapateira-1"}, {"n": "Praia do Amado", "lat": 37.17, "lon": -8.902, "u": "livecams/praia-do-amado"}, {"n": "Sagres", "lat": 37.009, "lon": -8.941, "u": "livecams/sagres"}, {"n": "Praia da Luz", "lat": 37.086, "lon": -8.729, "u": "livecams/praia-da-luz"}, {"n": "Lagos — Meia Praia", "lat": 37.112, "lon": -8.665, "u": "livecams/meia-praia"}, {"n": "Alvor", "lat": 37.123, "lon": -8.596, "u": "livecams/alvor"}, {"n": "Alvor Nascente", "lat": 37.125, "lon": -8.585, "u": "livecams/alvor-nascente"}, {"n": "Praia da Rocha (panorâmica)", "lat": 37.118, "lon": -8.537, "u": "livecams/praia-da-rocha"}, {"n": "Carvoeiro", "lat": 37.096, "lon": -8.472, "u": "livecams/carvoeiro"}, {"n": "Armação de Pêra", "lat": 37.1, "lon": -8.36, "u": "livecams/armacao-de-pera"}, {"n": "Praia da Galé", "lat": 37.082, "lon": -8.32, "u": "livecams/praia-da-gale"}, {"n": "Albufeira — Praia do Peneco", "lat": 37.086, "lon": -8.253, "u": "livecams/praia-do-peneco"}, {"n": "Vilamoura", "lat": 37.074, "lon": -8.12, "u": "livecams/vilamoura"}, {"n": "Quarteira Este", "lat": 37.068, "lon": -8.09, "u": "livecams/praia-quarteira-este"}, {"n": "Praia de Faro Este", "lat": 37.015, "lon": -7.97, "u": "livecams/faro"}, {"n": "Praia da Alagoa (Altura)", "lat": 37.173, "lon": -7.495, "u": "livecams/praia-da-alagoa"}];
+// agrupadas com o mapa afastado (a costa fica cheia de ícones sobrepostos)
+const beachcamLayer = L.markerClusterGroup({
+  maxClusterRadius: 40, showCoverageOnHover: false, disableClusteringAtZoom: 11,
+  iconCreateFunction: (cl) => L.divIcon({ className: '',
+    html: `<div class="beachcam-pin" style="width:28px;height:28px;font-size:11px;font-weight:700;color:#fff;">📷${cl.getChildCount()}</div>`,
+    iconSize: [28, 28] })
+});
+BEACHCAMS.forEach(c => {
+  const url = 'https://beachcam.meo.pt/' + c.u + '/';
+  L.marker([c.lat, c.lon], {
+    icon: L.divIcon({ className: '', html: '<div class="beachcam-pin">📷</div>', iconSize: [22, 22] })
+  }).bindPopup(`<div class="popup-title">${c.n}</div>
+    <div class="popup-row"><span>Câmara</span><b>MEO Beachcam</b></div>
+    <a class="ghost" href="${url}" target="_blank" rel="noopener"
+       style="display:block;text-align:center;margin-top:6px;padding:6px;border:1px solid var(--line);border-radius:6px;color:var(--amber);text-decoration:none;">▶ Ver em direto ↗</a>`)
+   .addTo(beachcamLayer);
+});
+$('beachcam-on').addEventListener('change', (e) => {
+  if (e.target.checked) beachcamLayer.addTo(map); else map.removeLayer(beachcamLayer);
+  try { localStorage.setItem('firemap_cfg_beachcam', e.target.checked ? '1' : '0'); } catch {}
+});
+try {
+  if (localStorage.getItem('firemap_cfg_beachcam') === '1') { $('beachcam-on').checked = true; beachcamLayer.addTo(map); }
+} catch {}
+
+// ---------------------------------------------------------------
 // Links partilháveis. O estado da vista vai no "#" do endereço:
 //   c=lat,lon,zoom  b=mapa base  l=camadas ligadas  wx=campo IPMA
 //   wt=hora da previsão  gp/gs/gd=imagem GIBS  ep=período EFFIS
@@ -4744,7 +4789,7 @@ $('effis-period').addEventListener('change', effisRefresh);
 const SHARE_TOGGLES = {
   fi: 'show-firms', mt: 'show-mtg', cl: 'cluster-fires', hi: 'show-heli-inem',
   hp: 'show-heli', ac: 'show-aircraft', tr: 'show-inem-trails',
-  wb: 'wx-barbs', wf: 'wx-flow', gi: 'gibs-on', ef: 'effis-on'
+  wb: 'wx-barbs', wf: 'wx-flow', gi: 'gibs-on', ef: 'effis-on', bc: 'beachcam-on'
 };
 let sharedPin = null;
 
