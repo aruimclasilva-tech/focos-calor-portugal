@@ -231,6 +231,9 @@
     .leaflet-control-attribution.expanded{white-space:normal;max-width:90vw;}
   }
 
+  /* câmaras do interior */
+  .inlandcam-pin{width:22px;height:22px;border-radius:6px;background:#2e8b57;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:12px;box-sizing:border-box;box-shadow:0 1px 4px rgba(0,0,0,.5);}
+
   /* câmaras MEO Beachcam */
   .beachcam-pin{width:22px;height:22px;border-radius:6px;background:#1b6fd1;border:2px solid #fff;
     display:flex;align-items:center;justify-content:center;font-size:12px;box-sizing:border-box;
@@ -862,6 +865,17 @@
             Localização das câmaras públicas da MEO Beachcam (costa).
             Tocar numa câmara abre a imagem em direto no site da MEO — as
             imagens são da MEO e não são mostradas dentro desta app.
+          </div>
+          <div class="toggle-row" style="margin-top:12px;">
+            <span>Câmaras do interior (serras e planícies)</span>
+            <label class="switch"><input type="checkbox" id="inlandcam-on"><span class="slider"></span></label>
+          </div>
+          <div class="hint" style="margin-top:6px;">
+            Câmaras públicas no interior (estações meteo, castelos, miradouros,
+            serras), a partir do diretório WorldCam. Tocar abre a página da
+            câmara, que mostra a imagem ou liga ao site do dono (ex.:
+            MeteoAlentejo). Algumas podem estar paradas — confirma a hora da
+            imagem.
           </div>
         </div>
       </div>
@@ -4777,6 +4791,36 @@ try {
 } catch {}
 
 // ---------------------------------------------------------------
+// Câmaras do interior — recolhidas do diretório WorldCam (out/2026). Só
+// localização + link para a página da câmara; não se vão buscar imagens.
+// Coordenadas aproximadas (localidade/ponto conhecido).
+// ---------------------------------------------------------------
+const INLANDCAMS = [{"n": "Alandroal — Castelo", "lat": 38.703, "lon": -7.404, "u": "32015-alandroal-castle"}, {"n": "Alcácer do Sal — Sado", "lat": 38.372, "lon": -8.513, "u": "30043-alcacer-do-sal-sado"}, {"n": "Almodôvar — quartel dos bombeiros", "lat": 37.511, "lon": -8.059, "u": "29076-almodovar-weather-station"}, {"n": "Alter do Chão — estação meteo", "lat": 39.2, "lon": -7.66, "u": "29190-alter-do-chao-weather-station"}, {"n": "Alvito — vista panorâmica", "lat": 38.256, "lon": -7.993, "u": "34064-alvito-panoramic-view"}, {"n": "Avis — vista panorâmica", "lat": 39.056, "lon": -7.891, "u": "35959-avis-panoramic-view"}, {"n": "Barrancos — estação meteo", "lat": 38.133, "lon": -6.977, "u": "29194-barrancos-weather-station"}, {"n": "Beja — estação meteo", "lat": 38.015, "lon": -7.863, "u": "29073-beja-weather-station"}, {"n": "Borba — vista panorâmica", "lat": 38.806, "lon": -7.455, "u": "34063-borba-panoramic-view"}, {"n": "Campo Maior — Castelo", "lat": 39.016, "lon": -7.065, "u": "35958-campo-maior-castle"}, {"n": "Serra do Gerês — Carris", "lat": 41.808, "lon": -8.016, "u": "40781-carris-serra-do-geres"}, {"n": "Castanheira de Pêra — Praia das Rocas", "lat": 40.006, "lon": -8.207, "u": "14193-castanheira-de-pera-praia-das-rocas"}, {"n": "Castro Verde — vista panorâmica", "lat": 37.698, "lon": -8.086, "u": "29147-castro-verde-panoramic-view"}, {"n": "Chaves — Outeiro Seco", "lat": 41.766, "lon": -7.462, "u": "29243-chaves-outeiro-seco"}, {"n": "Cinfães — Gralheira (Montemuro)", "lat": 40.997, "lon": -8.018, "u": "37038-cinfaes-gralheira"}, {"n": "Coimbra — vista panorâmica", "lat": 40.207, "lon": -8.426, "u": "29257-coimbra-panoramic-view"}, {"n": "Penhas da Saúde (Serra da Estrela)", "lat": 40.29, "lon": -7.548, "u": "30350-cortes-do-meio-penhas-da-saude"}, {"n": "Coruche", "lat": 38.958, "lon": -8.528, "u": "29947-coruche-ski-clube-quinta-grande"}, {"n": "Covilhã — Serra da Estrela", "lat": 40.322, "lon": -7.612, "u": "34762-covilha-serra-da-estrela"}, {"n": "Cuba — vista panorâmica", "lat": 38.166, "lon": -7.892, "u": "32280-cuba-panoramic-view"}, {"n": "Elvas — estação meteo", "lat": 38.881, "lon": -7.163, "u": "29193-elvas-weather-station"}, {"n": "Estremoz — Castelo", "lat": 38.843, "lon": -7.587, "u": "32014-estremoz-castle"}, {"n": "Évora", "lat": 38.571, "lon": -7.913, "u": "29077-evora-athletics-stadium"}, {"n": "Fátima", "lat": 39.632, "lon": -8.672, "u": "3457-fatima-sanctuary-of-our-lady"}, {"n": "Ferreira do Zêzere — Dornes", "lat": 39.776, "lon": -8.267, "u": "21904-ferreira-do-zezere-dornes"}, {"n": "Ferreira do Zêzere — Lago Azul", "lat": 39.74, "lon": -8.24, "u": "21905-ferreira-do-zezere-lago-azul"}, {"n": "Fronteira — vista panorâmica", "lat": 39.056, "lon": -7.647, "u": "29178-fronteira-panoramic-view"}, {"n": "Gavião — estação meteo", "lat": 39.464, "lon": -7.932, "u": "29197-gaviao-weather-station"}, {"n": "Grândola — vista panorâmica", "lat": 38.177, "lon": -8.567, "u": "32016-grandola-panoramic-view"}, {"n": "Manteigas — Serra da Estrela", "lat": 40.402, "lon": -7.538, "u": "3901-manteigas-serra-da-estrela"}, {"n": "Marvão — Castelo", "lat": 39.394, "lon": -7.377, "u": "30052-marvao-castle"}, {"n": "Mértola — estação meteo", "lat": 37.64, "lon": -7.661, "u": "29192-mertola-weather-station"}, {"n": "Mondim de Basto — vista panorâmica", "lat": 41.413, "lon": -7.954, "u": "30044-mondim-de-basto-panoramic-view"}, {"n": "Monforte — vista panorâmica", "lat": 39.053, "lon": -7.437, "u": "29189-monforte-panoramic-view"}, {"n": "Montemor-o-Novo — vista panorâmica", "lat": 38.648, "lon": -8.214, "u": "35960-montemor-o-novo-panoramic-view"}, {"n": "Moura — vista panorâmica", "lat": 38.14, "lon": -7.449, "u": "35957-moura-panoramic-view"}, {"n": "Mourão — Castelo", "lat": 38.383, "lon": -7.345, "u": "35956-mourao-castle"}, {"n": "Nisa — vista panorâmica", "lat": 39.517, "lon": -7.649, "u": "30051-nisa-panoramic-view"}, {"n": "Odemira — estação meteo", "lat": 37.597, "lon": -8.64, "u": "29075-odemira-weather-station"}, {"n": "Pedrógão Grande — Praia Fluvial do Cabril", "lat": 39.918, "lon": -8.13, "u": "35640-pedrogao-grande-praia-fluvial-do-cabril"}, {"n": "Ponte de Sor — vista panorâmica", "lat": 39.249, "lon": -8.01, "u": "29196-ponte-de-sor-panoramic-view"}, {"n": "Portel", "lat": 38.307, "lon": -7.705, "u": "30050-portel"}, {"n": "Redondo", "lat": 38.647, "lon": -7.546, "u": "32013-redondo"}, {"n": "Reguengos de Monsaraz — vista panorâmica", "lat": 38.426, "lon": -7.535, "u": "35964-reguengos-de-monsaraz-panoramic-view"}, {"n": "Santiago do Cacém — vista panorâmica", "lat": 38.016, "lon": -8.694, "u": "34065-santiago-do-cacem-panoramic-view"}, {"n": "Serpa — estação meteo", "lat": 37.944, "lon": -7.598, "u": "29074-serpa-weather-station"}, {"n": "Serra da Estrela — Lagoa Comprida", "lat": 40.364, "lon": -7.645, "u": "21820-serra-da-estrela-lagoa"}, {"n": "Sines — estação meteo", "lat": 37.956, "lon": -8.869, "u": "29195-sines-weather-station"}, {"n": "Sousel — estação meteo", "lat": 38.952, "lon": -7.677, "u": "29177-sousel-weather-station"}, {"n": "Vidigueira", "lat": 38.209, "lon": -7.799, "u": "35963-vidigueira-municipal-stadium"}, {"n": "Vila Viçosa — vista panorâmica", "lat": 38.776, "lon": -7.418, "u": "33112-vila-vicosa-panoramic-view"}, {"n": "Viseu — Aeródromo", "lat": 40.725, "lon": -7.889, "u": "1491-viseu-aerodromo-goncalves-lobato"}];
+const inlandcamLayer = L.markerClusterGroup({
+  maxClusterRadius: 40, showCoverageOnHover: false, disableClusteringAtZoom: 10,
+  iconCreateFunction: (cl) => L.divIcon({ className: '',
+    html: `<div class="inlandcam-pin" style="width:28px;height:28px;font-size:11px;font-weight:700;color:#fff;">📷${cl.getChildCount()}</div>`,
+    iconSize: [28, 28] })
+});
+INLANDCAMS.forEach(c => {
+  const url = 'https://worldcam.eu/webcams/europe/portugal/' + c.u;
+  L.marker([c.lat, c.lon], {
+    icon: L.divIcon({ className: '', html: '<div class="inlandcam-pin">📷</div>', iconSize: [22, 22] })
+  }).bindPopup(`<div class="popup-title">${c.n}</div>
+    <div class="popup-row"><span>Fonte</span><b>WorldCam (diretório)</b></div>
+    <a href="${url}" target="_blank" rel="noopener"
+       style="display:block;text-align:center;margin-top:6px;padding:6px;border:1px solid var(--line);border-radius:6px;color:var(--amber);text-decoration:none;">▶ Ver câmara ↗</a>`)
+   .addTo(inlandcamLayer);
+});
+$('inlandcam-on').addEventListener('change', (e) => {
+  if (e.target.checked) inlandcamLayer.addTo(map); else map.removeLayer(inlandcamLayer);
+  try { localStorage.setItem('firemap_cfg_inlandcam', e.target.checked ? '1' : '0'); } catch {}
+});
+try {
+  if (localStorage.getItem('firemap_cfg_inlandcam') === '1') { $('inlandcam-on').checked = true; inlandcamLayer.addTo(map); }
+} catch {}
+
+// ---------------------------------------------------------------
 // Links partilháveis. O estado da vista vai no "#" do endereço:
 //   c=lat,lon,zoom  b=mapa base  l=camadas ligadas  wx=campo IPMA
 //   wt=hora da previsão  gp/gs/gd=imagem GIBS  ep=período EFFIS
@@ -4789,7 +4833,7 @@ try {
 const SHARE_TOGGLES = {
   fi: 'show-firms', mt: 'show-mtg', cl: 'cluster-fires', hi: 'show-heli-inem',
   hp: 'show-heli', ac: 'show-aircraft', tr: 'show-inem-trails',
-  wb: 'wx-barbs', wf: 'wx-flow', gi: 'gibs-on', ef: 'effis-on', bc: 'beachcam-on'
+  wb: 'wx-barbs', wf: 'wx-flow', gi: 'gibs-on', ef: 'effis-on', bc: 'beachcam-on', ci: 'inlandcam-on'
 };
 let sharedPin = null;
 
