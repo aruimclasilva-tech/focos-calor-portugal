@@ -94,6 +94,15 @@
   }
   #panel-toggle-btn:hover{border-color:var(--amber);color:var(--amber);}
   #map-area.sidebar-open #panel-toggle-btn{display:none;}
+  #share-view-btn{
+    position:absolute;top:58px;right:12px;z-index:1100;
+    width:38px;height:38px;border-radius:8px;
+    background:rgba(18,26,23,.92);border:1px solid var(--line);color:var(--text);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;
+    backdrop-filter:blur(4px);
+  }
+  #share-view-btn:hover{border-color:var(--amber);}
+  #map-area.sidebar-open #share-view-btn{display:none;}
 
 
   /* linha de pequenos botões, canto inferior esquerdo do mapa: tipo de
@@ -214,6 +223,26 @@
     font:700 12px/1 system-ui,sans-serif;color:#1a0d00;border:2px solid rgba(0,0,0,.45);
     box-sizing:border-box;}
   .fire-cluster.recent{border:3px solid #ff2d1f;box-shadow:0 0 10px #ff2d1f;}
+
+  /* telemóvel: créditos do mapa numa só linha (tocar expande), para não
+     taparem os botões do canto inferior quando há várias camadas ligadas */
+  @media (max-width: 700px){
+    .leaflet-control-attribution{max-width:58vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px;}
+    .leaflet-control-attribution.expanded{white-space:normal;max-width:90vw;}
+  }
+
+  /* aviso de dados desatualizados no cabeçalho */
+  .stale-warn{color:#f2b33d !important;font-weight:700;}
+  .stale-bad{color:#ff5a3d !important;font-weight:700;}
+
+  /* aviso curto (ex.: "link copiado") */
+  #toast{position:absolute;left:50%;bottom:90px;transform:translateX(-50%);z-index:1200;
+    background:rgba(18,26,23,.96);border:1px solid var(--amber);color:var(--text);
+    padding:8px 14px;border-radius:8px;font-size:13px;display:none;max-width:85vw;text-align:center;}
+
+  /* ponto partilhado (marcador de um link) */
+  .shared-pin{width:26px;height:26px;border-radius:50%;border:3px solid #fff;
+    box-shadow:0 0 0 3px #1e88ff,0 0 14px #1e88ff;background:rgba(30,136,255,.25);box-sizing:border-box;}
 
   /* escala de cores da animação do vento (painel Meteorologia) */
   .wind-scale{display:flex;gap:2px;margin-top:6px;font-size:10px;}
@@ -543,6 +572,7 @@
     <div id="map"></div>
 
     <button id="panel-toggle-btn" title="Mostrar/esconder painel">☰</button>
+    <button id="share-view-btn" title="Partilhar esta vista (link)">🔗</button>
 
     <div id="wx-legend-box" style="display:none;">
       <div id="wx-legend-title"></div>
@@ -597,6 +627,7 @@
       <button class="ghost tl-btn" id="basemap-terrain" title="Mapa de terreno">Terreno</button>
     </div>
 
+    <div id="toast"></div>
     <div id="wx-time-control" style="display:none;">
       <button class="ghost tl-btn" id="wx-time-prev" title="Hora anterior">‹</button>
       <span id="wx-time-label" class="tl-label">Agora</span>
@@ -771,6 +802,52 @@
             assim que ligares algum campo. Se uma camada aparecer em
             branco, experimenta um horário vizinho (pode não haver dados
             para esse instante exato).
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-group" id="group-imagery">
+        <div class="panel-group-header"><span>Imagem de satélite e áreas ardidas</span><span class="chevron">▾</span></div>
+        <div class="panel-group-body">
+          <div class="toggle-row">
+            <span>Imagem do dia (NASA GIBS)</span>
+            <label class="switch"><input type="checkbox" id="gibs-on"><span class="slider"></span></label>
+          </div>
+          <select class="wx-select" id="gibs-product">
+            <option value="TrueColor">Cor verdadeira — fumo e nuvens</option>
+            <option value="BandsM11-I2-I1">Falsa cor (M11-I2-I1) — fogo ativo e área ardida</option>
+          </select>
+          <select class="wx-select" id="gibs-sat">
+            <option value="NOAA20">NOAA-20 (VIIRS)</option>
+            <option value="NOAA21">NOAA-21 (VIIRS)</option>
+            <option value="SNPP">Suomi NPP (VIIRS)</option>
+          </select>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+            <button class="ghost tl-btn" id="gibs-prev" title="Dia anterior">‹</button>
+            <span class="hint" id="gibs-date-label" style="flex:1;text-align:center;">—</span>
+            <button class="ghost tl-btn" id="gibs-next" title="Dia seguinte">›</button>
+          </div>
+          <div class="hint" style="margin-top:6px;">
+            Uma imagem por dia e por satélite (passagem de dia, por volta
+            das 13h–14h locais). Resolução ~375 m: serve para ver plumas de
+            fumo e confirmar se um foco é real, não para detalhe — com zoom
+            muito aproximado fica desfocada. Se aparecer vazia, a imagem de
+            hoje ainda não foi processada: recua um dia.
+          </div>
+
+          <div class="toggle-row" style="margin-top:12px;">
+            <span>Áreas ardidas (EFFIS / Copernicus)</span>
+            <label class="switch"><input type="checkbox" id="effis-on"><span class="slider"></span></label>
+          </div>
+          <select class="wx-select" id="effis-period">
+            <option value="week">Últimos 7 dias</option>
+            <option value="month">Últimos 30 dias</option>
+            <option value="season" selected>Época de incêndios atual</option>
+          </select>
+          <div class="hint" style="margin-top:6px;">
+            Perímetros de área ardida cartografados pelo EFFIS a partir de
+            imagem de satélite (incêndios a partir de ~30 ha). Aparecem com
+            dias de atraso em relação ao incêndio.
           </div>
         </div>
       </div>
@@ -2407,10 +2484,65 @@ function fmtDateTime(d) {
     : d.toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
+// Aviso de dados desatualizados. Duas situações diferentes:
+//  - o pedido à fonte está a falhar (sem resposta há mais de 30 min, ou
+//    seja, 3 atualizações seguidas falhadas) → vermelho, para FIRMS e MTG;
+//  - o MTG responde mas o produto não avança (o MTG sai de 10 em 10 min):
+//    a partir de 40 min de atraso → amarelo; a partir de 90 min → vermelho.
+// No FIRMS não se usa a idade dos dados: os satélites VIIRS só passam
+// algumas vezes por dia, e sem fogos não há deteção recente — seria um
+// falso alarme.
+let lastFirmsOkAt = null, lastMtgOkAt = null;
+const pageStartedAt = Date.now();
+const STALE_FETCH_MS = 30 * 60 * 1000;
+const MTG_WARN_MS = 40 * 60 * 1000, MTG_BAD_MS = 90 * 60 * 1000;
+
+function fmtStaleAge(ms) {
+  const m = Math.round(ms / 60000);
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60), r = m % 60;
+  return r ? `${h}h${String(r).padStart(2, '0')}` : `${h}h`;
+}
+
+function staleState(source) {
+  const now = Date.now();
+  if (source === 'firms') {
+    if (!mapKey) return null;
+    const ref = lastFirmsOkAt || pageStartedAt;
+    if (now - ref > STALE_FETCH_MS) return { level: 'bad', msg: `FIRMS sem resposta há ${fmtStaleAge(now - ref)}` };
+    return null;
+  }
+  if (!mtgUrl) return null;
+  const ref = lastMtgOkAt || pageStartedAt;
+  if (now - ref > STALE_FETCH_MS) return { level: 'bad', msg: `EUMETSAT sem resposta há ${fmtStaleAge(now - ref)}` };
+  if (mtgSourceTs) {
+    const age = now - mtgSourceTs.getTime();
+    if (age > MTG_BAD_MS) return { level: 'bad', msg: `Dados EUMETSAT com ${fmtStaleAge(age)} de atraso` };
+    if (age > MTG_WARN_MS) return { level: 'warn', msg: `Dados EUMETSAT com ${fmtStaleAge(age)} de atraso` };
+  }
+  return null;
+}
+
+function applyStale(el, state) {
+  el.classList.remove('stale-warn', 'stale-bad');
+  el.title = '';
+  if (!state || isRefreshing) return;
+  el.classList.add(state.level === 'bad' ? 'stale-bad' : 'stale-warn');
+  el.textContent += ' ⚠';
+  el.title = state.msg;
+}
+
 function updateHeaderTimestamps() {
   lastUpdateFirmsEl.textContent = isRefreshing ? 'a atualizar…' : fmtDateTime(firmsSourceTs);
   lastUpdateMtgEl.textContent = isRefreshing ? 'a atualizar…' : fmtDateTime(mtgSourceTs);
+  applyStale(lastUpdateFirmsEl, staleState('firms'));
+  applyStale(lastUpdateMtgEl, staleState('mtg'));
 }
+setInterval(() => { if (!isRefreshing) updateHeaderTimestamps(); }, 60 * 1000);
+// tocar no aviso mostra o motivo (no telemóvel não há "hover")
+[lastUpdateFirmsEl, lastUpdateMtgEl].forEach(el => el.addEventListener('click', () => {
+  if (el.title) showToast(el.title);
+}));
 
 $('save-key').addEventListener('click', () => {
   mapKey = $('map-key').value.trim();
@@ -3967,6 +4099,14 @@ async function refreshData() {
     const results = await Promise.allSettled(tasks);
     let merged = [];
     let anyOk = false;
+    // Para o aviso de dados desatualizados: guarda a hora do último pedido
+    // bem-sucedido de cada fonte (FIRMS = as primeiras SOURCES.length
+    // tarefas; MTG = a última, se configurado).
+    {
+      const nFirms = mapKey ? SOURCES.length : 0;
+      if (nFirms && results.slice(0, nFirms).some(r => r.status === 'fulfilled')) lastFirmsOkAt = Date.now();
+      if (mtgUrl && results[results.length - 1].status === 'fulfilled') lastMtgOkAt = Date.now();
+    }
     results.forEach(r => {
       if (r.status === 'fulfilled') { merged = merged.concat(r.value); anyOk = true; }
       else if (mtgUrl) { $('mtg-status').textContent = 'estado: erro — ' + r.reason.message; }
@@ -4099,6 +4239,7 @@ function renderAll() {
         <div class="popup-row"><span>FRP</span><b>${d.frp.toFixed(1)} MW</b></div>
         <div class="popup-row"><span>Confiança</span><b>${d.confidence}</b></div>
         <div class="popup-row"><span>Coordenadas</span><b>${d.lat.toFixed(4)}, ${d.lon.toFixed(4)}</b></div>
+        <button class="ghost" style="width:100%;margin-top:6px;" onclick="shareView(${d.lat.toFixed(5)}, ${d.lon.toFixed(5)})">🔗 Partilhar este foco</button>
       `);
       marker.addTo(markerLayer);
 
@@ -4490,6 +4631,217 @@ if (!runningAsInstalledApp() && installBtn) {
     deferredInstallPrompt = null;
   });
 }
+
+// Créditos do mapa: tocar expande/encolhe (ver CSS para telemóvel)
+document.querySelector('.leaflet-control-attribution')?.addEventListener('click', (e) => {
+  if (e.target.tagName === 'A') return;
+  e.currentTarget.classList.toggle('expanded');
+});
+
+// ---------------------------------------------------------------
+// Aviso curto no fundo do mapa
+// ---------------------------------------------------------------
+let toastTimer = null;
+function showToast(text, ms = 3000) {
+  const el = $('toast');
+  el.textContent = text;
+  el.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.style.display = 'none'; }, ms);
+}
+
+// ---------------------------------------------------------------
+// Imagem de satélite do dia (NASA GIBS) — mosaicos WMTS sem chave, um por
+// dia e por satélite. "Cor verdadeira" mostra fumo e nuvens; a falsa cor
+// M11-I2-I1 realça fogo ativo (laranja/vermelho) e área ardida (castanho).
+// ---------------------------------------------------------------
+map.createPane('gibsPane');
+map.getPane('gibsPane').style.zIndex = 220; // acima do mapa base, abaixo do IPMA
+map.createPane('effisPane');
+map.getPane('effisPane').style.zIndex = 280; // acima do IPMA, abaixo do vento animado
+
+let gibsLayer = null;
+let gibsDate = (() => {
+  // A passagem de dia sobre Portugal é ~13h–14h; até ~16h UTC a imagem de
+  // hoje pode ainda não estar processada, por isso começa em ontem.
+  const d = new Date();
+  if (d.getUTCHours() < 16) d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+})();
+
+function gibsTodayIso() { return new Date().toISOString().slice(0, 10); }
+
+function gibsUrl() {
+  const sat = $('gibs-sat').value, prod = $('gibs-product').value;
+  return `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_${sat}_CorrectedReflectance_${prod}/default/${gibsDate}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`;
+}
+
+function gibsUpdateLabel() {
+  const d = new Date(gibsDate + 'T12:00:00Z');
+  const today = gibsTodayIso();
+  const yest = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const rel = gibsDate === today ? 'hoje' : gibsDate === yest ? 'ontem' : '';
+  $('gibs-date-label').textContent = d.toLocaleDateString('pt-PT', { weekday: 'short', day: '2-digit', month: '2-digit' }) + (rel ? ` (${rel})` : '');
+  $('gibs-next').disabled = gibsDate >= today;
+}
+
+function gibsRefresh() {
+  if (gibsLayer) { map.removeLayer(gibsLayer); gibsLayer = null; }
+  if ($('gibs-on').checked) {
+    gibsLayer = L.tileLayer(gibsUrl(), {
+      pane: 'gibsPane', maxNativeZoom: 9, maxZoom: 19, opacity: 1,
+      attribution: 'NASA GIBS'
+    }).addTo(map);
+  }
+  gibsUpdateLabel();
+}
+
+function gibsStep(delta) {
+  const d = new Date(gibsDate + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() + delta);
+  const iso = d.toISOString().slice(0, 10);
+  if (iso > gibsTodayIso()) return;
+  gibsDate = iso;
+  gibsRefresh();
+}
+
+$('gibs-on').addEventListener('change', gibsRefresh);
+$('gibs-product').addEventListener('change', gibsRefresh);
+$('gibs-sat').addEventListener('change', gibsRefresh);
+$('gibs-prev').addEventListener('click', () => gibsStep(-1));
+$('gibs-next').addEventListener('click', () => gibsStep(1));
+gibsUpdateLabel();
+
+// ---------------------------------------------------------------
+// Áreas ardidas (EFFIS / Copernicus) — WMS público, camadas já filtradas
+// por período (semana / mês / época atual), sem parâmetro de tempo.
+// ---------------------------------------------------------------
+let effisLayer = null;
+function effisRefresh() {
+  if (effisLayer) { map.removeLayer(effisLayer); effisLayer = null; }
+  if (!$('effis-on').checked) return;
+  effisLayer = L.tileLayer.wms('https://maps.effis.emergency.copernicus.eu/effis?', {
+    layers: 'modis.ba.poly.' + $('effis-period').value,
+    format: 'image/png', transparent: true, version: '1.1.1',
+    pane: 'effisPane', opacity: 0.85,
+    attribution: 'EFFIS/Copernicus'
+  }).addTo(map);
+}
+$('effis-on').addEventListener('change', effisRefresh);
+$('effis-period').addEventListener('change', effisRefresh);
+
+// ---------------------------------------------------------------
+// Links partilháveis. O estado da vista vai no "#" do endereço:
+//   c=lat,lon,zoom  b=mapa base  l=camadas ligadas  wx=campo IPMA
+//   wt=hora da previsão  gp/gs/gd=imagem GIBS  ep=período EFFIS
+//   p=lat,lon (ponto partilhado, ex.: um foco)
+// Ao abrir um link destes, a app aplica a vista e limpa o "#", para que
+// recarregar depois volte às tuas preferências normais.
+// Nota: as chaves/fontes (MAP_KEY FIRMS, URL MTG) são de cada aparelho e
+// não vão no link.
+// ---------------------------------------------------------------
+const SHARE_TOGGLES = {
+  fi: 'show-firms', mt: 'show-mtg', cl: 'cluster-fires', hi: 'show-heli-inem',
+  hp: 'show-heli', ac: 'show-aircraft', tr: 'show-inem-trails',
+  wb: 'wx-barbs', wf: 'wx-flow', gi: 'gibs-on', ef: 'effis-on'
+};
+let sharedPin = null;
+
+function buildShareUrl(pin) {
+  const c = map.getCenter();
+  const zoom = pin ? Math.max(map.getZoom(), 12) : map.getZoom();
+  const center = pin || { lat: c.lat, lng: c.lng };
+  const p = new URLSearchParams();
+  p.set('c', `${center.lat.toFixed(5)},${center.lng.toFixed(5)},${zoom}`);
+  p.set('b', currentBase);
+  p.set('l', Object.entries(SHARE_TOGGLES).filter(([, id]) => $(id) && $(id).checked).map(([k]) => k).join(','));
+  const wxOn = Object.keys(wxFieldLayers);
+  if (wxOn.length) p.set('wx', wxOn[0]);
+  if (wxOffsetHours) p.set('wt', String(wxOffsetHours));
+  if ($('gibs-on').checked) {
+    p.set('gp', $('gibs-product').value); p.set('gs', $('gibs-sat').value); p.set('gd', gibsDate);
+  }
+  if ($('effis-on').checked) p.set('ep', $('effis-period').value);
+  if (pin) p.set('p', `${pin.lat.toFixed(5)},${pin.lng.toFixed(5)}`);
+  return location.origin + location.pathname + '#' + p.toString().replace(/%2C/g, ',');
+}
+
+async function shareView(lat, lon) {
+  const pin = (typeof lat === 'number' && typeof lon === 'number') ? { lat, lng: lon } : null;
+  const url = buildShareUrl(pin);
+  const title = pin ? 'Foco de calor' : 'Focos de Calor — vista do mapa';
+  if (navigator.share) {
+    try { await navigator.share({ title, text: title, url }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast('Link copiado — cola no WhatsApp');
+  } catch {
+    window.prompt('Copia este link:', url);
+  }
+}
+window.shareView = shareView;
+$('share-view-btn').addEventListener('click', () => shareView());
+
+function setToggle(id, on) {
+  const el = $(id);
+  if (!el || el.checked === on) return;
+  el.checked = on;
+  el.dispatchEvent(new Event('change'));
+}
+
+function applySharedHash() {
+  if (!location.hash || location.hash.length < 3) return;
+  const p = new URLSearchParams(location.hash.slice(1));
+  if (!p.has('c')) return;
+  try {
+    const [lat, lon, z] = p.get('c').split(',').map(Number);
+    if (p.get('b') && baseLayers[p.get('b')]) setBasemap(p.get('b'));
+
+    if (p.has('gp')) $('gibs-product').value = p.get('gp');
+    if (p.has('gs')) $('gibs-sat').value = p.get('gs');
+    if (p.has('gd') && /^\d{4}-\d{2}-\d{2}$/.test(p.get('gd'))) gibsDate = p.get('gd');
+    if (p.has('ep')) $('effis-period').value = p.get('ep');
+    if (p.has('wt')) {
+      const wt = Math.max(0, Math.min(48, parseInt(p.get('wt'), 10) || 0));
+      if (wt !== wxOffsetHours) wxStepTime(wt - wxOffsetHours);
+    }
+
+    const on = new Set((p.get('l') || '').split(',').filter(Boolean));
+    Object.entries(SHARE_TOGGLES).forEach(([k, id]) => setToggle(id, on.has(k)));
+    gibsRefresh();
+    effisRefresh();
+
+    document.querySelectorAll('.wx-field-toggle').forEach(cb => {
+      const want = p.get('wx') === cb.dataset.field;
+      if (cb.checked !== want) { cb.checked = want; cb.dispatchEvent(new Event('change')); }
+    });
+
+    if (sharedPin) { map.removeLayer(sharedPin); sharedPin = null; }
+    if (p.has('p')) {
+      const [plat, plon] = p.get('p').split(',').map(Number);
+      if (isFinite(plat) && isFinite(plon)) {
+        sharedPin = L.marker([plat, plon], {
+          pane: 'firePane', zIndexOffset: 2000,
+          icon: L.divIcon({ className: '', html: '<div class="shared-pin"></div>', iconSize: [26, 26] })
+        }).addTo(map);
+        sharedPin.bindPopup(`<div class="popup-title">Ponto partilhado</div>
+          <div class="popup-row"><span>Coordenadas</span><b>${plat.toFixed(4)}, ${plon.toFixed(4)}</b></div>
+          <button class="ghost" style="width:100%;margin-top:6px;" onclick="removeSharedPin()">✕ Remover</button>`);
+      }
+    }
+    if (isFinite(lat) && isFinite(lon) && isFinite(z)) map.setView([lat, lon], z, { animate: false });
+    showToast('Vista partilhada aplicada');
+  } catch (e) {
+    console.warn('Link partilhado inválido:', e);
+  }
+  history.replaceState(null, '', location.pathname + location.search);
+}
+function removeSharedPin() { if (sharedPin) { map.removeLayer(sharedPin); sharedPin = null; } }
+window.removeSharedPin = removeSharedPin;
+window.addEventListener('hashchange', applySharedHash);
+applySharedHash();
 
 </script>
 </body>
