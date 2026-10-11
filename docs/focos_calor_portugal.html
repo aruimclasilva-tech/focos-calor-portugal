@@ -2172,7 +2172,7 @@ function windSpawn(p, w, h) {
   for (let tries = 0; tries < 15; tries++) {
     const x = Math.random() * w, y = Math.random() * h;
     const ll = map.containerPointToLatLng([x, y]);
-    if (windAt(ll.lat, ll.lng)) { p.x = x; p.y = y; p.age = 0; p.maxAge = 40 + Math.random() * 60; return; }
+    if (windAt(ll.lat, ll.lng)) { p.x = x; p.y = y; p.age = 0; p.maxAge = 70 + Math.random() * 80; return; }
   }
   p.x = -1; p.y = -1; p.age = 0; p.maxAge = 10; // fora da grelha (mapa longe de Portugal): tenta mais tarde
 }
@@ -2187,7 +2187,7 @@ function windFlowReset() {
   L.DomUtil.setPosition(c, map.containerPointToLayerPoint([0, 0]));
   windFlow.ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
   // densidade proporcional à área do ecrã, com teto para telemóveis
-  const count = Math.min(2500, Math.round(size.x * size.y / 260));
+  const count = Math.min(1200, Math.round(size.x * size.y / 650));
   windFlow.particles = Array.from({ length: count }, () => {
     const p = {}; windSpawn(p, size.x, size.y); p.age = Math.random() * p.maxAge; return p;
   });
@@ -2199,11 +2199,11 @@ function windFlowFrame() {
   const ctx = windFlow.ctx, size = map.getSize();
   // rasto: esbate o que já lá estava
   ctx.globalCompositeOperation = 'destination-in';
-  ctx.fillStyle = 'rgba(0,0,0,0.90)';
+  ctx.fillStyle = 'rgba(0,0,0,0.95)'; // rasto mais longo
   ctx.fillRect(0, 0, size.x, size.y);
   ctx.globalCompositeOperation = 'source-over';
 
-  const K = 0.045; // px por frame por km/h (velocidade no ecrã independente do zoom)
+  const K = 0.08; // px por frame por km/h (velocidade no ecrã independente do zoom)
   const buckets = WIND_COLORS.map(() => []);
   for (const p of windFlow.particles) {
     if (p.age++ > p.maxAge || p.x < 0) { windSpawn(p, size.x, size.y); continue; }
@@ -2215,13 +2215,25 @@ function windFlowFrame() {
     p.x = nx; p.y = ny;
     if (nx < 0 || ny < 0 || nx > size.x || ny > size.y) p.age = p.maxAge + 1;
   }
-  ctx.lineWidth = 1.6;
-  buckets.forEach((segs, i) => {
-    if (!segs.length) return;
-    ctx.strokeStyle = WIND_COLORS[i].color;
+  // Traço grosso com contorno escuro por baixo, para se ver bem tanto no
+  // mapa claro (OSM) como no satélite.
+  ctx.lineCap = 'round';
+  const drawSegs = (segs) => {
     ctx.beginPath();
     for (let k = 0; k < segs.length; k += 4) { ctx.moveTo(segs[k], segs[k + 1]); ctx.lineTo(segs[k + 2], segs[k + 3]); }
     ctx.stroke();
+  };
+  const all = [].concat(...buckets);
+  if (all.length) {
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+    drawSegs(all);
+  }
+  ctx.lineWidth = 3;
+  buckets.forEach((segs, i) => {
+    if (!segs.length) return;
+    ctx.strokeStyle = WIND_COLORS[i].color;
+    drawSegs(segs);
   });
   windFlow.raf = requestAnimationFrame(windFlowFrame);
 }
