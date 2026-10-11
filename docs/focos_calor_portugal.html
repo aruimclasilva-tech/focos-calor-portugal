@@ -206,6 +206,10 @@
   }
   #wx-time-control .tl-label{min-width:120px;text-align:center;}
 
+  /* escala de cores da animação do vento (painel Meteorologia) */
+  .wind-scale{display:flex;gap:2px;margin-top:6px;font-size:10px;}
+  .wind-scale span{flex:1;text-align:center;padding:2px 0;border-radius:3px;color:#0b1210;font-weight:700;}
+
   #sidebar{
     position:absolute;top:0;right:0;bottom:0;z-index:1000;
     width:340px;max-width:92vw;background:var(--panel);border-left:1px solid var(--line);
@@ -722,14 +726,31 @@
             <span>Vento — direção (farpas)</span>
             <label class="switch"><input type="checkbox" id="wx-barbs"><span class="slider"></span></label>
           </div>
+          <div class="toggle-row">
+            <span>Vento — animação (partículas)</span>
+            <label class="switch"><input type="checkbox" id="wx-flow"><span class="slider"></span></label>
+          </div>
+          <div class="wind-scale" id="wx-flow-scale" style="display:none;">
+            <span style="background:#9fd8ff">&lt;10</span>
+            <span style="background:#7ee08a">10–20</span>
+            <span style="background:#f2e05c">20–30</span>
+            <span style="background:#ffa53d">30–40</span>
+            <span style="background:#ff5a3d">40–50</span>
+            <span style="background:#e04aff">50+</span>
+          </div>
+          <div class="hint" id="wx-flow-status" style="display:none;margin-top:4px;"></div>
           <div class="hint" id="wx-status" style="margin-top:8px;">nenhum campo ativo</div>
           <div class="hint" style="margin-top:8px;">
             Previsão do modelo AROME e produtos de risco LSA SAF do IPMA
             (mf2.ipma.pt), sobrepostos ao mapa. Não são observações em
             tempo real — são a previsão do último ciclo do modelo. Só um
             campo fica ativo de cada vez (ligar um desliga o anterior) —
-            exceto a direção do vento (farpas), que é cumulativa com
-            qualquer campo. O momento da previsão (agora / +1h / +2h…)
+            exceto a direção do vento (farpas) e a animação do vento,
+            que são cumulativas com qualquer campo. A animação mostra o
+            escoamento a 10 m (cor = velocidade em km/h) a partir de uma
+            grelha de pontos de previsão do Open-Meteo (~30 km), segue a
+            mesma hora escolhida nas setas, e serve para ler para onde
+            o vento empurra cada foco. O momento da previsão (agora / +1h / +2h…)
             controla-se pelas setas no canto inferior direito do mapa,
             assim que ligares algum campo. Se uma camada aparecer em
             branco, experimenta um horário vizinho (pode não haver dados
@@ -1041,6 +1062,12 @@ const map = L.map('map', { zoomControl: true }).setView([39.6, -8.2], 7);
 // base, seja qual for a ordem em que se liga/desliga cada coisa.
 map.createPane('wxPane');
 map.getPane('wxPane').style.zIndex = 250; // tilePane=200, overlayPane=400
+
+// Pane da animação do vento: por cima dos campos do IPMA, abaixo de tudo
+// o resto, e sem apanhar toques (não pode bloquear cliques nos focos).
+map.createPane('windFlowPane');
+map.getPane('windFlowPane').style.zIndex = 300;
+map.getPane('windFlowPane').style.pointerEvents = 'none';
 
 // Pane próprio para os focos de calor (FIRMS/MTG) — ficam sempre por cima
 // das aeronaves, das bases Heli INEM e dos respetivos círculos de raio de
@@ -1970,8 +1997,237 @@ function wxLegendUrl(fieldKey) {
   return `${IPMA_WMS_URL}version=1.3.0&service=WMS&request=GetLegendGraphic&sld_version=1.1.0&layer=${layer}&format=image/png&STYLE=default`;
 }
 
+// ---------------------------------------------------------------
+// Vento animado (partículas). O WMS do IPMA só devolve imagens, por isso
+// os valores numéricos do vento (velocidade + direção a 10 m) vêm de uma
+// grelha de pontos do Open-Meteo sobre Portugal continental, pedida de uma
+// só vez para as próximas 48 h e guardada 1 h no browser. As partículas
+// são desenhadas num canvas próprio e andam ao sabor do campo de vento
+// (interpolação bilinear entre os pontos da grelha). Segue a mesma hora
+// que as setas da meteorologia (wxOffsetHours).
+// ---------------------------------------------------------------
+const WIND_GRID = { latMin: 36.8, lonMin: -9.8, step: 0.3, rows: 19, cols: 14 }; // 36.8–42.2 N, 9.8–5.9 W
+const WIND_CACHE_KEY = 'focosWindFlowCache_v1';
+const WIND_CACHE_TTL_MS = 60 * 60 * 1000;
+const WIND_COLORS = [ // limites superiores em km/h
+  { max: 10, color: '#9fd8ff' }, { max: 20, color: '#7ee08a' }, { max: 30, color: '#f2e05c' },
+  { max: 40, color: '#ffa53d' }, { max: 50, color: '#ff5a3d' }, { max: Infinity, color: '#e04aff' }
+];
+
+const windFlow = {
+  on: false, data: null, field: null, canvas: null, ctx: null,
+  particles: [], raf: null, moving: false, loading: false
+};
+
+function windFlowStatus(text) {
+  const el = $('wx-flow-status');
+  el.style.display = text ? 'block' : 'none';
+  el.textContent = text || '';
+}
+
+function windGridPoints() {
+  const lats = [], lons = [];
+  for (let r = 0; r < WIND_GRID.rows; r++) {
+    for (let c = 0; c < WIND_GRID.cols; c++) {
+      lats.push((WIND_GRID.latMin + r * WIND_GRID.step).toFixed(2));
+      lons.push((WIND_GRID.lonMin + c * WIND_GRID.step).toFixed(2));
+    }
+  }
+  return { lats, lons };
+}
+
+async function windFlowLoad() {
+  try {
+    const cached = JSON.parse(localStorage.getItem(WIND_CACHE_KEY) || 'null');
+    if (cached && Date.now() - cached.fetchedAt < WIND_CACHE_TTL_MS) return cached;
+  } catch (e) { /* sem localStorage — segue para a rede */ }
+
+  const { lats, lons } = windGridPoints();
+  const url = 'https://api.open-meteo.com/v1/forecast'
+    + `?latitude=${lats.join(',')}&longitude=${lons.join(',')}`
+    + '&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=kmh'
+    + '&timeformat=unixtime&timezone=GMT&forecast_hours=49';
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Open-Meteo HTTP ' + res.status);
+  let json = await res.json();
+  if (!Array.isArray(json)) json = [json];
+  if (json.length !== lats.length) throw new Error('grelha incompleta (' + json.length + ' pontos)');
+
+  const data = {
+    fetchedAt: Date.now(),
+    times: json[0].hourly.time,                       // segundos UTC
+    speed: json.map(p => p.hourly.wind_speed_10m),    // [ponto][hora] km/h
+    dir: json.map(p => p.hourly.wind_direction_10m)   // [ponto][hora] graus (de onde sopra)
+  };
+  try { localStorage.setItem(WIND_CACHE_KEY, JSON.stringify(data)); } catch (e) { /* quota/privado */ }
+  return data;
+}
+
+// Constrói o campo (u, v em km/h) para a hora escolhida nas setas.
+function windFlowApplyHour() {
+  const d = windFlow.data;
+  if (!d) return;
+  const target = Math.floor(wxRoundedUtcHour(wxOffsetHours).getTime() / 1000);
+  let idx = 0, best = Infinity;
+  d.times.forEach((t, i) => { const diff = Math.abs(t - target); if (diff < best) { best = diff; idx = i; } });
+  const n = d.speed.length, u = new Float32Array(n), v = new Float32Array(n);
+  for (let p = 0; p < n; p++) {
+    const s = d.speed[p][idx], dirDeg = d.dir[p][idx];
+    if (s == null || dirDeg == null) { u[p] = NaN; v[p] = NaN; continue; }
+    const rad = dirDeg * Math.PI / 180;
+    u[p] = -s * Math.sin(rad); // direção meteorológica = de onde vem → o vetor aponta ao contrário
+    v[p] = -s * Math.cos(rad);
+  }
+  windFlow.field = { u, v };
+  const mismatchH = Math.round(best / 3600);
+  const updated = new Date(d.fetchedAt).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+  windFlowStatus(`Open-Meteo · pedido às ${updated}` + (mismatchH ? ` · sem dados para esta hora (a mostrar ±${mismatchH}h)` : ''));
+}
+
+function windAt(lat, lon) {
+  const f = windFlow.field;
+  if (!f) return null;
+  const gy = (lat - WIND_GRID.latMin) / WIND_GRID.step;
+  const gx = (lon - WIND_GRID.lonMin) / WIND_GRID.step;
+  if (gy < 0 || gx < 0 || gy > WIND_GRID.rows - 1 || gx > WIND_GRID.cols - 1) return null;
+  const r0 = Math.min(Math.floor(gy), WIND_GRID.rows - 2), c0 = Math.min(Math.floor(gx), WIND_GRID.cols - 2);
+  const fy = gy - r0, fx = gx - c0, C = WIND_GRID.cols;
+  const i00 = r0 * C + c0, i01 = i00 + 1, i10 = i00 + C, i11 = i10 + 1;
+  const lerp = (a) =>
+    a[i00] * (1 - fx) * (1 - fy) + a[i01] * fx * (1 - fy) + a[i10] * (1 - fx) * fy + a[i11] * fx * fy;
+  const u = lerp(f.u), v = lerp(f.v);
+  if (Number.isNaN(u) || Number.isNaN(v)) return null;
+  return { u, v, s: Math.hypot(u, v) };
+}
+
+function windColorBucket(s) {
+  for (let i = 0; i < WIND_COLORS.length; i++) if (s < WIND_COLORS[i].max) return i;
+  return WIND_COLORS.length - 1;
+}
+
+function windSpawn(p, w, h) {
+  for (let tries = 0; tries < 15; tries++) {
+    const x = Math.random() * w, y = Math.random() * h;
+    const ll = map.containerPointToLatLng([x, y]);
+    if (windAt(ll.lat, ll.lng)) { p.x = x; p.y = y; p.age = 0; p.maxAge = 40 + Math.random() * 60; return; }
+  }
+  p.x = -1; p.y = -1; p.age = 0; p.maxAge = 10; // fora da grelha (mapa longe de Portugal): tenta mais tarde
+}
+
+function windFlowReset() {
+  if (!windFlow.on || !windFlow.canvas) return;
+  const size = map.getSize();
+  const ratio = window.devicePixelRatio || 1;
+  const c = windFlow.canvas;
+  c.width = size.x * ratio; c.height = size.y * ratio;
+  c.style.width = size.x + 'px'; c.style.height = size.y + 'px';
+  L.DomUtil.setPosition(c, map.containerPointToLayerPoint([0, 0]));
+  windFlow.ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  // densidade proporcional à área do ecrã, com teto para telemóveis
+  const count = Math.min(2500, Math.round(size.x * size.y / 260));
+  windFlow.particles = Array.from({ length: count }, () => {
+    const p = {}; windSpawn(p, size.x, size.y); p.age = Math.random() * p.maxAge; return p;
+  });
+}
+
+function windFlowFrame() {
+  windFlow.raf = null;
+  if (!windFlow.on || windFlow.moving || document.hidden) return;
+  const ctx = windFlow.ctx, size = map.getSize();
+  // rasto: esbate o que já lá estava
+  ctx.globalCompositeOperation = 'destination-in';
+  ctx.fillStyle = 'rgba(0,0,0,0.90)';
+  ctx.fillRect(0, 0, size.x, size.y);
+  ctx.globalCompositeOperation = 'source-over';
+
+  const K = 0.045; // px por frame por km/h (velocidade no ecrã independente do zoom)
+  const buckets = WIND_COLORS.map(() => []);
+  for (const p of windFlow.particles) {
+    if (p.age++ > p.maxAge || p.x < 0) { windSpawn(p, size.x, size.y); continue; }
+    const ll = map.containerPointToLatLng([p.x, p.y]);
+    const w = windAt(ll.lat, ll.lng);
+    if (!w) { windSpawn(p, size.x, size.y); continue; }
+    const nx = p.x + w.u * K, ny = p.y - w.v * K;
+    buckets[windColorBucket(w.s)].push(p.x, p.y, nx, ny);
+    p.x = nx; p.y = ny;
+    if (nx < 0 || ny < 0 || nx > size.x || ny > size.y) p.age = p.maxAge + 1;
+  }
+  ctx.lineWidth = 1.6;
+  buckets.forEach((segs, i) => {
+    if (!segs.length) return;
+    ctx.strokeStyle = WIND_COLORS[i].color;
+    ctx.beginPath();
+    for (let k = 0; k < segs.length; k += 4) { ctx.moveTo(segs[k], segs[k + 1]); ctx.lineTo(segs[k + 2], segs[k + 3]); }
+    ctx.stroke();
+  });
+  windFlow.raf = requestAnimationFrame(windFlowFrame);
+}
+
+function windFlowStart() {
+  if (!windFlow.on || windFlow.raf || windFlow.moving || !windFlow.field) return;
+  windFlowReset();
+  windFlow.raf = requestAnimationFrame(windFlowFrame);
+}
+
+function windFlowStop(clear) {
+  if (windFlow.raf) cancelAnimationFrame(windFlow.raf);
+  windFlow.raf = null;
+  if (clear && windFlow.ctx) {
+    const s = map.getSize();
+    windFlow.ctx.clearRect(0, 0, s.x, s.y);
+  }
+}
+
+map.on('movestart zoomstart', () => {
+  if (!windFlow.on) return;
+  windFlow.moving = true; windFlowStop(true);
+});
+map.on('moveend zoomend resize', () => {
+  if (!windFlow.on) return;
+  windFlow.moving = false; windFlowStart();
+});
+document.addEventListener('visibilitychange', () => {
+  if (!windFlow.on) return;
+  if (document.hidden) windFlowStop(false); else windFlowStart();
+});
+
+async function wxToggleFlow(on) {
+  $('wx-flow-scale').style.display = on ? 'flex' : 'none';
+  if (on) {
+    windFlow.on = true;
+    if (!windFlow.canvas) {
+      windFlow.canvas = L.DomUtil.create('canvas', 'wind-flow-canvas', map.getPane('windFlowPane'));
+      windFlow.ctx = windFlow.canvas.getContext('2d');
+    }
+    windFlow.canvas.style.display = 'block';
+    wxUpdateTimeControl(); wxUpdateStatus();
+    if (!windFlow.data || Date.now() - windFlow.data.fetchedAt > WIND_CACHE_TTL_MS) {
+      if (windFlow.loading) return;
+      windFlow.loading = true;
+      windFlowStatus('a carregar vento…');
+      try {
+        windFlow.data = await windFlowLoad();
+      } catch (e) {
+        windFlowStatus('Não foi possível obter o vento (' + e.message + ').');
+        windFlow.loading = false;
+        return;
+      }
+      windFlow.loading = false;
+      if (!windFlow.on) return; // desligado enquanto carregava
+    }
+    windFlowApplyHour();
+    windFlowStart();
+  } else {
+    windFlow.on = false;
+    windFlowStop(true);
+    if (windFlow.canvas) windFlow.canvas.style.display = 'none';
+    windFlowStatus('');
+    wxUpdateTimeControl(); wxUpdateStatus();
+  }
+}
+
 function wxAnyActive() {
-  return Object.keys(wxFieldLayers).length > 0 || !!wxBarbsLayer;
+  return Object.keys(wxFieldLayers).length > 0 || !!wxBarbsLayer || windFlow.on;
 }
 
 function wxUpdateTimeControl() {
@@ -1982,6 +2238,7 @@ function wxUpdateTimeControl() {
 function wxUpdateStatus() {
   const parts = Object.keys(wxFieldLayers).map(k => WX_FIELD_LABELS[k] || k);
   if ($('wx-barbs').checked) parts.push('vento (direção)');
+  if (windFlow.on) parts.push('vento (animação)');
   $('wx-status').textContent = parts.length
     ? `${parts.join(' + ')} · ${wxTimeLabelForOffset(wxOffsetHours)}`
     : 'nenhum campo ativo';
@@ -2044,6 +2301,7 @@ function wxStepTime(delta) {
   wxTimeIso = wxIsoForRequest(wxRoundedUtcHour(wxOffsetHours));
   Object.values(wxFieldLayers).forEach(layer => layer.setParams({ time: wxTimeIso }));
   if (wxBarbsLayer) wxBarbsLayer.setParams({ time: wxTimeIso });
+  if (windFlow.on && windFlow.data) { windFlowApplyHour(); windFlowStop(true); windFlowStart(); }
   wxUpdateTimeControl();
   wxUpdateStatus();
 }
@@ -2052,6 +2310,7 @@ document.querySelectorAll('.wx-field-toggle').forEach(cb => {
   cb.addEventListener('change', (e) => wxToggleField(e.target.dataset.field, e.target.checked));
 });
 $('wx-barbs').addEventListener('change', (e) => wxToggleBarbs(e.target.checked));
+$('wx-flow').addEventListener('change', (e) => wxToggleFlow(e.target.checked));
 $('wx-time-prev').addEventListener('click', () => wxStepTime(-1));
 $('wx-time-next').addEventListener('click', () => wxStepTime(1));
 wxUpdateTimeControl();
