@@ -1,39 +1,39 @@
 {
-  "generated_at": "2026-10-23T14:30:47.930480Z",
-  "source_file": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/2026/10/23/LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202610231410.csv.gz",
-  "source_timestamp_utc": "2026-10-23T14:10:00Z",
+  "generated_at": "2026-10-23T14:40:27.263568Z",
+  "source_file": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/2026/10/23/LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202610231420.csv.gz",
+  "source_timestamp_utc": "2026-10-23T14:20:00Z",
   "detections": [
-    {
-      "lat": 41.12116241455078,
-      "lon": -7.254725456237793,
-      "frp": 8.671478566481202,
-      "confidence": "0.7100163698196411",
-      "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-10-23T14:10:00Z"
-    },
     {
       "lat": 38.469913482666016,
       "lon": -6.247471332550049,
-      "frp": 11.037516804179225,
-      "confidence": "0.7718349695205688",
+      "frp": 10.410337361734541,
+      "confidence": "0.6062721014022827",
       "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-10-23T14:10:00Z"
+      "acq_time_utc": "2026-10-23T14:20:00Z"
     },
     {
       "lat": 38.45669937133789,
       "lon": -6.246171951293945,
-      "frp": 15.97081871177841,
-      "confidence": "0.9114240407943726",
+      "frp": 16.728196696937665,
+      "confidence": "0.9125875234603882",
       "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-10-23T14:10:00Z"
+      "acq_time_utc": "2026-10-23T14:20:00Z"
     },
     {
       "lat": 38.45652770996094,
       "lon": -6.234155178070068,
-      "frp": 6.171105564024881,
-      "confidence": "0.664867639541626",
+      "frp": 13.94400484514903,
+      "confidence": "0.899410605430603",
       "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-10-23T14:10:00Z"
+      "acq_time_utc": "2026-10-23T14:20:00Z"
+    },
+    {
+      "lat": 37.40135955810547,
+      "lon": -6.3694658279418945,
+      "frp": 7.190397723852195,
+      "confidence": "0.8763587474822998",
+      "satellite": "MTG-FCI",
+      "acq_time_utc": "2026-10-23T14:20:00Z"
     }
   ]
 }
