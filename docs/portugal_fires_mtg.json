@@ -1,55 +1,31 @@
 {
-  "generated_at": "2026-10-23T14:10:27.858205Z",
-  "source_file": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/2026/10/23/LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202610231350.csv.gz",
-  "source_timestamp_utc": "2026-10-23T13:50:00Z",
+  "generated_at": "2026-10-23T14:20:27.682588Z",
+  "source_file": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/2026/10/23/LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202610231400.csv.gz",
+  "source_timestamp_utc": "2026-10-23T14:00:00Z",
   "detections": [
-    {
-      "lat": 41.13519287109375,
-      "lon": -7.256481170654297,
-      "frp": 16.176288780993108,
-      "confidence": "0.8842027187347412",
-      "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-10-23T13:50:00Z"
-    },
     {
       "lat": 41.12116241455078,
       "lon": -7.254725456237793,
-      "frp": 19.005097389837143,
-      "confidence": "0.8945786356925964",
+      "frp": 12.321915789381748,
+      "confidence": "0.8568191528320312",
       "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-10-23T13:50:00Z"
+      "acq_time_utc": "2026-10-23T14:00:00Z"
     },
     {
-      "lat": 40.9525146484375,
-      "lon": -7.1961164474487305,
-      "frp": 8.374471013268083,
-      "confidence": "0.8420948386192322",
+      "lat": 38.469913482666016,
+      "lon": -6.247471332550049,
+      "frp": 13.683633389592215,
+      "confidence": "0.8843692541122437",
       "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-10-23T13:50:00Z"
-    },
-    {
-      "lat": 40.952293395996094,
-      "lon": -7.183557033538818,
-      "frp": 13.34391693941141,
-      "confidence": "0.87389075756073",
-      "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-10-23T13:50:00Z"
+      "acq_time_utc": "2026-10-23T14:00:00Z"
     },
     {
       "lat": 38.45669937133789,
       "lon": -6.246171951293945,
-      "frp": 7.7284489994414445,
-      "confidence": "0.7379090189933777",
+      "frp": 16.39558829487743,
+      "confidence": "0.9156655073165894",
       "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-10-23T13:50:00Z"
-    },
-    {
-      "lat": 36.85990524291992,
-      "lon": -6.212392330169678,
-      "frp": 7.4948241913614835,
-      "confidence": "0.6860319375991821",
-      "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-10-23T13:50:00Z"
+      "acq_time_utc": "2026-10-23T14:00:00Z"
     }
   ]
 }
