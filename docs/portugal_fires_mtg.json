@@ -1,39 +1,31 @@
 {
-  "generated_at": "2026-10-29T15:30:48.876544Z",
-  "source_file": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/2026/10/29/LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202610291510.csv.gz",
-  "source_timestamp_utc": "2026-10-29T15:10:00Z",
+  "generated_at": "2026-10-29T15:40:27.644491Z",
+  "source_file": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/2026/10/29/LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202610291520.csv.gz",
+  "source_timestamp_utc": "2026-10-29T15:20:00Z",
   "detections": [
     {
-      "lat": 41.76887512207031,
-      "lon": -7.960816383361816,
-      "frp": 4.842667597459259,
-      "confidence": "0.6017240285873413",
+      "lat": 38.863067626953125,
+      "lon": -6.830465793609619,
+      "frp": 6.7347741931181,
+      "confidence": "0.8304397463798523",
       "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-10-29T15:10:00Z"
+      "acq_time_utc": "2026-10-29T15:20:00Z"
     },
     {
-      "lat": 40.47214889526367,
-      "lon": -7.473341464996338,
-      "frp": 6.779527704658244,
-      "confidence": "0.785836398601532",
+      "lat": 37.92531967163086,
+      "lon": -6.694777011871338,
+      "frp": 4.466487425690002,
+      "confidence": "0.7184523940086365",
       "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-10-29T15:10:00Z"
-    },
-    {
-      "lat": 40.471923828125,
-      "lon": -7.460870742797852,
-      "frp": 8.43666668521185,
-      "confidence": "0.8035117983818054",
-      "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-10-29T15:10:00Z"
+      "acq_time_utc": "2026-10-29T15:20:00Z"
     },
     {
       "lat": 37.92513656616211,
       "lon": -6.682841777801514,
-      "frp": 5.297974700872964,
-      "confidence": "0.7818238735198975",
+      "frp": 5.6464686602785745,
+      "confidence": "0.7795771956443787",
       "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-10-29T15:10:00Z"
+      "acq_time_utc": "2026-10-29T15:20:00Z"
     }
   ]
 }
