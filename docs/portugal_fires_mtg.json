@@ -1,39 +1,39 @@
 {
-  "generated_at": "2026-11-01T19:20:24.745746Z",
-  "source_file": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/2026/11/01/LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202611011900.csv.gz",
-  "source_timestamp_utc": "2026-11-01T19:00:00Z",
+  "generated_at": "2026-11-01T19:30:41.557510Z",
+  "source_file": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/2026/11/01/LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202611011910.csv.gz",
+  "source_timestamp_utc": "2026-11-01T19:10:00Z",
   "detections": [
-    {
-      "lat": 41.7121696472168,
-      "lon": -7.965593338012695,
-      "frp": 19.569751117720635,
-      "confidence": "0.8995963335037231",
-      "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-11-01T19:00:00Z"
-    },
-    {
-      "lat": 41.69819641113281,
-      "lon": -7.976359844207764,
-      "frp": 23.927955654269873,
-      "confidence": "0.904880702495575",
-      "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-11-01T19:00:00Z"
-    },
     {
       "lat": 41.69794464111328,
       "lon": -7.963598251342773,
-      "frp": 76.28893459396113,
+      "frp": 72.10941924152817,
       "confidence": "1.0",
       "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-11-01T19:00:00Z"
+      "acq_time_utc": "2026-11-01T19:10:00Z"
+    },
+    {
+      "lat": 41.697696685791016,
+      "lon": -7.950837135314941,
+      "frp": 9.005758626972433,
+      "confidence": "0.861708402633667",
+      "satellite": "MTG-FCI",
+      "acq_time_utc": "2026-11-01T19:10:00Z"
     },
     {
       "lat": 41.68372344970703,
       "lon": -7.961605548858643,
-      "frp": 21.421407905322543,
-      "confidence": "0.9232921004295349",
+      "frp": 15.897646339768716,
+      "confidence": "0.9290328621864319",
       "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-11-01T19:00:00Z"
+      "acq_time_utc": "2026-11-01T19:10:00Z"
+    },
+    {
+      "lat": 40.936004638671875,
+      "lon": -7.821176052093506,
+      "frp": 4.8008240103388875,
+      "confidence": "0.5087006688117981",
+      "satellite": "MTG-FCI",
+      "acq_time_utc": "2026-11-01T19:10:00Z"
     }
   ]
 }
