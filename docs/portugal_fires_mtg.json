@@ -1,31 +1,39 @@
 {
-  "generated_at": "2026-11-02T09:40:30.817729Z",
-  "source_file": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/2026/11/02/LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202611020920.csv.gz",
-  "source_timestamp_utc": "2026-11-02T09:20:00Z",
+  "generated_at": "2026-11-02T09:50:31.528667Z",
+  "source_file": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/2026/11/02/LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202611020930.csv.gz",
+  "source_timestamp_utc": "2026-11-02T09:30:00Z",
   "detections": [
     {
-      "lat": 41.93744659423828,
-      "lon": -7.844041347503662,
-      "frp": 5.802764839679082,
-      "confidence": "0.6113042831420898",
+      "lat": 41.15451431274414,
+      "lon": -8.279479026794434,
+      "frp": 4.379031252662306,
+      "confidence": "0.23488721251487732",
       "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-11-02T09:20:00Z"
+      "acq_time_utc": "2026-11-02T09:30:00Z"
     },
     {
-      "lat": 41.09760665893555,
-      "lon": -8.233515739440918,
-      "frp": 8.085478059327372,
-      "confidence": "0.73539137840271",
+      "lat": 41.140472412109375,
+      "lon": -8.27746868133545,
+      "frp": 12.459471778440147,
+      "confidence": "0.8309292197227478",
       "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-11-02T09:20:00Z"
+      "acq_time_utc": "2026-11-02T09:30:00Z"
     },
     {
-      "lat": 41.097354888916016,
-      "lon": -8.22087287902832,
-      "frp": 8.143356085811153,
-      "confidence": "0.768090546131134",
+      "lat": 41.12643051147461,
+      "lon": -8.275460243225098,
+      "frp": 4.527451269949131,
+      "confidence": "0.591607928276062",
       "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-11-02T09:20:00Z"
+      "acq_time_utc": "2026-11-02T09:30:00Z"
+    },
+    {
+      "lat": 40.949913024902344,
+      "lon": -7.045443534851074,
+      "frp": 13.102631825074747,
+      "confidence": "0.8304397463798523",
+      "satellite": "MTG-FCI",
+      "acq_time_utc": "2026-11-02T09:30:00Z"
     }
   ]
 }
