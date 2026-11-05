@@ -1,55 +1,23 @@
 {
-  "generated_at": "2026-11-05T17:40:30.673812Z",
-  "source_file": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/2026/11/05/LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202611051720.csv.gz",
-  "source_timestamp_utc": "2026-11-05T17:20:00Z",
+  "generated_at": "2026-11-05T17:50:30.122259Z",
+  "source_file": "https://datalsasaf.lsasvcs.ipma.pt/PRODUCTS/MTG/MTFRPPixel/NATIVE/2026/11/05/LSA-509_MTG_MTFRPPIXEL-ListProduct_MTG-FD_202611051730.csv.gz",
+  "source_timestamp_utc": "2026-11-05T17:30:00Z",
   "detections": [
     {
       "lat": 41.82047653198242,
       "lon": -7.6876220703125,
-      "frp": 11.220705993548963,
-      "confidence": "0.8676603436470032",
+      "frp": 12.131328272279154,
+      "confidence": "0.8777260780334473",
       "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-11-05T17:20:00Z"
-    },
-    {
-      "lat": 41.81926727294922,
-      "lon": -7.623757362365723,
-      "frp": 5.435248131141374,
-      "confidence": "0.7677639126777649",
-      "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-11-05T17:20:00Z"
+      "acq_time_utc": "2026-11-05T17:30:00Z"
     },
     {
       "lat": 41.48711013793945,
       "lon": -8.035651206970215,
-      "frp": 9.147307097062926,
-      "confidence": "0.8578288555145264",
+      "frp": 5.321369526172846,
+      "confidence": "0.7867922782897949",
       "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-11-05T17:20:00Z"
-    },
-    {
-      "lat": 41.48685836791992,
-      "lon": -8.022933006286621,
-      "frp": 4.556704503341465,
-      "confidence": "0.7741687297821045",
-      "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-11-05T17:20:00Z"
-    },
-    {
-      "lat": 41.08829116821289,
-      "lon": -7.7535834312438965,
-      "frp": 4.189478580538592,
-      "confidence": "0.7583982348442078",
-      "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-11-05T17:20:00Z"
-    },
-    {
-      "lat": 40.90974807739258,
-      "lon": -7.140755653381348,
-      "frp": 4.793664162094389,
-      "confidence": "0.7824795246124268",
-      "satellite": "MTG-FCI",
-      "acq_time_utc": "2026-11-05T17:20:00Z"
+      "acq_time_utc": "2026-11-05T17:30:00Z"
     }
   ]
 }
