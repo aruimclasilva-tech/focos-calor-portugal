@@ -1918,7 +1918,7 @@ function etaBlockHtml(point) {
   }).sort((a, b) => a.min - b.min);
   const heliHtml = heliRows.map(e => `
     <div class="target-eta-row"${e.st.flying ? ' style="background:rgba(74,222,128,.12);border-left:3px solid #4ade80;padding-left:5px;"' : ''}>
-      <span>${e.st.flying ? '<b style="color:#4ade80;">🚁 ' + escapeHtml(e.nome) + ' · EM VOO</b> <small style="color:var(--muted);">(posição atual)</small>' : escapeHtml(e.nome) + ' <small style="color:var(--muted);">· desde a base (' + escapeHtml(e.local) + ', +' + HELI_ACTIVATION_MIN + ' min ativação)</small>'}</span>
+      <span>${e.st.flying ? '<b style="color:#4ade80;">🚁 ' + escapeHtml(e.nome) + ' · EM VOO</b> <small style="color:var(--muted);">(posição atual)</small>' : escapeHtml(e.nome) + ' <small style="color:var(--muted);">· Base</small>'}</span>
       <b${e.st.flying ? ' style="color:#4ade80;"' : ''}>${e.min.toFixed(0)} min <small style="color:var(--muted);">· ${e.distKm.toFixed(0)} km</small></b>
     </div>
   `).join('');
