@@ -1644,29 +1644,39 @@ function bearingDeg(lat1, lon1, lat2, lon2) {
 function updateHeliEqualLabels() {
   heliEqualLabelLayer.clearLayers();
   if (!heliEqualMeta.length) return;
+  // Afastado (vista geral) os nomes só poluem: escondem-se; num zoom
+  // intermédio ficam esbatidos e a partir daí ficam normais.
+  const z = map.getZoom();
+  if (z <= 7) return;
+  const alpha = z === 8 ? 0.55 : 1;
   const size = map.getSize();
   const m = 50; // margem interior (px)
   const center = L.point(size.x / 2, size.y / 2);
   heliEqualMeta.forEach(meta => {
-    let best = null, bestD = Infinity;
-    meta.pts.forEach(pt => {
+    let best = null, bestD = Infinity, bestI = -1;
+    meta.pts.forEach((pt, i) => {
       const c = map.latLngToContainerPoint(pt);
       if (c.x < m || c.y < m || c.x > size.x - m || c.y > size.y - m) return;
       const d = c.distanceTo(center);
-      if (d < bestD) { bestD = d; best = c; }
+      if (d < bestD) { bestD = d; best = c; bestI = i; }
     });
     if (!best) return;
+    // Ângulo da linha no ecrã, nesse ponto (mantido legível: nunca de cabeça para baixo).
+    const pa = map.latLngToContainerPoint(meta.pts[Math.max(0, bestI - 2)]);
+    const pb = map.latLngToContainerPoint(meta.pts[Math.min(meta.pts.length - 1, bestI + 2)]);
+    let ang = Math.atan2(pb.y - pa.y, pb.x - pa.x) * 180 / Math.PI;
+    if (ang > 90) ang -= 180; else if (ang <= -90) ang += 180;
+    const rad = ang * Math.PI / 180;
+    const nx = -Math.sin(rad), ny = Math.cos(rad); // normal à linha
     [meta.A, meta.B].forEach(h => {
       const hc = map.latLngToContainerPoint([h.lat, h.lon]);
-      let vx = hc.x - best.x, vy = hc.y - best.y;
-      const len = Math.hypot(vx, vy) || 1;
-      vx /= len; vy /= len;
-      const pos = map.containerPointToLatLng(L.point(best.x + vx * 13, best.y + vy * 13));
+      const side = ((hc.x - best.x) * nx + (hc.y - best.y) * ny) >= 0 ? 1 : -1;
+      const pos = map.containerPointToLatLng(L.point(best.x + nx * side * 11, best.y + ny * side * 11));
       L.marker(pos, {
         interactive: false, keyboard: false,
         icon: L.divIcon({
           className: 'heli-equal-label',
-          html: `<span style="position:absolute;transform:translate(-50%,-50%);white-space:nowrap;font:700 10px/1 sans-serif;color:#fff;background:rgba(0,0,0,.6);padding:2px 5px;border-radius:3px;border:1px solid #ef4444;">${escapeHtml(h.nome)}</span>`,
+          html: `<span style="position:absolute;left:0;top:0;transform:translate(-50%,-50%) rotate(${ang.toFixed(1)}deg);white-space:nowrap;font:700 10px/1 sans-serif;color:#fff;background:rgba(0,0,0,.6);padding:2px 5px;border-radius:3px;border:1px solid #ef4444;opacity:${alpha};">${escapeHtml(h.nome)}</span>`,
           iconSize: [0, 0]
         })
       }).addTo(heliEqualLabelLayer);
