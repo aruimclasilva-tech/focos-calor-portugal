@@ -1903,7 +1903,7 @@ function pointHosps(point) {
 }
 function addNearestHosps(point, level, n) {
   const have = new Set(pointHosps(point));
-  const near = HOSPITALS.filter(h => hospLevel(h) === level && !have.has(hospKey(h)))
+  const near = HOSPITALS.filter(h => (level === 'ALL' || hospLevel(h) === level) && !have.has(hospKey(h)))
     .map(h => ({ h, d: haversineKm(point.lat, point.lon, h.lat, h.lon) }))
     .sort((a, b) => a.d - b.d).slice(0, n);
   near.forEach(x => point.hosps.push(hospKey(x.h)));
@@ -1932,15 +1932,15 @@ function etaBlockHtml(point) {
       .map(h => ({ h, distKm: haversineKm(point.lat, point.lon, h.lat, h.lon) }))
       .map(x => ({ ...x, min: (x.distKm / (x.h.velocidade || 241)) * 60 }))
       .sort((a, b) => a.min - b.min);
-    const btn = (lvl) => `<button class="ghost hosp-near-btn" data-id="${point.id}" data-level="${lvl}" style="padding:2px 7px;font-size:10px;" title="Adicionar os 3 ${lvl} mais próximos">+ ${lvl}</button>`;
+    const btn = (lvl) => `<button class="ghost hosp-near-btn" data-id="${point.id}" data-level="${lvl}" style="padding:2px 7px;font-size:10px;" title="Adicionar os 3 mais próximos${lvl === 'ALL' ? ' (qualquer tipologia)' : ' ' + lvl}">+ ${lvl === 'ALL' ? 'Todos' : lvl}</button>`;
     hospHtml = `
       <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin:4px 0;">
         <small style="color:var(--muted);">Mais próximos:</small>
-        ${btn('SUMC')}${btn('SUP')}${btn('SUB')}
+        ${btn('ALL')}${btn('SUMC')}${btn('SUP')}${btn('SUB')}
         <button class="ghost hosp-clear-btn" data-id="${point.id}" style="padding:2px 7px;font-size:10px;" title="Limpar lista">✕ limpar</button>
       </div>
       <input type="text" class="hosp-search" data-id="${point.id}" placeholder="Procurar hospital…" autocomplete="off" style="width:100%;font-size:11px;">
-      <div class="hosp-dd" data-id="${point.id}" style="display:none;max-height:120px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;margin-top:2px;"></div>
+      <div class="hosp-dd" data-id="${point.id}" style="display:none;border:1px solid var(--line);border-radius:6px;margin-top:2px;"></div>
       <div style="max-height:150px;overflow-y:auto;margin-top:4px;">
         ${rows.length ? rows.map(e => `
           <div class="target-eta-row">
@@ -1996,12 +1996,17 @@ document.addEventListener('input', (e) => {
   const have = new Set(pointHosps(point));
   const res = HOSPITALS.filter(h => !have.has(hospKey(h)) && normSearch(h.local + ' ' + h.nome).includes(q))
     .map(h => ({ h, d: haversineKm(point.lat, point.lon, h.lat, h.lon) }))
-    .sort((a, b) => a.d - b.d).slice(0, 8);
+    .sort((a, b) => a.d - b.d).slice(0, 5);
   dd.style.display = '';
   dd.innerHTML = res.length ? res.map(x => `
     <div class="hosp-dd-item target-search-result" data-id="${point.id}" data-key="${escapeHtml(hospKey(x.h))}" style="cursor:pointer;">
       <small style="color:var(--muted);">${hospLevel(x.h)}</small> ${escapeHtml(hospLabel(x.h))} <small style="color:var(--muted);">· ${x.d.toFixed(0)} km</small>
     </div>`).join('') : '<div class="hint" style="padding:4px 6px;">Sem resultados.</div>';
+  // Recalcula o tamanho do balão e desloca o mapa para que os resultados
+  // fiquem sempre visíveis (sem ficarem escondidos atrás da borda).
+  const mk = targetMarkers[point.id];
+  const pop = mk && mk.getPopup && mk.getPopup();
+  if (pop && pop.update) pop.update();
 });
 
 function targetPointPopupHtml(point) {
