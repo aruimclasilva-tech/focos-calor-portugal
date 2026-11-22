@@ -2006,7 +2006,10 @@ document.addEventListener('input', (e) => {
   // fiquem sempre visíveis (sem ficarem escondidos atrás da borda).
   const mk = targetMarkers[point.id];
   const pop = mk && mk.getPopup && mk.getPopup();
-  if (pop && pop.update) pop.update();
+  // NÃO usar pop.update(): volta a escrever o conteúdo e apagava a caixa de texto.
+  if (pop && pop._container) {
+    try { pop._updateLayout(); pop._updatePosition(); pop._adjustPan(); } catch {}
+  }
 });
 
 function targetPointPopupHtml(point) {
