@@ -1618,6 +1618,59 @@ function buildHeliRangeCircle(idx, min) {
 let heliRangeChecked = {}; // { "idxMin": true }
 let heliInemMasterOn = false;
 
+// Linha de "chegada simultânea": lugar geométrico dos pontos a que dois
+// Heli INEM chegam ao mesmo tempo (mesma velocidade e mesma ativação =>
+// mediatriz entre as duas bases). Aparece para cada par de helis que
+// tenha pelo menos um anel ligado.
+const heliEqualLayer = L.layerGroup();
+function destPoint(lat, lon, bearingDeg, distKm) {
+  const R = 6371, d = distKm / R, br = bearingDeg * Math.PI / 180;
+  const p1 = lat * Math.PI / 180, l1 = lon * Math.PI / 180;
+  const p2 = Math.asin(Math.sin(p1) * Math.cos(d) + Math.cos(p1) * Math.sin(d) * Math.cos(br));
+  const l2 = l1 + Math.atan2(Math.sin(br) * Math.sin(d) * Math.cos(p1), Math.cos(d) - Math.sin(p1) * Math.sin(p2));
+  return [p2 * 180 / Math.PI, ((l2 * 180 / Math.PI + 540) % 360) - 180];
+}
+function bearingDeg(lat1, lon1, lat2, lon2) {
+  const t = Math.PI / 180, dl = (lon2 - lon1) * t;
+  const y = Math.sin(dl) * Math.cos(lat2 * t);
+  const x = Math.cos(lat1 * t) * Math.sin(lat2 * t) - Math.sin(lat1 * t) * Math.cos(lat2 * t) * Math.cos(dl);
+  return (Math.atan2(y, x) / t + 360) % 360;
+}
+function updateHeliEqualLines() {
+  heliEqualLayer.clearLayers();
+  const active = [];
+  INEM_HELIS.forEach((h, idx) => {
+    const any = heliInemMasterOn && heliInemVisible[idx] &&
+      HELI_RANGE_MINUTES.some(m => heliRangeChecked[`${idx}_${m}`]);
+    if (any) active.push(idx);
+  });
+  if (active.length < 2) { if (map.hasLayer(heliEqualLayer)) map.removeLayer(heliEqualLayer); return; }
+  const inBox = (pt) => pt[0] > 36.5 && pt[0] < 42.5 && pt[1] > -10.2 && pt[1] < -5.5;
+  for (let i = 0; i < active.length; i++) {
+    for (let j = i + 1; j < active.length; j++) {
+      const A = INEM_HELIS[active[i]], B = INEM_HELIS[active[j]];
+      // equalizar também a ativação/velocidade: se diferirem, a linha deixa
+      // de ser a mediatriz exata — aqui são iguais para todos os helis.
+      const dAB = haversineKm(A.lat, A.lon, B.lat, B.lon);
+      const brAB = bearingDeg(A.lat, A.lon, B.lat, B.lon);
+      const mid = destPoint(A.lat, A.lon, brAB, dAB / 2);
+      const perp = (brAB + 90) % 360;
+      const segs = []; let cur = [];
+      for (let k = -500; k <= 500; k += 5) {
+        const pt = k >= 0 ? destPoint(mid[0], mid[1], perp, k) : destPoint(mid[0], mid[1], (perp + 180) % 360, -k);
+        if (inBox(pt)) cur.push(pt); else if (cur.length) { segs.push(cur); cur = []; }
+      }
+      if (cur.length) segs.push(cur);
+      segs.forEach(seg => {
+        L.polyline(seg, { color: '#ffd166', weight: 2.5, opacity: .9, dashArray: '2 6', interactive: true })
+          .bindTooltip(`Chegada ao mesmo tempo: ${A.nome} = ${B.nome}`, { sticky: true })
+          .addTo(heliEqualLayer);
+      });
+    }
+  }
+  if (!map.hasLayer(heliEqualLayer)) heliEqualLayer.addTo(map);
+}
+
 function applyHeliRangeCircle(idx, min) {
   const key = `${idx}_${min}`;
   const shouldShow = heliInemMasterOn && heliInemVisible[idx] && !!heliRangeChecked[key];
@@ -1627,6 +1680,7 @@ function applyHeliRangeCircle(idx, min) {
   } else if (heliRangeCircles[key] && map.hasLayer(heliRangeCircles[key])) {
     map.removeLayer(heliRangeCircles[key]);
   }
+  updateHeliEqualLines();
 }
 
 function applyHeliVisibility(idx) {
