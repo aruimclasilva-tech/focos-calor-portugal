@@ -1556,7 +1556,29 @@ function buildHeliInemMarker(h, idx) {
     })
   });
   marker.bindPopup(heliInemPopupHtml(idx));
+  // Botão direito (ou toque prolongado) na base: escolher os anéis desse heli.
+  marker.on('contextmenu', () => {
+    L.popup({ closeButton: true, autoPan: true, offset: [0, -10] })
+      .setLatLng([h.lat, h.lon])
+      .setContent(heliRingsPopupHtml(idx))
+      .openOn(map);
+  });
   return marker;
+}
+
+function heliRingsPopupHtml(idx) {
+  const h = INEM_HELIS[idx];
+  return `
+    <div class="popup-title">⭕ Anéis — ${escapeHtml(h.nome)}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:6px;">
+      ${HELI_RANGE_MINUTES.map(min => `
+        <label class="range-mini" style="color:${heliRangeColor(min)};cursor:pointer;">
+          <input type="checkbox" class="heli-range-toggle" data-idx="${idx}" data-min="${min}" ${heliRangeChecked[`${idx}_${min}`] ? 'checked' : ''}>
+          <span>${min}"</span>
+        </label>`).join('')}
+    </div>
+    <div class="hint" style="margin-top:6px;">Tempo de voo (sem os ${HELI_ACTIVATION_MIN} min de ativação).</div>
+  `;
 }
 
 function renderHeliInem() {
@@ -1752,6 +1774,8 @@ function applyHeliVisibility(idx) {
 
 function heliRangeToggle(idx, min, on) {
   heliRangeChecked[`${idx}_${min}`] = on;
+  // Mantém em sintonia o painel e o balão (as duas listas de caixas).
+  document.querySelectorAll(`.heli-range-toggle[data-idx="${idx}"][data-min="${min}"]`).forEach(cb => { cb.checked = on; });
   applyHeliRangeCircle(idx, min);
   saveHeliInemState();
 }
