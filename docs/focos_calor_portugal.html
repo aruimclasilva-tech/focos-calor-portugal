@@ -1662,7 +1662,7 @@ function updateHeliEqualLines() {
       }
       if (cur.length) segs.push(cur);
       segs.forEach(seg => {
-        L.polyline(seg, { color: '#ffd166', weight: 2.5, opacity: .9, dashArray: '2 6', interactive: true })
+        L.polyline(seg, { color: '#ef4444', weight: 2.5, opacity: .9, dashArray: '2 6', interactive: true })
           .bindTooltip(`Chegada ao mesmo tempo: ${A.nome} = ${B.nome}`, { sticky: true })
           .addTo(heliEqualLayer);
       });
