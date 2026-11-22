@@ -1623,6 +1623,8 @@ let heliInemMasterOn = false;
 // mediatriz entre as duas bases). Aparece para cada par de helis que
 // tenha pelo menos um anel ligado.
 const heliEqualLayer = L.layerGroup();
+const heliEqualLabelLayer = L.layerGroup();
+let heliEqualMeta = []; // [{ pts: [[lat,lon]...], A, B }]
 function destPoint(lat, lon, bearingDeg, distKm) {
   const R = 6371, d = distKm / R, br = bearingDeg * Math.PI / 180;
   const p1 = lat * Math.PI / 180, l1 = lon * Math.PI / 180;
@@ -1636,15 +1638,58 @@ function bearingDeg(lat1, lon1, lat2, lon2) {
   const x = Math.cos(lat1 * t) * Math.sin(lat2 * t) - Math.sin(lat1 * t) * Math.cos(lat2 * t) * Math.cos(dl);
   return (Math.atan2(y, x) / t + 360) % 360;
 }
+// Nomes dos dois helis junto a cada linha: o nome do heli que fica de um
+// lado por cima da linha e o do outro lado por baixo (em ecrã). A posição
+// é recalculada ao mover/fazer zoom para ficar sempre dentro da vista.
+function updateHeliEqualLabels() {
+  heliEqualLabelLayer.clearLayers();
+  if (!heliEqualMeta.length) return;
+  const size = map.getSize();
+  const m = 50; // margem interior (px)
+  const center = L.point(size.x / 2, size.y / 2);
+  heliEqualMeta.forEach(meta => {
+    let best = null, bestD = Infinity;
+    meta.pts.forEach(pt => {
+      const c = map.latLngToContainerPoint(pt);
+      if (c.x < m || c.y < m || c.x > size.x - m || c.y > size.y - m) return;
+      const d = c.distanceTo(center);
+      if (d < bestD) { bestD = d; best = c; }
+    });
+    if (!best) return;
+    [meta.A, meta.B].forEach(h => {
+      const hc = map.latLngToContainerPoint([h.lat, h.lon]);
+      let vx = hc.x - best.x, vy = hc.y - best.y;
+      const len = Math.hypot(vx, vy) || 1;
+      vx /= len; vy /= len;
+      const pos = map.containerPointToLatLng(L.point(best.x + vx * 13, best.y + vy * 13));
+      L.marker(pos, {
+        interactive: false, keyboard: false,
+        icon: L.divIcon({
+          className: 'heli-equal-label',
+          html: `<span style="position:absolute;transform:translate(-50%,-50%);white-space:nowrap;font:700 10px/1 sans-serif;color:#fff;background:rgba(0,0,0,.6);padding:2px 5px;border-radius:3px;border:1px solid #ef4444;">${escapeHtml(h.nome)}</span>`,
+          iconSize: [0, 0]
+        })
+      }).addTo(heliEqualLabelLayer);
+    });
+  });
+  if (!map.hasLayer(heliEqualLabelLayer)) heliEqualLabelLayer.addTo(map);
+}
+map.on('moveend zoomend', updateHeliEqualLabels);
+
 function updateHeliEqualLines() {
   heliEqualLayer.clearLayers();
+  heliEqualMeta = [];
   const active = [];
   INEM_HELIS.forEach((h, idx) => {
     const any = heliInemMasterOn && heliInemVisible[idx] &&
       HELI_RANGE_MINUTES.some(m => heliRangeChecked[`${idx}_${m}`]);
     if (any) active.push(idx);
   });
-  if (active.length < 2) { if (map.hasLayer(heliEqualLayer)) map.removeLayer(heliEqualLayer); return; }
+  if (active.length < 2) {
+    if (map.hasLayer(heliEqualLayer)) map.removeLayer(heliEqualLayer);
+    updateHeliEqualLabels();
+    return;
+  }
   const inBox = (pt) => pt[0] > 36.5 && pt[0] < 42.5 && pt[1] > -10.2 && pt[1] < -5.5;
   for (let i = 0; i < active.length; i++) {
     for (let j = i + 1; j < active.length; j++) {
@@ -1661,6 +1706,7 @@ function updateHeliEqualLines() {
         if (inBox(pt)) cur.push(pt); else if (cur.length) { segs.push(cur); cur = []; }
       }
       if (cur.length) segs.push(cur);
+      heliEqualMeta.push({ pts: [].concat(...segs), A, B });
       segs.forEach(seg => {
         L.polyline(seg, { color: '#ef4444', weight: 2.5, opacity: .9, dashArray: '2 6', interactive: true })
           .bindTooltip(`Chegada ao mesmo tempo: ${A.nome} = ${B.nome}`, { sticky: true })
@@ -1669,6 +1715,7 @@ function updateHeliEqualLines() {
     }
   }
   if (!map.hasLayer(heliEqualLayer)) heliEqualLayer.addTo(map);
+  updateHeliEqualLabels();
 }
 
 function applyHeliRangeCircle(idx, min) {
