@@ -1401,10 +1401,10 @@ renderHeliPrimarios();
 // vivo do meio).
 // ---------------------------------------------------------------
 const INEM_HELIS = [
-  { nome: 'Heli Norte', local: 'Macedo de Cavaleiros', modelo: 'H145', velocidade: 241, tempoInicio: '0:05:00', lat: 41.539071, lon: -6.959911, matricula: '9H-GMF' },
-  { nome: 'Heli Centro', local: 'Viseu', modelo: 'H145', velocidade: 241, tempoInicio: '0:05:00', lat: 40.72785485, lon: -7.889402708, matricula: '9H-MIA' },
-  { nome: 'Heli Sul', local: 'Évora', modelo: 'H145', velocidade: 241, tempoInicio: '0:05:00', lat: 38.53123082, lon: -7.888340203, matricula: '9H-GMA' },
-  { nome: 'Heli Algarve', local: 'Loulé', modelo: 'H145', velocidade: 241, tempoInicio: '0:05:00', lat: 37.138955, lon: -8.022851, matricula: '9H-GME' }
+  { nome: 'Heli Norte', local: 'Macedo de Cavaleiros', modelo: 'H145', velocidade: 230, tempoInicio: '0:05:00', lat: 41.539071, lon: -6.959911, matricula: '9H-GMF' },
+  { nome: 'Heli Centro', local: 'Viseu', modelo: 'H145', velocidade: 230, tempoInicio: '0:05:00', lat: 40.72785485, lon: -7.889402708, matricula: '9H-MIA' },
+  { nome: 'Heli Sul', local: 'Évora', modelo: 'H145', velocidade: 230, tempoInicio: '0:05:00', lat: 38.53123082, lon: -7.888340203, matricula: '9H-GMA' },
+  { nome: 'Heli Algarve', local: 'Loulé', modelo: 'H145', velocidade: 230, tempoInicio: '0:05:00', lat: 37.138955, lon: -8.022851, matricula: '9H-GME' }
 ];
 
 // Grupo de matrículas conhecidas de Heli INEM (podem ser atribuídas a
@@ -1574,7 +1574,7 @@ document.addEventListener('change', (e) => {
 
 // ---------------------------------------------------------------
 // Raio de ação (Heli INEM) — círculo de alcance por tempo de voo,
-// calculado a partir da velocidade de cada aeronave (241 Km/h).
+// calculado a partir da velocidade de cada aeronave (230 Km/h).
 // Cada meio tem os seus próprios anéis, ligados/desligados
 // individualmente a partir da linha desse meio no painel.
 // ---------------------------------------------------------------
@@ -1892,7 +1892,7 @@ function computeEtas(point, sources, speedKey, activationMin) {
   // conta relevo/rota real) — serve como estimativa, não como navegação.
   return sources.map(s => {
     const distKm = haversineKm(point.lat, point.lon, s.lat, s.lon);
-    const speed = s[speedKey] || 241;
+    const speed = s[speedKey] || 230;
     const flightMin = (distKm / speed) * 60;
     const totalMin = flightMin + (activationMin || 0);
     return { nome: s.nome, local: s.local, distKm, flightMin, totalMin };
@@ -1967,7 +1967,7 @@ function etaBlockHtml(point) {
   const heliRows = INEM_HELIS.map((h, idx) => {
     const st = inemHeliStart(idx);
     const distKm = haversineKm(point.lat, point.lon, st.lat, st.lon);
-    const min = (distKm / (h.velocidade || 241)) * 60 + (st.flying ? 0 : HELI_ACTIVATION_MIN);
+    const min = (distKm / (h.velocidade || 230)) * 60 + (st.flying ? 0 : HELI_ACTIVATION_MIN);
     return { nome: h.nome, local: h.local, st, distKm, min };
   }).sort((a, b) => a.min - b.min);
   const heliHtml = heliRows.map(e => `
@@ -1984,7 +1984,7 @@ function etaBlockHtml(point) {
     const keys = pointHosps(point);
     const rows = keys.map(k => HOSPITALS.find(h => hospKey(h) === k)).filter(Boolean)
       .map(h => ({ h, distKm: haversineKm(point.lat, point.lon, h.lat, h.lon) }))
-      .map(x => ({ ...x, min: (x.distKm / (x.h.velocidade || 241)) * 60 }))
+      .map(x => ({ ...x, min: (x.distKm / (x.h.velocidade || 230)) * 60 }))
       .sort((a, b) => a.min - b.min);
     const btn = (lvl) => `<button class="ghost hosp-near-btn" data-id="${point.id}" data-level="${lvl}" style="padding:2px 7px;font-size:10px;" title="Adicionar os 3 mais próximos${lvl === 'ALL' ? ' (qualquer tipologia)' : ' ' + lvl}">+ ${lvl === 'ALL' ? 'Todos' : lvl}</button>`;
     hospHtml = `
