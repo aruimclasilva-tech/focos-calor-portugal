@@ -611,7 +611,8 @@
         <div class="hint">
           Coloca pontos no mapa (ex.: locais de incidentes) clicando no
           mapa ou pesquisando uma morada. Cada ponto mostra o tempo
-          estimado de cada Heli INEM e dos hospitais mais próximos.
+          estimado de cada Heli INEM (a partir da posição atual se estiver em
+          voo, ou da base) e dos hospitais que escolheres (SUMC, SUP, SUB).
           Ficam guardados neste browser até os removeres.
         </div>
         <div style="display:flex;gap:6px;margin-top:10px;">
@@ -1844,12 +1845,81 @@ function computeEtas(point, sources, speedKey, activationMin) {
   }).sort((a, b) => a.totalMin - b.totalMin);
 }
 
+// Última posição conhecida dos Heli INEM (aircraft_last_seen.json), em cache
+// para o balão dos pontos — o balão é construído de forma síncrona.
+let inemLastSeenCache = null;      // { matrícula: {t, lat, lon} }
+let inemLastSeenCacheAt = 0;
+async function ensureInemLastSeen(maxAgeMs) {
+  if (inemLastSeenCache && Date.now() - inemLastSeenCacheAt < (maxAgeMs ?? 30000)) return inemLastSeenCache;
+  try {
+    inemLastSeenCache = await fetchInemLastSeen();
+    inemLastSeenCacheAt = Date.now();
+  } catch {}
+  return inemLastSeenCache;
+}
+
+// Posição de partida de cada Heli INEM para o cálculo do tempo ao ponto:
+// - em voo (a ser visto ao vivo, não no solo, ou última posição com menos
+//   de ~7 min): parte da posição atual, sem tempo de ativação;
+// - caso contrário: parte da base, com o tempo de ativação.
+function inemHeliStart(idx) {
+  const h = INEM_HELIS[idx];
+  const base = { lat: h.lat, lon: h.lon, flying: false, ageMin: null };
+  const matricula = inemBaseMatricula(idx);
+  const norm = normalizeAircraftIdent(matricula);
+  if (norm) {
+    const live = Object.values(aircraftLastData).find(d =>
+      d.ac && d.ac.lat != null && d.ac.lon != null &&
+      (normalizeAircraftIdent(d.ac.r) === norm || normalizeAircraftIdent(d.ac.flight) === norm));
+    if (live && live.ac.alt_baro !== 'ground') {
+      return { lat: live.ac.lat, lon: live.ac.lon, flying: true, ageMin: 0 };
+    }
+    const last = inemLastSeenCache && inemLastSeenCache[matricula];
+    if (last && typeof last.lat === 'number' && typeof last.lon === 'number' && last.t) {
+      const ageMs = Date.now() - new Date(last.t).getTime();
+      if (ageMs < INEM_TAKEOFF_FRESH_MS) {
+        return { lat: last.lat, lon: last.lon, flying: true, ageMin: Math.round(ageMs / 60000) };
+      }
+    }
+  }
+  return base;
+}
+
+function hospLevel(h) { return (h.local.split(' ')[0] || '').toUpperCase(); }
+function hospKey(h) { return h.local; }
+function hospLabel(h) { return h.local.replace(/^(SUMC|SUP|SUB)\s+/, ''); }
+function normSearch(t) { return (t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+
+// Hospitais escolhidos para cada ponto (point.hosps = lista de chaves).
+// Por omissão: os 3 mais próximos de qualquer nível SU.
+function defaultHospKeys(point) {
+  return HOSPITALS
+    .map(h => ({ h, d: haversineKm(point.lat, point.lon, h.lat, h.lon) }))
+    .sort((a, b) => a.d - b.d).slice(0, 3).map(x => hospKey(x.h));
+}
+function pointHosps(point) {
+  if (!Array.isArray(point.hosps)) point.hosps = defaultHospKeys(point);
+  return point.hosps;
+}
+function addNearestHosps(point, level, n) {
+  const have = new Set(pointHosps(point));
+  const near = HOSPITALS.filter(h => hospLevel(h) === level && !have.has(hospKey(h)))
+    .map(h => ({ h, d: haversineKm(point.lat, point.lon, h.lat, h.lon) }))
+    .sort((a, b) => a.d - b.d).slice(0, n);
+  near.forEach(x => point.hosps.push(hospKey(x.h)));
+}
+
 function etaBlockHtml(point) {
-  const heliEtas = computeEtas(point, INEM_HELIS, 'velocidade', HELI_ACTIVATION_MIN);
-  const heliHtml = heliEtas.map(e => `
+  const heliRows = INEM_HELIS.map((h, idx) => {
+    const st = inemHeliStart(idx);
+    const distKm = haversineKm(point.lat, point.lon, st.lat, st.lon);
+    const min = (distKm / (h.velocidade || 241)) * 60 + (st.flying ? 0 : HELI_ACTIVATION_MIN);
+    return { nome: h.nome, local: h.local, st, distKm, min };
+  }).sort((a, b) => a.min - b.min);
+  const heliHtml = heliRows.map(e => `
     <div class="target-eta-row">
-      <span>${e.nome} <small style="color:var(--muted);">(${e.local})</small></span>
-      <b>${e.totalMin.toFixed(0)} min <small style="color:var(--muted);">· ${e.distKm.toFixed(0)} km</small></b>
+      <span>${escapeHtml(e.nome)} <small style="color:var(--muted);">${e.st.flying ? '· em voo (posição atual)' : '· desde a base (' + escapeHtml(e.local) + ', +' + HELI_ACTIVATION_MIN + ' min ativação)'}</small></span>
+      <b>${e.min.toFixed(0)} min <small style="color:var(--muted);">· ${e.distKm.toFixed(0)} km</small></b>
     </div>
   `).join('');
 
@@ -1857,17 +1927,27 @@ function etaBlockHtml(point) {
   if (HOSPITALS.length === 0) {
     hospHtml = `<div class="hint">Lista de hospitais ainda não carregada.</div>`;
   } else {
-    const HOSP_SHOW = 6;
-    const hospEtas = computeEtas(point, HOSPITALS, 'velocidade', 0);
-    const top = hospEtas.slice(0, HOSP_SHOW);
+    const keys = pointHosps(point);
+    const rows = keys.map(k => HOSPITALS.find(h => hospKey(h) === k)).filter(Boolean)
+      .map(h => ({ h, distKm: haversineKm(point.lat, point.lon, h.lat, h.lon) }))
+      .map(x => ({ ...x, min: (x.distKm / (x.h.velocidade || 241)) * 60 }))
+      .sort((a, b) => a.min - b.min);
+    const btn = (lvl) => `<button class="ghost hosp-near-btn" data-id="${point.id}" data-level="${lvl}" style="padding:2px 7px;font-size:10px;" title="Adicionar os 3 ${lvl} mais próximos">+ ${lvl}</button>`;
     hospHtml = `
-      <div style="max-height:130px;overflow-y:auto;">
-        ${top.map(e => `
+      <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin:4px 0;">
+        <small style="color:var(--muted);">Mais próximos:</small>
+        ${btn('SUMC')}${btn('SUP')}${btn('SUB')}
+        <button class="ghost hosp-clear-btn" data-id="${point.id}" style="padding:2px 7px;font-size:10px;" title="Limpar lista">✕ limpar</button>
+      </div>
+      <input type="text" class="hosp-search" data-id="${point.id}" placeholder="Procurar hospital…" autocomplete="off" style="width:100%;font-size:11px;">
+      <div class="hosp-dd" data-id="${point.id}" style="display:none;max-height:120px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;margin-top:2px;"></div>
+      <div style="max-height:150px;overflow-y:auto;margin-top:4px;">
+        ${rows.length ? rows.map(e => `
           <div class="target-eta-row">
-            <span>${e.nome} <small style="color:var(--muted);">(${e.local})</small></span>
-            <b>${e.flightMin.toFixed(0)} min <small style="color:var(--muted);">· ${e.distKm.toFixed(0)} km</small></b>
-          </div>
-        `).join('')}
+            <span><small style="color:var(--muted);">${hospLevel(e.h)}</small> ${escapeHtml(hospLabel(e.h))}</span>
+            <b>${e.min.toFixed(0)} min <small style="color:var(--muted);">· ${e.distKm.toFixed(0)} km</small>
+              <a href="#" class="hosp-remove" data-id="${point.id}" data-key="${escapeHtml(hospKey(e.h))}" title="Remover" style="color:var(--muted);text-decoration:none;margin-left:4px;">✕</a></b>
+          </div>`).join('') : '<div class="hint">Nenhum hospital — usa a pesquisa ou os botões acima.</div>'}
       </div>
     `;
   }
@@ -1879,6 +1959,50 @@ function etaBlockHtml(point) {
     ${hospHtml}
   `;
 }
+
+function refreshTargetPopup(id) {
+  const point = targetPoints.find(p => p.id === Number(id));
+  const marker = point && targetMarkers[point.id];
+  if (marker) marker.setPopupContent(targetPointPopupHtml(point));
+}
+
+document.addEventListener('click', (e) => {
+  const near = e.target.closest('.hosp-near-btn');
+  const clr = e.target.closest('.hosp-clear-btn');
+  const rem = e.target.closest('.hosp-remove');
+  const opt = e.target.closest('.hosp-dd-item');
+  const el = near || clr || rem || opt;
+  if (!el) return;
+  e.preventDefault();
+  const point = targetPoints.find(p => p.id === Number(el.dataset.id));
+  if (!point) return;
+  pointHosps(point);
+  if (near) addNearestHosps(point, near.dataset.level, 3);
+  else if (clr) point.hosps = [];
+  else if (rem) point.hosps = point.hosps.filter(k => k !== rem.dataset.key);
+  else if (opt && !point.hosps.includes(opt.dataset.key)) point.hosps.push(opt.dataset.key);
+  saveTargetPoints();
+  refreshTargetPopup(point.id);
+});
+
+document.addEventListener('input', (e) => {
+  const inp = e.target.closest && e.target.closest('.hosp-search');
+  if (!inp) return;
+  const point = targetPoints.find(p => p.id === Number(inp.dataset.id));
+  const dd = inp.parentElement.querySelector('.hosp-dd');
+  if (!point || !dd) return;
+  const q = normSearch(inp.value.trim());
+  if (!q) { dd.style.display = 'none'; dd.innerHTML = ''; return; }
+  const have = new Set(pointHosps(point));
+  const res = HOSPITALS.filter(h => !have.has(hospKey(h)) && normSearch(h.local + ' ' + h.nome).includes(q))
+    .map(h => ({ h, d: haversineKm(point.lat, point.lon, h.lat, h.lon) }))
+    .sort((a, b) => a.d - b.d).slice(0, 8);
+  dd.style.display = '';
+  dd.innerHTML = res.length ? res.map(x => `
+    <div class="hosp-dd-item target-search-result" data-id="${point.id}" data-key="${escapeHtml(hospKey(x.h))}" style="cursor:pointer;">
+      <small style="color:var(--muted);">${hospLevel(x.h)}</small> ${escapeHtml(hospLabel(x.h))} <small style="color:var(--muted);">· ${x.d.toFixed(0)} km</small>
+    </div>`).join('') : '<div class="hint" style="padding:4px 6px;">Sem resultados.</div>';
+});
 
 function targetPointPopupHtml(point) {
   return `
@@ -1975,6 +2099,14 @@ function addTargetPoint(lat, lon, label) {
   });
   marker.bindTooltip(point.label || `${lat.toFixed(5)}, ${lon.toFixed(5)}`, { direction: 'top', offset: [0, -20] });
   marker.bindPopup(targetPointPopupHtml(point), { maxWidth: 300, minWidth: 240 });
+  marker.on('popupopen', async () => {
+    refreshTargetPopup(point.id);
+    await ensureInemLastSeen(30000);
+    if (marker.isPopupOpen && marker.isPopupOpen()) {
+      const ae = document.activeElement;
+      if (!(ae && ae.classList && ae.classList.contains('hosp-search'))) refreshTargetPopup(point.id);
+    }
+  });
   marker.on('dragend', () => {
     const pos = marker.getLatLng();
     point.lat = pos.lat; point.lon = pos.lng;
@@ -4550,7 +4682,8 @@ try {
     // formato atual: lista de pontos
     savedTarget.forEach(p => {
       if (p && typeof p.lat === 'number' && typeof p.lon === 'number') {
-        addTargetPoint(p.lat, p.lon, p.label || null);
+        const np = addTargetPoint(p.lat, p.lon, p.label || null);
+        if (Array.isArray(p.hosps)) { np.hosps = p.hosps; refreshTargetPopup(np.id); saveTargetPoints(); }
       }
     });
   } else if (savedTarget && typeof savedTarget.lat === 'number' && typeof savedTarget.lon === 'number') {
